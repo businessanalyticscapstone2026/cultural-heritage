@@ -1,17 +1,21 @@
-import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
+import Header from "@/components/header";
+import HeroSection from "@/components/hero-section";
+import FeaturedMunicipalities from "@/components/featured-municipalities";
+import MapSection from "@/components/map-section";
+import RecommendedSection from "@/components/recommended-section";
+import SiteFooter from "@/components/site-footer";
 
-export default async function Page() {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
-  const { data: todos } = await supabase.from('todos').select()
-
+export default function HomePage() {
   return (
-    <ul>
-      {todos?.map((todo) => (
-        <li key={todo.id}>{todo.name}</li>
-      ))}
-    </ul>
-  )
+    <>
+      <Header />
+      <main>
+        <HeroSection />
+        <FeaturedMunicipalities />
+        <MapSection />
+        <RecommendedSection />
+      </main>
+      <SiteFooter />
+    </>
+  );
 }

@@ -10,6 +10,7 @@ export default function HeroSection() {
         alt="Basilica Minore de San Martin de Tours - Taal, Batangas"
         fill
         preload
+        loading="eager"
         className="object-cover"
         sizes="100vw"
       />

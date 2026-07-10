@@ -4,7 +4,7 @@ import { createServerClient } from "@supabase/ssr"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 
-const publicRoutes = ["/", "/login", "/signup", "/explore", "/map", "/recommendations", "/routes"]
+const publicRoutes = ["/", "/login", "/register", "/signup", "/explore", "/map", "/recommendations", "/routes", "/mto/login", "/ptcao/login"]
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isAuthenticated && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/explore", request.url))
+    return NextResponse.redirect(new URL("/tourist/dashboard", request.url))
   }
 
   return supabaseResponse

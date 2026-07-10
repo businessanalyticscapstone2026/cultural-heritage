@@ -1,0 +1,296 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.municipalities (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+name text NOT NULL UNIQUE,
+type text NOT NULL CHECK (type = ANY (ARRAY['municipality'::text, 'city'::text])),
+province text NOT NULL DEFAULT 'Batangas'::text,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT municipalities_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.roles (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+name text NOT NULL UNIQUE,
+description text,
+status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text])),
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT roles_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.permissions (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+module text NOT NULL,
+action text NOT NULL CHECK (action = ANY (ARRAY['view'::text, 'add'::text, 'edit'::text, 'delete'::text, 'export'::text, 'approve'::text, 'manage'::text])),
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT permissions_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.role_permissions (
+role_id uuid NOT NULL,
+permission_id uuid NOT NULL,
+granted boolean NOT NULL DEFAULT true,
+CONSTRAINT role_permissions_pkey PRIMARY KEY (role_id, permission_id),
+CONSTRAINT role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id),
+CONSTRAINT role_permissions_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES public.permissions(id)
+);
+CREATE TABLE public.staff_profiles (
+id uuid NOT NULL,
+first_name text,
+last_name text,
+username text UNIQUE,
+role_id uuid,
+municipality_id uuid,
+account_status text NOT NULL DEFAULT 'active'::text CHECK (account_status = ANY (ARRAY['active'::text, 'inactive'::text])),
+created_by uuid,
+last_login timestamp with time zone,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT staff_profiles_pkey PRIMARY KEY (id),
+CONSTRAINT staff_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+CONSTRAINT staff_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id),
+CONSTRAINT staff_profiles_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id),
+CONSTRAINT staff_profiles_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff_profiles(id)
+);
+CREATE TABLE public.tourist_profiles (
+id uuid NOT NULL,
+first_name text,
+last_name text,
+interests ARRAY,
+preferred_category_ids ARRAY,
+home_latitude numeric,
+home_longitude numeric,
+account_status text NOT NULL DEFAULT 'active'::text CHECK (account_status = ANY (ARRAY['active'::text, 'inactive'::text])),
+last_login timestamp with time zone,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT tourist_profiles_pkey PRIMARY KEY (id),
+CONSTRAINT tourist_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.heritage_categories (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+name text NOT NULL UNIQUE,
+description text,
+icon text,
+color text,
+display_order integer,
+status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text])),
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT heritage_categories_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.heritage_sites (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+site_name text NOT NULL,
+alternative_name text,
+category_id uuid,
+municipality_id uuid,
+barangay text,
+exact_address text,
+short_description text,
+detailed_description text,
+historical_period text,
+year_established text,
+architect_builder text,
+architectural_style text,
+historical_significance text,
+cultural_significance text,
+latitude numeric,
+longitude numeric,
+elevation numeric,
+geo_accuracy text,
+accessibility_info text,
+operating_hours text,
+publication_status text NOT NULL DEFAULT 'draft'::text CHECK (publication_status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])),
+is_featured boolean NOT NULL DEFAULT false,
+visibility text NOT NULL DEFAULT 'public'::text,
+created_by uuid,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT heritage_sites_pkey PRIMARY KEY (id),
+CONSTRAINT heritage_sites_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.heritage_categories(id),
+CONSTRAINT heritage_sites_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id),
+CONSTRAINT heritage_sites_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff_profiles(id)
+);
+CREATE TABLE public.heritage_site_media (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+site_id uuid NOT NULL,
+media_type text NOT NULL CHECK (media_type = ANY (ARRAY['image'::text, 'video'::text, 'brochure'::text, 'document'::text])),
+file_url text NOT NULL,
+caption text,
+uploaded_by uuid,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT heritage_site_media_pkey PRIMARY KEY (id),
+CONSTRAINT heritage_site_media_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id),
+CONSTRAINT heritage_site_media_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.staff_profiles(id)
+);
+CREATE TABLE public.heritage_site_tags (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+site_id uuid NOT NULL,
+tag text NOT NULL,
+CONSTRAINT heritage_site_tags_pkey PRIMARY KEY (id),
+CONSTRAINT heritage_site_tags_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id)
+);
+CREATE TABLE public.heritage_site_reference_links (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+site_id uuid NOT NULL,
+url text NOT NULL,
+label text,
+CONSTRAINT heritage_site_reference_links_pkey PRIMARY KEY (id),
+CONSTRAINT heritage_site_reference_links_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id)
+);
+CREATE TABLE public.bookmarks (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+tourist_id uuid NOT NULL,
+site_id uuid NOT NULL,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT bookmarks_pkey PRIMARY KEY (id),
+CONSTRAINT bookmarks_tourist_id_fkey FOREIGN KEY (tourist_id) REFERENCES public.tourist_profiles(id),
+CONSTRAINT bookmarks_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id)
+);
+CREATE TABLE public.reviews (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+tourist_id uuid,
+site_id uuid NOT NULL,
+rating integer NOT NULL CHECK (rating >= 1 AND rating <= 5),
+comment text,
+status text NOT NULL DEFAULT 'published'::text CHECK (status = ANY (ARRAY['published'::text, 'flagged'::text, 'hidden'::text])),
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT reviews_pkey PRIMARY KEY (id),
+CONSTRAINT reviews_tourist_id_fkey FOREIGN KEY (tourist_id) REFERENCES public.tourist_profiles(id),
+CONSTRAINT reviews_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id)
+);
+CREATE TABLE public.recommendations (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+tourist_id uuid,
+session_id text,
+site_id uuid NOT NULL,
+score numeric,
+method text CHECK (method = ANY (ARRAY['content_based'::text, 'location_aware'::text, 'weighted_hybrid'::text])),
+generated_at timestamp with time zone NOT NULL DEFAULT now(),
+was_clicked boolean NOT NULL DEFAULT false,
+clicked_at timestamp with time zone,
+led_to_route boolean NOT NULL DEFAULT false,
+CONSTRAINT recommendations_pkey PRIMARY KEY (id),
+CONSTRAINT recommendations_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id),
+CONSTRAINT recommendations_tourist_id_fkey FOREIGN KEY (tourist_id) REFERENCES public.tourist_profiles(id)
+);
+CREATE TABLE public.site_distances (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+site_a_id uuid NOT NULL,
+site_b_id uuid NOT NULL,
+distance_km numeric NOT NULL,
+travel_time_minutes integer,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT site_distances_pkey PRIMARY KEY (id),
+CONSTRAINT site_distances_site_a_id_fkey FOREIGN KEY (site_a_id) REFERENCES public.heritage_sites(id),
+CONSTRAINT site_distances_site_b_id_fkey FOREIGN KEY (site_b_id) REFERENCES public.heritage_sites(id)
+);
+CREATE TABLE public.routes (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+tourist_id uuid,
+name text,
+total_distance_km numeric,
+total_duration_minutes integer,
+status text NOT NULL DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'completed'::text])),
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT routes_pkey PRIMARY KEY (id),
+CONSTRAINT routes_tourist_id_fkey FOREIGN KEY (tourist_id) REFERENCES public.tourist_profiles(id)
+);
+CREATE TABLE public.route_stops (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+route_id uuid NOT NULL,
+site_id uuid NOT NULL,
+stop_order integer NOT NULL,
+distance_from_prev_km numeric,
+estimated_arrival timestamp with time zone,
+CONSTRAINT route_stops_pkey PRIMARY KEY (id),
+CONSTRAINT route_stops_route_id_fkey FOREIGN KEY (route_id) REFERENCES public.routes(id),
+CONSTRAINT route_stops_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id)
+);
+CREATE TABLE public.qr_codes (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+site_id uuid NOT NULL,
+code_value text NOT NULL UNIQUE,
+status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text])),
+created_by uuid,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT qr_codes_pkey PRIMARY KEY (id),
+CONSTRAINT qr_codes_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id),
+CONSTRAINT qr_codes_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff_profiles(id)
+);
+CREATE TABLE public.qr_scan_logs (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+qr_code_id uuid NOT NULL,
+scanned_at timestamp with time zone NOT NULL DEFAULT now(),
+device_type text,
+CONSTRAINT qr_scan_logs_pkey PRIMARY KEY (id),
+CONSTRAINT qr_scan_logs_qr_code_id_fkey FOREIGN KEY (qr_code_id) REFERENCES public.qr_codes(id)
+);
+CREATE TABLE public.tourist_visits (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+site_id uuid NOT NULL,
+tourist_id uuid,
+visitor_type text CHECK (visitor_type = ANY (ARRAY['local'::text, 'domestic'::text, 'international'::text])),
+age_group text,
+visit_date date NOT NULL DEFAULT CURRENT_DATE,
+source text CHECK (source = ANY (ARRAY['qr_scan'::text, 'recommendation'::text, 'direct_search'::text])),
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT tourist_visits_pkey PRIMARY KEY (id),
+CONSTRAINT tourist_visits_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id),
+CONSTRAINT tourist_visits_tourist_id_fkey FOREIGN KEY (tourist_id) REFERENCES public.tourist_profiles(id)
+);
+CREATE TABLE public.audit_logs (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+user_id uuid,
+action text NOT NULL,
+module text,
+details jsonb,
+ip_address text,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT audit_logs_pkey PRIMARY KEY (id),
+CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.staff_profiles(id)
+);
+CREATE TABLE public.system_settings (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+key text NOT NULL UNIQUE,
+value jsonb,
+updated_by uuid,
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT system_settings_pkey PRIMARY KEY (id),
+CONSTRAINT system_settings_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.staff_profiles(id)
+);
+CREATE TABLE public.site_information (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+org_name text,
+tagline text,
+address text,
+phone text,
+email text,
+website_url text,
+social_links jsonb,
+system_version text,
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT site_information_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.integrations (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+name text NOT NULL,
+category text,
+status text NOT NULL DEFAULT 'inactive'::text CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text, 'error'::text])),
+api_key_masked text,
+last_sync timestamp with time zone,
+config jsonb,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT integrations_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.backups (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+backup_name text,
+type text CHECK (type = ANY (ARRAY['full'::text, 'custom'::text])),
+size_bytes bigint,
+records_count integer,
+created_by uuid,
+status text,
+file_url text,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT backups_pkey PRIMARY KEY (id),
+CONSTRAINT backups_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff_profiles(id)
+);

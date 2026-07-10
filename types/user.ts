@@ -3,7 +3,7 @@ export type UserRole = "ptcao_admin" | "mto" | "tourist"
 export interface Profile {
   id: string
   email: string
-  role: UserRole
+  role?: UserRole
   fullName: string
   municipalityId?: string
   avatarUrl?: string

@@ -5,6 +5,7 @@ export interface ProvinceMetric {
   changeDirection: "up" | "down" | "stable"
   icon: string
   description: string
+  unit?: string
 }
 
 export interface VisitorTrendPoint {

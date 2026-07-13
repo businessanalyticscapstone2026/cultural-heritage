@@ -143,3 +143,48 @@ body {
     @apply hidden!;
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+  }
+
+  aside,
+  nav,
+  header:not([id="header-banner"]) {
+    display: none !important;
+  }
+
+  [data-exporting="true"] [data-export-visible="false"] {
+    display: none !important;
+  }
+
+  [data-exporting="true"] .space-y-6 {
+    display: block !important;
+  }
+
+  [data-exporting="true"] main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  [data-exporting="true"] [id="header-banner"] {
+    background: #0f2747 !important;
+    color: white !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  [data-exporting="true"] .grid {
+    display: block !important;
+  }
+
+  [data-exporting="true"] .grid > * {
+    margin-bottom: 1rem;
+  }
+
+  [data-exporting="true"] [data-slot="card"] {
+    break-inside: avoid;
+    border: 1px solid #e8e8e8;
+  }
+}

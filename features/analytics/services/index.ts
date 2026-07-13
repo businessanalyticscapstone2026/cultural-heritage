@@ -79,7 +79,7 @@ export async function getProvinceSummary(
       { label: "Total Visitors", value: 0, changePercent: 0, changeDirection: "stable", icon: "Users", description: "this period" },
       { label: "Sites Visited", value: 0, changePercent: 0, changeDirection: "stable", icon: "Landmark", description: "unique sites" },
       { label: "Recommendations Generated", value: 0, changePercent: 0, changeDirection: "stable", icon: "Sparkles", description: "this period" },
-      { label: "Recommendations Clicked", value: 0, changePercent: 0, changeDirection: "stable", icon: "MousePointerClick", description: "click-throughs" },
+      { label: "Avg. Visit Duration", value: 0, changePercent: 0, changeDirection: "stable", icon: "Clock", description: "minutes per visit", unit: "min" },
       { label: "Route Plans Created", value: 0, changePercent: 0, changeDirection: "stable", icon: "Route", description: "this period" },
     ]
   }
@@ -90,15 +90,19 @@ export async function getProvinceSummary(
   const priorDateFrom = getPriorPeriodStart(dateFrom, dateTo)
   const priorDateTo = getPriorPeriodEnd(dateFrom)
 
-  const [visitsNow, visitsPrior, sitesNow, sitesPrior, recsNow, recsPrior, clickedNow, clickedPrior, routesNow, routesPrior] = await Promise.all([
+  const [visitsNow, visitsPrior, sitesNow, sitesPrior, recsNow, recsPrior, scansNow, scansPrior, routesNow, routesPrior] = await Promise.all([
     supabase.from("tourist_visits").select("id", { count: "exact", head: true }).in("site_id", siteIds).gte("visit_date", dateFrom).lte("visit_date", dateTo),
     supabase.from("tourist_visits").select("id", { count: "exact", head: true }).in("site_id", siteIds).gte("visit_date", priorDateFrom).lte("visit_date", priorDateTo),
     supabase.from("tourist_visits").select("site_id").in("site_id", siteIds).gte("visit_date", dateFrom).lte("visit_date", dateTo),
     supabase.from("tourist_visits").select("site_id").in("site_id", siteIds).gte("visit_date", priorDateFrom).lte("visit_date", priorDateTo),
     supabase.from("recommendations").select("id", { count: "exact", head: true }).in("site_id", siteIds).gte("generated_at", dateFrom).lte("generated_at", dateTo + "T23:59:59"),
     supabase.from("recommendations").select("id", { count: "exact", head: true }).in("site_id", siteIds).gte("generated_at", priorDateFrom).lte("generated_at", priorDateTo + "T23:59:59"),
-    supabase.from("recommendations").select("id", { count: "exact", head: true }).in("site_id", siteIds).eq("was_clicked", true).gte("generated_at", dateFrom).lte("generated_at", dateTo + "T23:59:59"),
-    supabase.from("recommendations").select("id", { count: "exact", head: true }).in("site_id", siteIds).eq("was_clicked", true).gte("generated_at", priorDateFrom).lte("generated_at", priorDateTo + "T23:59:59"),
+    supabase.from("qr_scan_logs").select("scanned_at").in("qr_code_id",
+      (await supabase.from("qr_codes").select("id").in("site_id", siteIds)).data?.map((r) => r.id as string) ?? []
+    ).gte("scanned_at", dateFrom + "T00:00:00").lte("scanned_at", dateTo + "T23:59:59"),
+    supabase.from("qr_scan_logs").select("scanned_at").in("qr_code_id",
+      (await supabase.from("qr_codes").select("id").in("site_id", siteIds)).data?.map((r) => r.id as string) ?? []
+    ).gte("scanned_at", priorDateFrom + "T00:00:00").lte("scanned_at", priorDateTo + "T23:59:59"),
     supabase.from("routes").select("id", { count: "exact", head: true }).gte("created_at", dateFrom).lte("created_at", dateTo + "T23:59:59"),
     supabase.from("routes").select("id", { count: "exact", head: true }).gte("created_at", priorDateFrom).lte("created_at", priorDateTo + "T23:59:59"),
   ])
@@ -106,17 +110,20 @@ export async function getProvinceSummary(
   const uniqueSitesNow = new Set(sitesNow.data?.map((r) => r.site_id)).size
   const uniqueSitesPrior = new Set(sitesPrior.data?.map((r) => r.site_id)).size
 
+  const avgDurationNow = calculateAvgVisitDuration(scansNow.data ?? [])
+  const avgDurationPrior = calculateAvgVisitDuration(scansPrior.data ?? [])
+
   const visitorsChange = computeChange(visitsNow.count ?? 0, visitsPrior.count ?? 0)
   const sitesChange = computeChange(uniqueSitesNow, uniqueSitesPrior)
   const recsChange = computeChange(recsNow.count ?? 0, recsPrior.count ?? 0)
-  const clickedChange = computeChange(clickedNow.count ?? 0, clickedPrior.count ?? 0)
+  const durationChange = computeChange(avgDurationNow, avgDurationPrior)
   const routesChange = computeChange(routesNow.count ?? 0, routesPrior.count ?? 0)
 
   return [
     { label: "Total Visitors", value: visitsNow.count ?? 0, ...visitorsChange, icon: "Users", description: "this period" },
     { label: "Sites Visited", value: uniqueSitesNow, ...sitesChange, icon: "Landmark", description: "unique sites" },
     { label: "Recommendations Generated", value: recsNow.count ?? 0, ...recsChange, icon: "Sparkles", description: "this period" },
-    { label: "Recommendations Clicked", value: clickedNow.count ?? 0, ...clickedChange, icon: "MousePointerClick", description: "click-throughs" },
+    { label: "Avg. Visit Duration", value: avgDurationNow, ...durationChange, icon: "Clock", description: "minutes per visit", unit: "min" },
     { label: "Route Plans Created", value: routesNow.count ?? 0, ...routesChange, icon: "Route", description: "this period" },
   ]
 }
@@ -475,4 +482,38 @@ function getPriorPeriodEnd(dateFrom: string): string {
   const from = new Date(dateFrom)
   const priorEnd = new Date(from.getTime() - 1)
   return priorEnd.toISOString().slice(0, 10)
+}
+
+function calculateAvgVisitDuration(
+  scans: { scanned_at: string | null }[]
+): number {
+  const timestamps = scans
+    .filter((s) => s.scanned_at)
+    .map((s) => new Date(s.scanned_at!).getTime())
+    .sort((a, b) => a - b)
+
+  if (timestamps.length < 2) return 0
+
+  const SESSION_GAP_MS = 2 * 60 * 60 * 1000
+  const sessions: number[][] = [[]]
+
+  for (const ts of timestamps) {
+    const currentSession = sessions[sessions.length - 1]
+    if (currentSession.length > 0) {
+      const lastScan = currentSession[currentSession.length - 1]
+      if (ts - lastScan > SESSION_GAP_MS) {
+        sessions.push([])
+      }
+    }
+    sessions[sessions.length - 1].push(ts)
+  }
+
+  const durations = sessions
+    .filter((s) => s.length >= 2)
+    .map((s) => (s[s.length - 1] - s[0]) / 60000)
+
+  if (durations.length === 0) return 0
+
+  const avg = durations.reduce((sum, d) => sum + d, 0) / durations.length
+  return Math.round(avg)
 }

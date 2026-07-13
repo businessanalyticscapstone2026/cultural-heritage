@@ -5,6 +5,7 @@ import {
   Sparkles,
   MousePointerClick,
   Route,
+  Clock,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -17,6 +18,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Sparkles,
   MousePointerClick,
   Route,
+  Clock,
 }
 
 export default function SummaryMetricCard({ metric }: { metric: ProvinceMetric }) {
@@ -51,7 +53,7 @@ export default function SummaryMetricCard({ metric }: { metric: ProvinceMetric }
       </CardContent>
       <CardContent className="pt-0">
         <p className="text-2xl font-bold tracking-tight text-foreground">
-          {metric.value.toLocaleString()}
+          {metric.value.toLocaleString()}{metric.unit ? ` ${metric.unit}` : ""}
         </p>
         <p className="text-xs text-muted-foreground">{metric.label}</p>
         <p className="mt-0.5 text-xs text-muted-foreground/70">{metric.description}</p>

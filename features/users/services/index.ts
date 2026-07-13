@@ -5,9 +5,9 @@ import type {
   Role,
   Permission,
   RolePermission,
-  Municipality,
   PermissionMatrixCell,
 } from "../types"
+import type { Municipality } from "@/features/municipalities/types"
 
 export async function getStaffProfiles(): Promise<StaffProfileWithRelations[]> {
   const cookieStore = await cookies()

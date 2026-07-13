@@ -24,6 +24,7 @@ async function getKpiData(): Promise<KpiData> {
   const { count: totalMunicipalities, error: errMuns } = await supabase
     .from("municipalities")
     .select("*", { count: "exact", head: true })
+    .eq("status", "active")
 
   if (errMuns) throw new Error(`Failed to count municipalities: ${errMuns.message}`)
 

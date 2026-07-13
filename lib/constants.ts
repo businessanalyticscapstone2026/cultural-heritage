@@ -63,6 +63,12 @@ export const FIRST_DISTRICT_MUNICIPALITIES = [
   "Calatagan",
 ] as const
 
+export const MUNICIPALITY_STATUS = {
+  PENDING: "pending",
+  ACTIVE: "active",
+  INACTIVE: "inactive",
+} as const
+
 export const MUNICIPALITY_COORDINATES: Record<string, { lat: number; long: number }> = {
   Nasugbu: { lat: 14.0677, long: 120.6278 },
   Lian: { lat: 14.0067, long: 120.6417 },

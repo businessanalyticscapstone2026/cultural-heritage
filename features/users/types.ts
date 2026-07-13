@@ -41,14 +41,6 @@ export interface RolePermission {
   granted: boolean
 }
 
-export interface Municipality {
-  id: string
-  name: string
-  type: "municipality" | "city"
-  province: string
-  created_at: string
-}
-
 export interface CreateStaffInput {
   email: string
   password: string

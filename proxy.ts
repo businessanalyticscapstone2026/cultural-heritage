@@ -6,7 +6,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 
 const publicRoutes = ["/", "/login", "/register", "/signup", "/explore", "/map", "/recommendations", "/routes", "/mto/login", "/ptcao/login"]
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   let supabaseResponse = NextResponse.next({ request: { headers: request.headers } })

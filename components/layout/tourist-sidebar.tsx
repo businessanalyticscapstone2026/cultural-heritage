@@ -1,10 +1,12 @@
 import Link from "next/link"
-import { LayoutDashboard, Compass, Map, Route, Star, Heart, User } from "lucide-react"
+import { LayoutDashboard, Compass, Map, MapPin, ScanLine, Route, Star, Heart, User } from "lucide-react"
 
 const navItems = [
   { label: "Dashboard", href: "/tourist/dashboard", icon: LayoutDashboard },
   { label: "Explore", href: "/tourist/explore", icon: Compass },
   { label: "Map", href: "/tourist/map", icon: Map },
+  { label: "Nearby", href: "/tourist/nearby", icon: MapPin },
+  { label: "Scan", href: "/tourist/scan", icon: ScanLine },
   { label: "Recommendations", href: "/tourist/recommendations", icon: Star },
   { label: "Routes", href: "/tourist/routes", icon: Route },
   { label: "Saved", href: "/tourist/saved", icon: Heart },

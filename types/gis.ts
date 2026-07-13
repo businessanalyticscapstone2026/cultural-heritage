@@ -25,3 +25,5 @@ export interface HeritageMarker {
   site: HeritageSite
   coordinates: [number, number]
 }
+
+export type { NearbySite } from "./heritage"

@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { FIRST_DISTRICT_MUNICIPALITIES } from "@/lib/constants"
+import { mapRoleNameToUserRole } from "@/features/auth/services"
 import { MUNICIPALITY_COLORS, computeChange } from "../utils"
 import type {
   ProvinceMetric,
@@ -38,7 +39,7 @@ export async function resolvePtcaoAdmin(): Promise<void> {
     .eq("id", profile.role_id)
     .maybeSingle()
 
-  if (role?.name !== "ptcao_admin") throw new Error("Unauthorized")
+  if (mapRoleNameToUserRole(role?.name) !== "ptcao_admin") throw new Error("Unauthorized")
 }
 
 async function getSiteIdsForFilters(

@@ -26,7 +26,7 @@ async function getKpiData(): Promise<KpiData> {
     .select("*", { count: "exact", head: true })
     .eq("status", "active")
 
-  if (errMuns) throw new Error(`Failed to count municipalities: ${errMuns.message}`)
+  if (errMuns) throw new Error(`Failed to count municipalities: ${JSON.stringify(errMuns)}`)
 
   // "Registered Users" means both staff and tourist profile counts combined
   // since the schema has no unified users table. Two separate COUNT queries

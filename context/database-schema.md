@@ -4,10 +4,24 @@
 CREATE TABLE public.municipalities (
 id uuid NOT NULL DEFAULT gen_random_uuid(),
 name text NOT NULL UNIQUE,
-type text NOT NULL CHECK (type = ANY (ARRAY['municipality'::text, 'city'::text])),
 province text NOT NULL DEFAULT 'Batangas'::text,
+status text NOT NULL DEFAULT 'pending' CHECK (status = ANY (ARRAY['pending'::text, 'active'::text, 'inactive'::text])),
+default_map_center jsonb,
 created_at timestamp with time zone NOT NULL DEFAULT now(),
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
 CONSTRAINT municipalities_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.municipality_audit_log (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+municipality_id uuid NOT NULL,
+action text NOT NULL CHECK (action = ANY (ARRAY['created'::text, 'status_changed'::text, 'updated'::text])),
+performed_by uuid,
+previous_value jsonb,
+new_value jsonb NOT NULL,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT municipality_audit_log_pkey PRIMARY KEY (id),
+CONSTRAINT municipality_audit_log_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id) ON DELETE CASCADE,
+CONSTRAINT municipality_audit_log_performed_by_fkey FOREIGN KEY (performed_by) REFERENCES public.staff_profiles(id)
 );
 CREATE TABLE public.roles (
 id uuid NOT NULL DEFAULT gen_random_uuid(),

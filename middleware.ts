@@ -4,9 +4,9 @@ import { createServerClient } from "@supabase/ssr"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 
-const publicRoutes = ["/", "/login", "/register", "/signup", "/explore", "/map", "/recommendations", "/routes", "/mto/login", "/ptcao/login"]
+const publicRoutes = ["/", "/login", "/register", "/signup", "/explore", "/map", "/recommendations", "/routes", "/heritage", "/tourist/scan", "/mto/login", "/ptcao/login"]
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   let supabaseResponse = NextResponse.next({ request: { headers: request.headers } })

@@ -1,11 +1,81 @@
-import type { QRCodeData, QRCodeConfig } from "../types"
+import { createClient } from "@/utils/supabase/server"
+import { cookies } from "next/headers"
+import type { QRCodeData, QRCodeConfig, ScanResult } from "../types"
 
-export async function generateQRCode(siteId: string, config?: QRCodeConfig): Promise<QRCodeData> {
+export async function generateQRCode(_siteId: string, _config?: QRCodeConfig): Promise<QRCodeData> {
+  // TODO: implement for QR Code Management module
   throw new Error("Not implemented")
 }
 
-export async function getQRCodeBySite(siteId: string): Promise<QRCodeData | null> {
+export async function getQRCodeBySite(_siteId: string): Promise<QRCodeData | null> {
+  // TODO: implement for QR Code Management module
   return null
 }
 
-export async function recordScan(qrCodeId: string): Promise<void> {}
+export async function resolveQRCode(code: string): Promise<ScanResult> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data: qrCode, error: qrError } = await supabase
+    .from("qr_codes")
+    .select("id, site_id, code_value, status")
+    .eq("code_value", code)
+    .single()
+
+  if (qrError || !qrCode) {
+    return {
+      success: false,
+      error: "not_found",
+      message: "This code is not recognized.",
+    }
+  }
+
+  if (qrCode.status !== "active") {
+    return {
+      success: false,
+      error: "inactive",
+      message: "This code is no longer active.",
+    }
+  }
+
+  const { data: site, error: siteError } = await supabase
+    .from("heritage_sites")
+    .select("id, site_name")
+    .eq("id", qrCode.site_id)
+    .eq("publication_status", "published")
+    .eq("visibility", "public")
+    .single()
+
+  if (siteError || !site) {
+    return {
+      success: false,
+      error: "not_found",
+      message: "This site's profile isn't available right now.",
+    }
+  }
+
+  return {
+    success: true,
+    siteId: site.id,
+    siteName: site.site_name,
+    status: qrCode.status,
+  }
+}
+
+export async function recordScanEvent(codeValue: string, deviceType?: string): Promise<void> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data: qrCode } = await supabase
+    .from("qr_codes")
+    .select("id")
+    .eq("code_value", codeValue)
+    .single()
+
+  if (!qrCode) return
+
+  await supabase.from("qr_scan_logs").insert({
+    qr_code_id: qrCode.id,
+    device_type: deviceType ?? null,
+  })
+}

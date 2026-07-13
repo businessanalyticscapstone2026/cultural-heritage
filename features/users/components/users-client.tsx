@@ -12,8 +12,8 @@ import type {
   StaffProfileWithRelations,
   StaffProfile,
   Role,
-  Municipality,
 } from "../types"
+import type { Municipality } from "@/features/municipalities/types"
 
 type Tab = "staff" | "roles" | "permissions"
 

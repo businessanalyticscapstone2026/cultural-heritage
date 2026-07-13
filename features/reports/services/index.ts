@@ -25,6 +25,7 @@ export async function getMunicipalityOptions(): Promise<FilterOption[]> {
   const { data, error } = await supabase
     .from("municipalities")
     .select("id, name")
+    .eq("status", "active")
     .order("name")
 
   if (error) throw new Error(`Failed to fetch municipalities: ${error.message}`)
@@ -134,10 +135,11 @@ export async function getMunicipalityPerformance(
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  // 2a: Get all municipalities
-  let munsQuery = supabase
+  // 2a: Get all active municipalities
+  const munsQuery = supabase
     .from("municipalities")
     .select("id, name")
+    .eq("status", "active")
     .order("name")
 
   const { data: municipalities, error: munsErr } = await munsQuery
@@ -226,7 +228,7 @@ export async function getCategoryDemand(
   const supabase = createClient(cookieStore)
 
   // 3a: Get all categories
-  let catsQuery = supabase
+  const catsQuery = supabase
     .from("heritage_categories")
     .select("id, name")
     .order("name")
@@ -322,10 +324,11 @@ export async function getResourceAllocation(
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  // 4a: Get all municipalities
-  let munsQuery = supabase
+  // 4a: Get all active municipalities
+  const munsQuery = supabase
     .from("municipalities")
     .select("id, name")
+    .eq("status", "active")
     .order("name")
 
   const { data: municipalities, error: munsErr } = await munsQuery

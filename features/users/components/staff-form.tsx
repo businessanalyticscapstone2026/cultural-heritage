@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { X } from "lucide-react"
-import type { StaffProfileWithRelations, Role, Municipality } from "../types"
+import type { StaffProfileWithRelations, Role } from "../types"
+import type { Municipality } from "@/features/municipalities/types"
 
 const staffSchema = z.object({
   email: z.string().email("Invalid email"),

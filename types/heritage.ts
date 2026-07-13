@@ -94,3 +94,28 @@ export interface SavedSite {
   thumbnail: string | null
   savedAt: string
 }
+
+export type ChangeType = "created" | "updated" | "status_changed"
+
+export interface HeritageSiteVersion {
+  id: string
+  heritageSiteId: string
+  snapshot: Record<string, unknown>
+  changedBy: string | null
+  changeType: ChangeType
+  createdAt: string
+}
+
+export type BackupType = "full" | "custom"
+
+export interface HeritageBackup {
+  id: string
+  backupName: string | null
+  type: BackupType | null
+  sizeBytes: number | null
+  recordsCount: number | null
+  createdBy: string | null
+  status: string | null
+  fileUrl: string | null
+  createdAt: string
+}

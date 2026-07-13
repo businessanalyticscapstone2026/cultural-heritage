@@ -75,7 +75,7 @@ export default function AdminSidebar() {
           <Shield className="size-4 text-primary" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-bold leading-tight tracking-tight">PTCAO PORTAL</p>
+          <p className="text-sm font-bold leading-tight tracking-tight text-sidebar-foreground">PTCAO PORTAL</p>
           <p className="text-[10px] leading-tight text-sidebar-foreground/60">Provincial Tourism Office</p>
         </div>
       </div>

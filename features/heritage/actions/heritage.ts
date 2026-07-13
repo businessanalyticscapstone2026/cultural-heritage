@@ -1,7 +1,67 @@
 "use server"
 
-import { getHeritageSites } from "../services"
+import { revalidatePath } from "next/cache"
+import {
+  createHeritageSite,
+  updateHeritageSite,
+  deleteHeritageSite,
+  getAllHeritageSites,
+  getHeritageSiteByIdAdmin,
+  getHeritageSitesByMunicipality,
+  getArchivedSites,
+  getArchivedSitesByMunicipality,
+  getHeritageSiteVersions,
+  restoreHeritageSiteVersion,
+} from "../services"
+import type { HeritageSite } from "../types"
 
 export async function getHeritageSitesAction() {
-  return getHeritageSites()
+  return getAllHeritageSites()
+}
+
+export async function getHeritageSiteByIdAction(id: string) {
+  return getHeritageSiteByIdAdmin(id)
+}
+
+export async function getHeritageSitesByMunicipalityAction(municipalityId: string) {
+  return getHeritageSitesByMunicipality(municipalityId)
+}
+
+export async function getArchivedSitesAction() {
+  return getArchivedSites()
+}
+
+export async function getArchivedSitesByMunicipalityAction(municipalityId: string) {
+  return getArchivedSitesByMunicipality(municipalityId)
+}
+
+export async function createHeritageSiteAction(data: Partial<HeritageSite>) {
+  const site = await createHeritageSite(data)
+  revalidatePath("/admin/heritage-repository")
+  revalidatePath("/mto/heritage-sites")
+  return site
+}
+
+export async function updateHeritageSiteAction(id: string, updates: Partial<HeritageSite>) {
+  const site = await updateHeritageSite(id, updates)
+  revalidatePath("/admin/heritage-repository")
+  revalidatePath("/mto/heritage-sites")
+  return site
+}
+
+export async function deleteHeritageSiteAction(id: string) {
+  await deleteHeritageSite(id)
+  revalidatePath("/admin/heritage-repository")
+  revalidatePath("/mto/heritage-sites")
+}
+
+export async function getHeritageSiteVersionsAction(siteId: string) {
+  return getHeritageSiteVersions(siteId)
+}
+
+export async function restoreHeritageSiteVersionAction(versionId: string) {
+  const site = await restoreHeritageSiteVersion(versionId)
+  revalidatePath("/admin/heritage-repository")
+  revalidatePath("/mto/heritage-sites")
+  return site
 }

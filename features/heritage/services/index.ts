@@ -6,9 +6,12 @@ import type {
   HeritageSiteTag,
   HeritageSiteMedia,
   HeritageCategory,
+  HeritageSiteVersion,
+  HeritageBackup,
   NearbySite,
   SavedSite,
   TravelMode,
+  ChangeType,
 } from "../types"
 
 function mapDbRowToSite(row: Record<string, unknown>, joined: Record<string, unknown>): HeritageSite {
@@ -276,18 +279,242 @@ export async function getBookmarkedSites(touristId: string): Promise<SavedSite[]
   })
 }
 
-export async function createHeritageSite(_data: Partial<HeritageSite>): Promise<HeritageSite> {
-  // TODO: implement
-  throw new Error("Not implemented")
+export async function createHeritageSite(data: Partial<HeritageSite>): Promise<HeritageSite> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const insertData: Record<string, unknown> = {
+    site_name: data.siteName ?? "",
+    category_id: data.categoryId ?? null,
+    municipality_id: data.municipalityId ?? null,
+    barangay: data.barangay ?? null,
+    exact_address: data.exactAddress ?? null,
+    short_description: data.shortDescription ?? null,
+    detailed_description: data.detailedDescription ?? null,
+    historical_period: data.historicalPeriod ?? null,
+    year_established: data.yearEstablished ?? null,
+    architect_builder: data.architectBuilder ?? null,
+    architectural_style: data.architecturalStyle ?? null,
+    historical_significance: data.historicalSignificance ?? null,
+    cultural_significance: data.culturalSignificance ?? null,
+    latitude: data.latitude ?? null,
+    longitude: data.longitude ?? null,
+    elevation: data.elevation ?? null,
+    geo_accuracy: data.geoAccuracy ?? null,
+    accessibility_info: data.accessibilityInfo ?? null,
+    operating_hours: data.operatingHours ?? null,
+    entrance_fee: data.entranceFee ?? null,
+    designation: data.designation ?? null,
+    publication_status: data.publicationStatus ?? "draft",
+    is_featured: data.isFeatured ?? false,
+    visibility: data.visibility ?? "public",
+    created_by: user?.id ?? null,
+  }
+
+  const { data: site, error } = await supabase
+    .from("heritage_sites")
+    .insert(insertData)
+    .select("*")
+    .single()
+
+  if (error) throw new Error(`Failed to create heritage site: ${error.message}`)
+
+  // Create version snapshot
+  await createHeritageSiteVersion(site.id, "created", user?.id ?? null, site)
+
+  // Fetch the full site with joins
+  const fullSite = await getHeritageSiteByIdAdmin(site.id)
+  if (!fullSite) throw new Error("Failed to fetch created site")
+  return fullSite
 }
 
-export async function updateHeritageSite(_id: string, _updates: Partial<HeritageSite>): Promise<HeritageSite> {
-  // TODO: implement
-  throw new Error("Not implemented")
+export async function updateHeritageSite(id: string, updates: Partial<HeritageSite>): Promise<HeritageSite> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const updateData: Record<string, unknown> = {}
+  if (updates.siteName !== undefined) updateData.site_name = updates.siteName
+  if (updates.alternativeName !== undefined) updateData.alternative_name = updates.alternativeName
+  if (updates.categoryId !== undefined) updateData.category_id = updates.categoryId
+  if (updates.municipalityId !== undefined) updateData.municipality_id = updates.municipalityId
+  if (updates.barangay !== undefined) updateData.barangay = updates.barangay
+  if (updates.exactAddress !== undefined) updateData.exact_address = updates.exactAddress
+  if (updates.shortDescription !== undefined) updateData.short_description = updates.shortDescription
+  if (updates.detailedDescription !== undefined) updateData.detailed_description = updates.detailedDescription
+  if (updates.historicalPeriod !== undefined) updateData.historical_period = updates.historicalPeriod
+  if (updates.yearEstablished !== undefined) updateData.year_established = updates.yearEstablished
+  if (updates.architectBuilder !== undefined) updateData.architect_builder = updates.architectBuilder
+  if (updates.architecturalStyle !== undefined) updateData.architectural_style = updates.architecturalStyle
+  if (updates.historicalSignificance !== undefined) updateData.historical_significance = updates.historicalSignificance
+  if (updates.culturalSignificance !== undefined) updateData.cultural_significance = updates.culturalSignificance
+  if (updates.latitude !== undefined) updateData.latitude = updates.latitude
+  if (updates.longitude !== undefined) updateData.longitude = updates.longitude
+  if (updates.elevation !== undefined) updateData.elevation = updates.elevation
+  if (updates.geoAccuracy !== undefined) updateData.geo_accuracy = updates.geoAccuracy
+  if (updates.accessibilityInfo !== undefined) updateData.accessibility_info = updates.accessibilityInfo
+  if (updates.operatingHours !== undefined) updateData.operating_hours = updates.operatingHours
+  if (updates.entranceFee !== undefined) updateData.entrance_fee = updates.entranceFee
+  if (updates.designation !== undefined) updateData.designation = updates.designation
+  if (updates.publicationStatus !== undefined) updateData.publication_status = updates.publicationStatus
+  if (updates.isFeatured !== undefined) updateData.is_featured = updates.isFeatured
+  if (updates.visibility !== undefined) updateData.visibility = updates.visibility
+
+  if (Object.keys(updateData).length === 0) {
+    const site = await getHeritageSiteByIdAdmin(id)
+    if (!site) throw new Error("Heritage site not found")
+    return site
+  }
+
+  // Determine change type
+  const changeType = updates.publicationStatus !== undefined ? "status_changed" : "updated"
+
+  const { error } = await supabase
+    .from("heritage_sites")
+    .update(updateData)
+    .eq("id", id)
+
+  if (error) throw new Error(`Failed to update heritage site: ${error.message}`)
+
+  // Fetch updated row for snapshot
+  const { data: updatedRow } = await supabase
+    .from("heritage_sites")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (updatedRow) {
+    await createHeritageSiteVersion(id, changeType, user?.id ?? null, updatedRow)
+  }
+
+  const site = await getHeritageSiteByIdAdmin(id)
+  if (!site) throw new Error("Heritage site not found after update")
+  return site
 }
 
-export async function deleteHeritageSite(_id: string): Promise<void> {
-  // TODO: implement
+export async function deleteHeritageSite(id: string): Promise<void> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  // Delete related records first
+  await supabase.from("heritage_site_tags").delete().eq("site_id", id)
+  await supabase.from("heritage_site_reference_links").delete().eq("site_id", id)
+
+  const { error } = await supabase
+    .from("heritage_sites")
+    .delete()
+    .eq("id", id)
+
+  if (error) throw new Error(`Failed to delete heritage site: ${error.message}`)
+}
+
+export async function getHeritageSiteByIdAdmin(id: string): Promise<HeritageSite | null> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("heritage_sites")
+    .select(`
+      *,
+      category:heritage_categories(*),
+      municipality:municipalities(name),
+      tags:heritage_site_tags(*),
+      media:heritage_site_media(*)
+    `)
+    .eq("id", id)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+
+  return mapDbRowToSite(data, data)
+}
+
+export async function getAllHeritageSites(): Promise<HeritageSite[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("heritage_sites")
+    .select(`
+      *,
+      category:heritage_categories(*),
+      municipality:municipalities(name),
+      tags:heritage_site_tags(*),
+      media:heritage_site_media(*)
+    `)
+    .order("created_at", { ascending: false })
+
+  if (error) throw error
+  return (data ?? []).map((row) => mapDbRowToSite(row, row))
+}
+
+export async function getHeritageSitesByMunicipality(municipalityId: string): Promise<HeritageSite[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("heritage_sites")
+    .select(`
+      *,
+      category:heritage_categories(*),
+      municipality:municipalities(name),
+      tags:heritage_site_tags(*),
+      media:heritage_site_media(*)
+    `)
+    .eq("municipality_id", municipalityId)
+    .order("created_at", { ascending: false })
+
+  if (error) throw error
+  return (data ?? []).map((row) => mapDbRowToSite(row, row))
+}
+
+export async function getArchivedSites(): Promise<HeritageSite[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("heritage_sites")
+    .select(`
+      *,
+      category:heritage_categories(*),
+      municipality:municipalities(name),
+      tags:heritage_site_tags(*),
+      media:heritage_site_media(*)
+    `)
+    .eq("publication_status", "archived")
+    .order("updated_at", { ascending: false })
+
+  if (error) throw error
+  return (data ?? []).map((row) => mapDbRowToSite(row, row))
+}
+
+export async function getArchivedSitesByMunicipality(municipalityId: string): Promise<HeritageSite[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("heritage_sites")
+    .select(`
+      *,
+      category:heritage_categories(*),
+      municipality:municipalities(name),
+      tags:heritage_site_tags(*),
+      media:heritage_site_media(*)
+    `)
+    .eq("publication_status", "archived")
+    .eq("municipality_id", municipalityId)
+    .order("updated_at", { ascending: false })
+
+  if (error) throw error
+  return (data ?? []).map((row) => mapDbRowToSite(row, row))
 }
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -374,4 +601,343 @@ export async function getNearbySitesFromLocation(
     .slice(0, limit)
 
   return results
+}
+
+export async function createHeritageSiteVersion(
+  siteId: string,
+  changeType: ChangeType,
+  changedBy: string | null,
+  snapshot: Record<string, unknown>
+): Promise<HeritageSiteVersion> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("heritage_site_versions")
+    .insert({
+      heritage_site_id: siteId,
+      snapshot,
+      changed_by: changedBy,
+      change_type: changeType,
+    })
+    .select("*")
+    .single()
+
+  if (error) throw new Error(`Failed to create version: ${error.message}`)
+
+  return {
+    id: data.id as string,
+    heritageSiteId: data.heritage_site_id as string,
+    snapshot: (data.snapshot as Record<string, unknown>) ?? {},
+    changedBy: (data.changed_by as string) ?? null,
+    changeType: data.change_type as ChangeType,
+    createdAt: data.created_at as string,
+  }
+}
+
+export async function getHeritageSiteVersions(siteId: string): Promise<HeritageSiteVersion[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("heritage_site_versions")
+    .select("*")
+    .eq("heritage_site_id", siteId)
+    .order("created_at", { ascending: false })
+
+  if (error) throw error
+
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    heritageSiteId: row.heritage_site_id as string,
+    snapshot: (row.snapshot as Record<string, unknown>) ?? {},
+    changedBy: (row.changed_by as string) ?? null,
+    changeType: row.change_type as ChangeType,
+    createdAt: row.created_at as string,
+  }))
+}
+
+export async function restoreHeritageSiteVersion(versionId: string): Promise<HeritageSite> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data: version, error: versionError } = await supabase
+    .from("heritage_site_versions")
+    .select("*")
+    .eq("id", versionId)
+    .single()
+
+  if (versionError || !version) throw new Error("Version not found")
+
+  const snapshot = version.snapshot as Record<string, unknown>
+  const siteId = version.heritage_site_id as string
+
+  const updateData: Record<string, unknown> = {}
+  const updatableFields = [
+    "site_name", "alternative_name", "category_id", "municipality_id",
+    "barangay", "exact_address", "short_description", "detailed_description",
+    "historical_period", "year_established", "architect_builder", "architectural_style",
+    "historical_significance", "cultural_significance", "latitude", "longitude",
+    "elevation", "geo_accuracy", "accessibility_info", "operating_hours",
+    "entrance_fee", "designation", "publication_status", "is_featured", "visibility",
+  ]
+
+  for (const field of updatableFields) {
+    if (field in snapshot) {
+      updateData[field] = snapshot[field]
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("heritage_sites")
+    .update(updateData)
+    .eq("id", siteId)
+
+  if (updateError) throw new Error(`Failed to restore version: ${updateError.message}`)
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // Create a version entry for the restore
+  const { data: restoredRow } = await supabase
+    .from("heritage_sites")
+    .select("*")
+    .eq("id", siteId)
+    .single()
+
+  if (restoredRow) {
+    await createHeritageSiteVersion(siteId, "updated", user?.id ?? null, restoredRow)
+  }
+
+  const site = await getHeritageSiteByIdAdmin(siteId)
+  if (!site) throw new Error("Failed to fetch restored site")
+  return site
+}
+
+export async function getAllCategories(): Promise<HeritageCategory[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("heritage_categories")
+    .select("*")
+    .order("display_order", { ascending: true })
+
+  if (error) throw error
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description ?? null) as string | null,
+    icon: (row.icon ?? null) as string | null,
+    color: (row.color ?? null) as string | null,
+    displayOrder: (row.display_order ?? null) as number | null,
+    status: (row.status ?? "active") as HeritageCategory["status"],
+  }))
+}
+
+export async function createCategory(data: { name: string; description?: string; icon?: string; color?: string; displayOrder?: number }): Promise<HeritageCategory> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data: category, error } = await supabase
+    .from("heritage_categories")
+    .insert({
+      name: data.name,
+      description: data.description ?? null,
+      icon: data.icon ?? null,
+      color: data.color ?? null,
+      display_order: data.displayOrder ?? null,
+      status: "active",
+    })
+    .select("*")
+    .single()
+
+  if (error) throw new Error(`Failed to create category: ${error.message}`)
+
+  return {
+    id: category.id as string,
+    name: category.name as string,
+    description: (category.description ?? null) as string | null,
+    icon: (category.icon ?? null) as string | null,
+    color: (category.color ?? null) as string | null,
+    displayOrder: (category.display_order ?? null) as number | null,
+    status: (category.status ?? "active") as HeritageCategory["status"],
+  }
+}
+
+export async function updateCategory(id: string, updates: Partial<HeritageCategory>): Promise<HeritageCategory> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const updateData: Record<string, unknown> = {}
+  if (updates.name !== undefined) updateData.name = updates.name
+  if (updates.description !== undefined) updateData.description = updates.description
+  if (updates.icon !== undefined) updateData.icon = updates.icon
+  if (updates.color !== undefined) updateData.color = updates.color
+  if (updates.displayOrder !== undefined) updateData.display_order = updates.displayOrder
+  if (updates.status !== undefined) updateData.status = updates.status
+
+  const { error } = await supabase
+    .from("heritage_categories")
+    .update(updateData)
+    .eq("id", id)
+
+  if (error) throw new Error(`Failed to update category: ${error.message}`)
+
+  const { data: updated, error: fetchError } = await supabase
+    .from("heritage_categories")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (fetchError) throw new Error("Failed to fetch updated category")
+
+  return {
+    id: updated.id as string,
+    name: updated.name as string,
+    description: (updated.description ?? null) as string | null,
+    icon: (updated.icon ?? null) as string | null,
+    color: (updated.color ?? null) as string | null,
+    displayOrder: (updated.display_order ?? null) as number | null,
+    status: (updated.status ?? "active") as HeritageCategory["status"],
+  }
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  // Check if any sites use this category
+  const { count } = await supabase
+    .from("heritage_sites")
+    .select("id", { count: "exact", head: true })
+    .eq("category_id", id)
+
+  if (count && count > 0) {
+    throw new Error(`Cannot delete category: ${count} heritage site(s) still use it`)
+  }
+
+  const { error } = await supabase
+    .from("heritage_categories")
+    .delete()
+    .eq("id", id)
+
+  if (error) throw new Error(`Failed to delete category: ${error.message}`)
+}
+
+export async function getCategoriesWithSiteCount(): Promise<(HeritageCategory & { siteCount: number })[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data: categories, error: catError } = await supabase
+    .from("heritage_categories")
+    .select("*")
+    .order("display_order", { ascending: true })
+
+  if (catError) throw catError
+
+  const results: (HeritageCategory & { siteCount: number })[] = []
+
+  for (const cat of categories ?? []) {
+    const { count } = await supabase
+      .from("heritage_sites")
+      .select("id", { count: "exact", head: true })
+      .eq("category_id", cat.id)
+
+    results.push({
+      id: cat.id as string,
+      name: cat.name as string,
+      description: (cat.description ?? null) as string | null,
+      icon: (cat.icon ?? null) as string | null,
+      color: (cat.color ?? null) as string | null,
+      displayOrder: (cat.display_order ?? null) as number | null,
+      status: (cat.status ?? "active") as HeritageCategory["status"],
+      siteCount: count ?? 0,
+    })
+  }
+
+  return results
+}
+
+export async function backupHeritageRepository(options?: { name?: string }): Promise<HeritageBackup> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // Fetch all heritage data
+  const [sitesRes, categoriesRes, mediaRes, tagsRes, linksRes] = await Promise.all([
+    supabase.from("heritage_sites").select("*"),
+    supabase.from("heritage_categories").select("*"),
+    supabase.from("heritage_site_media").select("*"),
+    supabase.from("heritage_site_tags").select("*"),
+    supabase.from("heritage_site_reference_links").select("*"),
+  ])
+
+  const backupData = {
+    sites: sitesRes.data ?? [],
+    categories: categoriesRes.data ?? [],
+    media: mediaRes.data ?? [],
+    tags: tagsRes.data ?? [],
+    referenceLinks: linksRes.data ?? [],
+    exportedAt: new Date().toISOString(),
+  }
+
+  const backupJson = JSON.stringify(backupData)
+  const recordsCount = (sitesRes.data?.length ?? 0) + (categoriesRes.data?.length ?? 0)
+
+  const { data: backup, error } = await supabase
+    .from("backups")
+    .insert({
+      backup_name: options?.name ?? `Backup ${new Date().toISOString().split("T")[0]}`,
+      type: "full",
+      size_bytes: new TextEncoder().encode(backupJson).length,
+      records_count: recordsCount,
+      created_by: user?.id ?? null,
+      status: "completed",
+      file_url: null,
+    })
+    .select("*")
+    .single()
+
+  if (error) throw new Error(`Failed to create backup: ${error.message}`)
+
+  return {
+    id: backup.id as string,
+    backupName: (backup.backup_name as string) ?? null,
+    type: (backup.type as HeritageBackup["type"]) ?? null,
+    sizeBytes: (backup.size_bytes as number) ?? null,
+    recordsCount: (backup.records_count as number) ?? null,
+    createdBy: (backup.created_by as string) ?? null,
+    status: (backup.status as string) ?? null,
+    fileUrl: (backup.file_url as string) ?? null,
+    createdAt: backup.created_at as string,
+  }
+}
+
+export async function getBackupsList(): Promise<HeritageBackup[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("backups")
+    .select("*")
+    .order("created_at", { ascending: false })
+
+  if (error) throw error
+
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    backupName: (row.backup_name as string) ?? null,
+    type: (row.type as HeritageBackup["type"]) ?? null,
+    sizeBytes: (row.size_bytes as number) ?? null,
+    recordsCount: (row.records_count as number) ?? null,
+    createdBy: (row.created_by as string) ?? null,
+    status: (row.status as string) ?? null,
+    fileUrl: (row.file_url as string) ?? null,
+    createdAt: row.created_at as string,
+  }))
 }

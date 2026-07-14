@@ -113,9 +113,9 @@ export default function MTOSidebar() {
                 {group.label}
               </p>
             )}
-            {group.items.map((item) => (
+              {group.items.map((item) => (
               <Link
-                key={item.href}
+                key={item.href + item.label}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",

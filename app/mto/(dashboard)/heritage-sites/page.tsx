@@ -1,7 +1,7 @@
-import { getHeritageSitesByMunicipality, getAllCategories } from "@/features/heritage/services"
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
-import { MtoHeritageClient } from "@/features/heritage/components"
+import { getMtoSiteKpiCounts, getMtoSites, getActiveCategories } from "@/features/heritage/services/mto-sites"
+import MtoHeritageListClient from "@/features/heritage/components/mto-heritage-list-client"
 
 export default async function HeritageSitesPage() {
   const cookieStore = await cookies()
@@ -19,16 +19,25 @@ export default async function HeritageSitesPage() {
 
   const municipalityId = profile?.municipality_id ?? ""
 
-  const [sites, categories] = await Promise.all([
-    municipalityId ? getHeritageSitesByMunicipality(municipalityId) : Promise.resolve([]),
-    getAllCategories(),
+  if (!municipalityId) {
+    return (
+      <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <p>No municipality assigned to your profile. Contact the PTCAO administrator.</p>
+      </div>
+    )
+  }
+
+  const [sites, kpiCounts, categories] = await Promise.all([
+    getMtoSites(municipalityId),
+    getMtoSiteKpiCounts(municipalityId),
+    getActiveCategories(),
   ])
 
   return (
-    <MtoHeritageClient
+    <MtoHeritageListClient
       initialSites={sites}
-      categories={categories}
-      municipalityId={municipalityId}
+      kpiCounts={kpiCounts}
+      categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
     />
   )
 }

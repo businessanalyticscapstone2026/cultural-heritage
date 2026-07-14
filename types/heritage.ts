@@ -119,3 +119,29 @@ export interface HeritageBackup {
   fileUrl: string | null
   createdAt: string
 }
+
+export type ReviewStatus = "submitted" | "approved" | "rejected" | "archived"
+
+export interface GovernanceReview {
+  id: string
+  heritageSiteId: string
+  heritageSiteVersionId: string
+  status: ReviewStatus
+  submittedBy: string
+  submittedAt: string
+  reviewedBy: string | null
+  reviewedAt: string | null
+  reviewerComment: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GovernanceReviewWithSite extends GovernanceReview {
+  siteName: string
+  municipalityName: string | null
+  categoryName: string | null
+  submittedByName: string
+  reviewedByName: string | null
+  snapshot: Record<string, unknown>
+  daysPending: number
+}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Landmark, Search } from "lucide-react"
+import { Landmark, Search, Send } from "lucide-react"
 import type { HeritageSite, HeritageCategory, HeritageSiteVersion } from "../types"
 import HeritageSiteForm from "./heritage-site-form"
 import VersionHistoryDialog from "./version-history-dialog"
@@ -15,6 +15,7 @@ interface HeritageRepositoryTableProps {
   onDeleteSite: (id: string) => Promise<void>
   onFetchVersions: (siteId: string) => Promise<HeritageSiteVersion[]>
   onRestoreVersion: (versionId: string) => Promise<void>
+  onSubmitForReview?: (siteId: string, versionId: string) => Promise<void>
 }
 
 export default function HeritageRepositoryTable({
@@ -26,6 +27,7 @@ export default function HeritageRepositoryTable({
   onDeleteSite,
   onFetchVersions,
   onRestoreVersion,
+  onSubmitForReview,
 }: HeritageRepositoryTableProps) {
   const [search, setSearch] = useState("")
   const [filterCategory, setFilterCategory] = useState("")
@@ -37,6 +39,7 @@ export default function HeritageRepositoryTable({
   const [versions, setVersions] = useState<HeritageSiteVersion[]>([])
   const [versionOpen, setVersionOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [submittingId, setSubmittingId] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     return sites.filter((site) => {
@@ -62,6 +65,20 @@ export default function HeritageRepositoryTable({
     const v = await onFetchVersions(site.id)
     setVersions(v)
     setVersionOpen(true)
+  }
+
+  const handleSubmitForReview = async (site: HeritageSite) => {
+    if (!onSubmitForReview) return
+    setSubmittingId(site.id)
+    try {
+      const v = await onFetchVersions(site.id)
+      const latestVersion = v[0]
+      if (latestVersion) {
+        await onSubmitForReview(site.id, latestVersion.id)
+      }
+    } finally {
+      setSubmittingId(null)
+    }
   }
 
   return (
@@ -184,6 +201,18 @@ export default function HeritageRepositoryTable({
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {onSubmitForReview && site.publicationStatus === "draft" && (
+                        <button
+                          type="button"
+                          onClick={() => handleSubmitForReview(site)}
+                          disabled={submittingId === site.id}
+                          className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                          title="Submit for Review"
+                        >
+                          <Send className="size-3" />
+                          Submit
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => { setEditingSite(site); setFormOpen(true) }}

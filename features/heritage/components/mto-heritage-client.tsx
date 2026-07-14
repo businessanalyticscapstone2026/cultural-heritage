@@ -8,6 +8,7 @@ import {
   getHeritageSiteVersionsAction,
   restoreHeritageSiteVersionAction,
 } from "../actions/heritage"
+import { submitForReviewAction } from "@/features/governance/actions"
 import { useHeritageSites } from "../hooks"
 import HeritageRepositoryTable from "./heritage-repository-table"
 import type { HeritageSite, HeritageCategory, HeritageSiteVersion } from "../types"
@@ -55,6 +56,11 @@ export default function MtoHeritageClient({
     refetch()
   }, [refetch])
 
+  const handleSubmitForReview = useCallback(async (siteId: string, versionId: string) => {
+    await submitForReviewAction(siteId, versionId)
+    refetch()
+  }, [refetch])
+
   // MTO staff sees only their municipality
   const municipalities = [{ id: municipalityId, name: "" }]
 
@@ -76,6 +82,7 @@ export default function MtoHeritageClient({
         onDeleteSite={handleDelete}
         onFetchVersions={handleFetchVersions}
         onRestoreVersion={handleRestoreVersion}
+        onSubmitForReview={handleSubmitForReview}
       />
     </div>
   )

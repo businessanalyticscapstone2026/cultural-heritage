@@ -103,7 +103,7 @@ export default function MTOSidebar() {
           <Shield className="size-4 text-primary" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-bold leading-tight tracking-tight">MTO PORTAL</p>
+          <p className="text-sm font-bold leading-tight tracking-tight text-sidebar-foreground">MTO PORTAL</p>
           <p className="text-[10px] leading-tight text-sidebar-foreground/60">Municipal Tourism Office</p>
         </div>
       </div>

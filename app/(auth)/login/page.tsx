@@ -8,6 +8,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import LoginSelectorModal from "@/components/auth/login-selector-modal"
 import { useAuth } from "@/context/auth-context"
+import { checkLoginRateLimitAction, logLoginAttemptAction, updateLastLoginAction } from "@/features/audit/actions"
 
 const currentYear = new Date().getFullYear()
 
@@ -71,12 +72,19 @@ export default function TouristLoginPage() {
     setIsLoading(true)
 
     try {
+      const { allowed } = await checkLoginRateLimitAction(email)
+      if (!allowed) {
+        setError("Too many failed attempts. Please try again in 15 minutes.")
+        return
+      }
+
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (signInError) {
+        await logLoginAttemptAction({ email, outcome: "failed_password" })
         setError("Invalid email or password.")
         return
       }
@@ -96,15 +104,19 @@ export default function TouristLoginPage() {
 
         if (staffProfile) {
           await signOut()
+          await logLoginAttemptAction({ email, outcome: "failed_password", userId: data.user.id })
           setError("Please use the staff portal.")
           return
         }
 
         await signOut()
+        await logLoginAttemptAction({ email, outcome: "failed_password", userId: data.user.id })
         setError("Invalid email or password.")
         return
       }
 
+      await logLoginAttemptAction({ email, outcome: "success", userId: data.user.id })
+      await updateLastLoginAction(data.user.id)
       await refreshSession()
       router.push("/tourist/dashboard")
     } catch {

@@ -116,6 +116,19 @@ export async function getSettingsData(): Promise<SettingsData> {
   }
 }
 
+export async function getGlobalSettingsPublic(): Promise<GlobalSettings> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data } = await supabase
+    .from("system_settings")
+    .select("value")
+    .eq("key", "global_settings")
+    .maybeSingle()
+
+  return parseGlobalSettings((data?.value as Record<string, unknown>) ?? null)
+}
+
 export async function upsertSystemSetting(
   key: string,
   value: Record<string, unknown>,

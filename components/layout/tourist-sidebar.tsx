@@ -18,7 +18,7 @@ export default function TouristSidebar() {
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar">
       <div className="flex items-center gap-2 border-b px-4 py-4">
         <Compass className="size-5 text-primary" />
-        <span className="text-sm font-semibold">Batangas Heritage</span>
+        <span className="text-sm font-semibold text-sidebar-foreground">Batangas Heritage</span>
       </div>
       <nav className="flex-1 space-y-1 p-4">
         {navItems.map((item) => (

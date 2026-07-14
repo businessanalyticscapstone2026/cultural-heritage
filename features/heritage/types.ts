@@ -13,4 +13,7 @@ export type {
   MediaType,
   ChangeType,
   BackupType,
+  ReviewStatus,
+  GovernanceReview,
+  GovernanceReviewWithSite,
 } from "@/types/heritage"

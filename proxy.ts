@@ -72,6 +72,32 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/tourist/dashboard", request.url))
   }
 
+  // Role guard: /mto/* routes require staff_profiles record (MTO Staff or PTCAO Admin)
+  if (isAuthenticated && pathname.startsWith("/mto/")) {
+    const { data: staffProfile } = await supabase
+      .from("staff_profiles")
+      .select("id")
+      .eq("id", user!.id)
+      .maybeSingle()
+
+    if (!staffProfile) {
+      return NextResponse.redirect(new URL("/login", request.url))
+    }
+  }
+
+  // Role guard: /admin/* and /ptcao/* routes require PTCAO Admin role
+  if (isAuthenticated && isAdminRoute) {
+    const { data: staffProfile } = await supabase
+      .from("staff_profiles")
+      .select("id")
+      .eq("id", user!.id)
+      .maybeSingle()
+
+    if (!staffProfile) {
+      return NextResponse.redirect(new URL("/login", request.url))
+    }
+  }
+
   return supabaseResponse
 }
 

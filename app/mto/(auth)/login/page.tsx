@@ -124,7 +124,7 @@ export default function MTOLoginPage() {
       const roleName = profile.roles?.name
       const mappedRole = mapRoleNameToUserRole(roleName)
       if (mappedRole === "ptcao_admin") {
-        router.push("/ptcao/dashboard")
+        router.push("/admin/dashboard")
       } else {
         router.push("/mto/dashboard")
       }

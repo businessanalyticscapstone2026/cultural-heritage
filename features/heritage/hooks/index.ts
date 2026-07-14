@@ -49,29 +49,6 @@ export function useHeritageCategories(fetcher: () => Promise<HeritageCategory[]>
   return { categories, loading, refetch }
 }
 
-export function useCategoriesWithSiteCount(
-  fetcher: () => Promise<(HeritageCategory & { siteCount: number })[]>
-) {
-  const [categories, setCategories] = useState<(HeritageCategory & { siteCount: number })[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const refetch = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await fetcher()
-      setCategories(data)
-    } finally {
-      setLoading(false)
-    }
-  }, [fetcher])
-
-  useEffect(() => {
-    refetch()
-  }, [refetch])
-
-  return { categories, loading, refetch }
-}
-
 export function useBackups(fetcher: () => Promise<HeritageBackup[]>) {
   const [backups, setBackups] = useState<HeritageBackup[]>([])
   const [loading, setLoading] = useState(true)

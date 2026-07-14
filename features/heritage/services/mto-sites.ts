@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import type { HeritageSite, HeritageCategory, HeritageSiteTag } from "@/types/heritage"
+import { createHeritageSiteVersion } from "./index"
 
 export type SiteWithDetails = HeritageSite & {
   creatorName?: string | null
@@ -331,6 +332,16 @@ export async function createMtoSite(
     if (linkError) throw new Error(`Failed to add reference links: ${linkError.message}`)
   }
 
+  // Create version snapshot for audit trail
+  const { data: rawSite } = await supabase
+    .from("heritage_sites")
+    .select("*")
+    .eq("id", siteId)
+    .single()
+  if (rawSite) {
+    await createHeritageSiteVersion(siteId, "created", staffProfileId, rawSite)
+  }
+
   const fullSite = await getMtoSiteById(siteId, data.municipalityId)
   if (!fullSite) throw new Error("Failed to fetch created site")
   return fullSite
@@ -363,6 +374,8 @@ export async function updateMtoSite(
   },
 ): Promise<SiteWithDetails> {
   const supabase = await getSupabase()
+
+  const { data: { user } } = await supabase.auth.getUser()
 
   const updateData: Record<string, unknown> = {}
   if (data.siteName !== undefined) updateData.site_name = data.siteName
@@ -422,6 +435,16 @@ export async function updateMtoSite(
     }
   }
 
+  // Create version snapshot for audit trail
+  const { data: rawSite } = await supabase
+    .from("heritage_sites")
+    .select("*")
+    .eq("id", siteId)
+    .single()
+  if (rawSite) {
+    await createHeritageSiteVersion(siteId, "updated", user?.id ?? null, rawSite)
+  }
+
   const fullSite = await getMtoSiteById(siteId, municipalityId)
   if (!fullSite) throw new Error("Site not found after update")
   return fullSite
@@ -431,6 +454,31 @@ export async function updateMtoSite(
 export async function archiveMtoSite(siteId: string, municipalityId: string): Promise<void> {
   const supabase = await getSupabase()
 
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Fetch the site to create a version snapshot before archiving
+  const { data: site } = await supabase
+    .from("heritage_sites")
+    .select("*")
+    .eq("id", siteId)
+    .eq("municipality_id", municipalityId)
+    .maybeSingle()
+
+  if (!site) throw new Error("Site not found")
+
+  // Create version snapshot
+  const { data: version } = await supabase
+    .from("heritage_site_versions")
+    .insert({
+      heritage_site_id: siteId,
+      snapshot: site,
+      changed_by: user?.id ?? null,
+      change_type: "status_changed",
+    })
+    .select("id")
+    .single()
+
+  // Update publication status
   const { error } = await supabase
     .from("heritage_sites")
     .update({ publication_status: "archived" })
@@ -438,6 +486,25 @@ export async function archiveMtoSite(siteId: string, municipalityId: string): Pr
     .eq("municipality_id", municipalityId)
 
   if (error) throw new Error(`Failed to archive site: ${error.message}`)
+
+  // Create governance review record (graceful failure if table not migrated)
+  if (version && user) {
+    const { error: govError } = await supabase
+      .from("governance_reviews")
+      .insert({
+        heritage_site_id: siteId,
+        heritage_site_version_id: version.id,
+        status: "archived",
+        submitted_by: user.id,
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString(),
+        reviewer_comment: "Archived by MTO staff",
+      })
+
+    if (govError && !govError.message?.includes("does not exist") && !govError.message?.includes("schema cache")) {
+      console.error("Failed to create governance review for archive:", govError.message)
+    }
+  }
 }
 
 /** Restore an archived site back to draft */

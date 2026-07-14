@@ -138,7 +138,7 @@ export default function PTCAOLoginPage() {
 
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/ptcao/dashboard`,
+        redirectTo: `${window.location.origin}/admin/dashboard`,
       })
 
       if (resetError) {

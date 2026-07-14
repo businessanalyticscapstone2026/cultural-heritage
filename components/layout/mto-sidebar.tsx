@@ -12,6 +12,7 @@ import {
   Image,
   Map,
   Activity,
+  BarChart3,
   FileText,
   QrCode,
   ScanLine,
@@ -69,6 +70,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Reports & Analytics",
     items: [
+      { label: "Analytics Dashboard", href: ROUTES.MTO.ANALYTICS, icon: BarChart3 },
       { label: "Reports", href: ROUTES.MTO.REPORTS, icon: FileText },
     ],
   },

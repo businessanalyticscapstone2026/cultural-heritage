@@ -15,7 +15,6 @@ import {
   BarChart3,
   FileText,
   QrCode,
-  ScanLine,
   Users,
   Settings,
 } from "lucide-react"
@@ -78,7 +77,6 @@ const navGroups: NavGroup[] = [
     label: "QR Code Management",
     items: [
       { label: "QR Codes", href: ROUTES.MTO.QR_CODES, icon: QrCode },
-      { label: "Scan Logs", href: ROUTES.MTO.QR_CODES, icon: ScanLine },
     ],
   },
   {

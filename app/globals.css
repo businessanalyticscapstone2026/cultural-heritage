@@ -143,3 +143,39 @@ body {
     @apply hidden!;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  [data-export-visible="true"],
+  [data-export-visible="true"] * {
+    visibility: visible !important;
+  }
+
+  [data-export-visible="false"] {
+    display: none !important;
+  }
+
+  .report-shell,
+  .report-shell * {
+    visibility: visible !important;
+  }
+
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+
+  #report-preview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  nav, aside, header:not(.report-header), footer:not(.report-footer) {
+    display: none !important;
+  }
+}

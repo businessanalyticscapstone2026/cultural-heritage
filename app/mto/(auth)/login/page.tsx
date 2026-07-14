@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import LoginSelectorModal from "@/components/auth/login-selector-modal"
 import { useAuth } from "@/context/auth-context"
 import { mapRoleNameToUserRole } from "@/features/auth/services"
+import { checkLoginRateLimitAction, logLoginAttemptAction, updateLastLoginAction } from "@/features/audit/actions"
 
 const currentYear = new Date().getFullYear()
 
@@ -79,12 +80,19 @@ export default function MTOLoginPage() {
     setIsLoading(true)
 
     try {
+      const { allowed } = await checkLoginRateLimitAction(email)
+      if (!allowed) {
+        setError("Too many failed attempts. Please try again in 15 minutes.")
+        return
+      }
+
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (signInError) {
+        await logLoginAttemptAction({ email, outcome: "failed_password" })
         setError("Invalid email or password.")
         return
       }
@@ -97,16 +105,20 @@ export default function MTOLoginPage() {
 
       if (profileError || !profile) {
         await signOut()
+        await logLoginAttemptAction({ email, outcome: "failed_password", userId: data.user.id })
         setError("This account is not authorized for staff access.")
         return
       }
 
       if (profile.account_status !== "active") {
         await signOut()
+        await logLoginAttemptAction({ email, outcome: "failed_password", userId: data.user.id })
         setError("This account is not authorized for staff access.")
         return
       }
 
+      await logLoginAttemptAction({ email, outcome: "success", userId: data.user.id })
+      await updateLastLoginAction(data.user.id)
       await refreshSession()
 
       const roleName = profile.roles?.name

@@ -5,9 +5,24 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 
 const publicRoutes = ["/", "/login", "/register", "/signup", "/explore", "/map", "/recommendations", "/routes", "/heritage", "/tourist/scan", "/mto/login", "/ptcao/login"]
+const adminRoutes = ["/admin", "/ptcao"]
+const maintenanceExemptRoutes = ["/maintenance", "/api"]
 
-export async function middleware(request: NextRequest) {
+async function getGlobalSetting(supabase: ReturnType<typeof createServerClient>, key: string): Promise<Record<string, unknown> | null> {
+  const { data } = await supabase
+    .from("system_settings")
+    .select("value")
+    .eq("key", key)
+    .maybeSingle()
+  return (data?.value as Record<string, unknown>) ?? null
+}
+
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  if (maintenanceExemptRoutes.some((route) => pathname.startsWith(route))) {
+    return NextResponse.next()
+  }
 
   let supabaseResponse = NextResponse.next({ request: { headers: request.headers } })
 
@@ -32,8 +47,20 @@ export async function middleware(request: NextRequest) {
 
   const isAuthenticated = !!user
   const isPublic = publicRoutes.some((route) => pathname.startsWith(route))
-  const isAdminRoute = pathname.startsWith("/admin")
-  const isMTORoute = pathname.startsWith("/mto")
+  const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route))
+
+  // Check maintenance mode
+  const globalSettings = await getGlobalSetting(supabase, "global_settings")
+  const maintenanceMode = globalSettings?.maintenanceMode === true
+
+  if (maintenanceMode && pathname !== "/maintenance") {
+    if (!isAuthenticated) {
+      return NextResponse.redirect(new URL("/maintenance", request.url))
+    }
+    if (!isAdminRoute) {
+      return NextResponse.redirect(new URL("/maintenance", request.url))
+    }
+  }
 
   if (!isAuthenticated && !isPublic) {
     const loginUrl = new URL("/login", request.url)

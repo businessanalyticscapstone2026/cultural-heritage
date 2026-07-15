@@ -32,11 +32,11 @@ export function ReviewsSection({ siteId }: ReviewsSectionProps) {
   useEffect(() => {
     let cancelled = false
 
-    getReviewsAction(siteId, sort)
-      .then(async (data) => {
-        const userData = session
-          ? await getUserReviewAction(siteId)
-          : null
+    const reviewsPromise = getReviewsAction(siteId, sort)
+    const userReviewPromise = session ? getUserReviewAction(siteId) : Promise.resolve(null)
+
+    Promise.all([reviewsPromise, userReviewPromise])
+      .then(([data, userData]) => {
         if (!cancelled) {
           setReviews(data.reviews)
           setAggregate(data.aggregate)

@@ -1,16 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
-import type { QRCodeData, QRCodeConfig, ScanResult } from "../types"
-
-export async function generateQRCode(_siteId: string, _config?: QRCodeConfig): Promise<QRCodeData> {
-  // TODO: implement for QR Code Management module
-  throw new Error("Not implemented")
-}
-
-export async function getQRCodeBySite(_siteId: string): Promise<QRCodeData | null> {
-  // TODO: implement for QR Code Management module
-  return null
-}
+import type { ScanResult } from "../types"
 
 export async function resolveQRCode(code: string): Promise<ScanResult> {
   const cookieStore = await cookies()

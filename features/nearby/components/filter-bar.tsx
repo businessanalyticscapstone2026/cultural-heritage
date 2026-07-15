@@ -2,9 +2,7 @@
 
 import { ChevronDown } from "lucide-react"
 import type { TravelMode, HeritageCategory } from "@/types/heritage"
-
-const WALKING_RADII = [1, 2, 3, 5, 10, 15]
-const DRIVING_RADII = [5, 10, 20, 30, 50]
+import { WALKING_RADII, DRIVING_RADII } from "@/features/nearby/constants"
 
 interface FilterBarProps {
   mode: TravelMode

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
+import jsQR from "jsqr"
 
 export type QRScannerState = "idle" | "scanning" | "detected" | "error"
 
@@ -22,6 +23,7 @@ export function useQRScanner({ videoRef, onDetect, enabled = true }: UseQRScanne
   const isRunningRef = useRef(false)
   const lastDetectionRef = useRef(0)
   const onDetectRef = useRef(onDetect)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
     onDetectRef.current = onDetect
@@ -45,6 +47,29 @@ export function useQRScanner({ videoRef, onDetect, enabled = true }: UseQRScanne
     return null
   }, [])
 
+  const detectWithJsQR = useCallback((video: HTMLVideoElement): string | null => {
+    try {
+      if (!canvasRef.current) {
+        canvasRef.current = document.createElement("canvas")
+      }
+      const canvas = canvasRef.current
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return null
+
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "dontInvert",
+      })
+      return code?.data ?? null
+    } catch {
+      return null
+    }
+  }, [])
+
   const processFrame = useCallback(async () => {
     const video = videoRef.current
     if (!video || video.readyState < 2) return
@@ -52,7 +77,7 @@ export function useQRScanner({ videoRef, onDetect, enabled = true }: UseQRScanne
     const now = Date.now()
     if (now - lastDetectionRef.current < 1000) return
 
-    const code = await detectWithBarcodeAPI(video)
+    const code = await detectWithBarcodeAPI(video) ?? detectWithJsQR(video)
     if (code) {
       lastDetectionRef.current = now
       setState("detected")
@@ -63,7 +88,7 @@ export function useQRScanner({ videoRef, onDetect, enabled = true }: UseQRScanne
         }
       }, 2000)
     }
-  }, [videoRef, detectWithBarcodeAPI])
+  }, [videoRef, detectWithBarcodeAPI, detectWithJsQR])
 
   const start = useCallback(() => {
     if (isRunningRef.current) return

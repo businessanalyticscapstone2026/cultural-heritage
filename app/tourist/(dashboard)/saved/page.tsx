@@ -13,6 +13,10 @@ import {
 interface UndoState {
   siteId: string
   siteName: string
+  municipalityName: string | null
+  categoryName: string | null
+  thumbnail: string | null
+  savedAt: string
 }
 
 export default function SavedSitesPage() {
@@ -59,7 +63,14 @@ export default function SavedSitesPage() {
       const site = prev.find((s) => s.siteId === siteId)
       if (!site) return prev
 
-      setUndoState({ siteId, siteName: site.siteName })
+      setUndoState({
+        siteId,
+        siteName: site.siteName,
+        municipalityName: site.municipalityName,
+        categoryName: site.categoryName,
+        thumbnail: site.thumbnail,
+        savedAt: site.savedAt,
+      })
 
       if (undoTimerRef.current) {
         clearTimeout(undoTimerRef.current)
@@ -102,10 +113,10 @@ export default function SavedSitesPage() {
           {
             siteId: undoState.siteId,
             siteName: undoState.siteName,
-            municipalityName: null,
-            categoryName: null,
-            thumbnail: null,
-            savedAt: new Date().toISOString(),
+            municipalityName: undoState.municipalityName,
+            categoryName: undoState.categoryName,
+            thumbnail: undoState.thumbnail,
+            savedAt: undoState.savedAt,
           },
         ]
       })

@@ -14,7 +14,10 @@ import { BLOCKED_WORDS, MAX_COMMENT_LENGTH } from "../constants"
 
 function containsProfanity(text: string): boolean {
   const lower = text.toLowerCase()
-  return BLOCKED_WORDS.some((word) => lower.includes(word))
+  return BLOCKED_WORDS.some((word) => {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    return new RegExp(`\\b${escaped}\\b`, "i").test(lower)
+  })
 }
 
 export async function getReviewsAction(

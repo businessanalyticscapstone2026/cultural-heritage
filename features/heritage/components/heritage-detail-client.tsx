@@ -34,10 +34,18 @@ export default function HeritageDetailClient({
   useEffect(() => {
     async function fetchNearby() {
       try {
-        const res = await fetch(`/api/heritage?nearby=${site.id}`)
+        if (!site.latitude || !site.longitude) return
+        const params = new URLSearchParams({
+          lat: String(site.latitude),
+          long: String(site.longitude),
+          radius: "10",
+          mode: "walking",
+          limit: "5",
+        })
+        const res = await fetch(`/api/heritage/nearby?${params}`)
         if (res.ok) {
           const data = await res.json()
-          setNearbySites(data.sites ?? [])
+          setNearbySites(data.results ?? [])
         }
       } catch {
         // Silently fail — nearby is optional

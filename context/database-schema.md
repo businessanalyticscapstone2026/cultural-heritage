@@ -5,23 +5,11 @@ CREATE TABLE public.municipalities (
 id uuid NOT NULL DEFAULT gen_random_uuid(),
 name text NOT NULL UNIQUE,
 province text NOT NULL DEFAULT 'Batangas'::text,
-status text NOT NULL DEFAULT 'pending' CHECK (status = ANY (ARRAY['pending'::text, 'active'::text, 'inactive'::text])),
-default_map_center jsonb,
 created_at timestamp with time zone NOT NULL DEFAULT now(),
+status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'active'::text, 'inactive'::text])),
+default_map_center jsonb,
 updated_at timestamp with time zone NOT NULL DEFAULT now(),
 CONSTRAINT municipalities_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.municipality_audit_log (
-id uuid NOT NULL DEFAULT gen_random_uuid(),
-municipality_id uuid NOT NULL,
-action text NOT NULL CHECK (action = ANY (ARRAY['created'::text, 'status_changed'::text, 'updated'::text])),
-performed_by uuid,
-previous_value jsonb,
-new_value jsonb NOT NULL,
-created_at timestamp with time zone NOT NULL DEFAULT now(),
-CONSTRAINT municipality_audit_log_pkey PRIMARY KEY (id),
-CONSTRAINT municipality_audit_log_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id) ON DELETE CASCADE,
-CONSTRAINT municipality_audit_log_performed_by_fkey FOREIGN KEY (performed_by) REFERENCES public.staff_profiles(id)
 );
 CREATE TABLE public.roles (
 id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -118,6 +106,10 @@ visibility text NOT NULL DEFAULT 'public'::text,
 created_by uuid,
 created_at timestamp with time zone NOT NULL DEFAULT now(),
 updated_at timestamp with time zone NOT NULL DEFAULT now(),
+average_rating numeric DEFAULT 0,
+review_count integer DEFAULT 0,
+entrance_fee text,
+designation text,
 CONSTRAINT heritage_sites_pkey PRIMARY KEY (id),
 CONSTRAINT heritage_sites_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.heritage_categories(id),
 CONSTRAINT heritage_sites_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id),
@@ -131,6 +123,10 @@ file_url text NOT NULL,
 caption text,
 uploaded_by uuid,
 created_at timestamp with time zone NOT NULL DEFAULT now(),
+file_name text,
+file_size_bytes integer,
+mime_type text,
+is_primary boolean NOT NULL DEFAULT false,
 CONSTRAINT heritage_site_media_pkey PRIMARY KEY (id),
 CONSTRAINT heritage_site_media_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id),
 CONSTRAINT heritage_site_media_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.staff_profiles(id)
@@ -167,6 +163,7 @@ rating integer NOT NULL CHECK (rating >= 1 AND rating <= 5),
 comment text,
 status text NOT NULL DEFAULT 'published'::text CHECK (status = ANY (ARRAY['published'::text, 'flagged'::text, 'hidden'::text])),
 created_at timestamp with time zone NOT NULL DEFAULT now(),
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
 CONSTRAINT reviews_pkey PRIMARY KEY (id),
 CONSTRAINT reviews_tourist_id_fkey FOREIGN KEY (tourist_id) REFERENCES public.tourist_profiles(id),
 CONSTRAINT reviews_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id)
@@ -182,9 +179,13 @@ generated_at timestamp with time zone NOT NULL DEFAULT now(),
 was_clicked boolean NOT NULL DEFAULT false,
 clicked_at timestamp with time zone,
 led_to_route boolean NOT NULL DEFAULT false,
+municipality_id uuid NOT NULL,
+bookmarked boolean NOT NULL DEFAULT false,
+bookmarked_at timestamp with time zone,
 CONSTRAINT recommendations_pkey PRIMARY KEY (id),
 CONSTRAINT recommendations_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id),
-CONSTRAINT recommendations_tourist_id_fkey FOREIGN KEY (tourist_id) REFERENCES public.tourist_profiles(id)
+CONSTRAINT recommendations_tourist_id_fkey FOREIGN KEY (tourist_id) REFERENCES public.tourist_profiles(id),
+CONSTRAINT recommendations_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id)
 );
 CREATE TABLE public.site_distances (
 id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -259,6 +260,11 @@ module text,
 details jsonb,
 ip_address text,
 created_at timestamp with time zone NOT NULL DEFAULT now(),
+category text CHECK (category = ANY (ARRAY['heritage'::text, 'governance'::text, 'municipality'::text, 'user_management'::text, 'settings'::text, 'media'::text, 'system'::text])),
+target_type text,
+target_id text,
+detail jsonb,
+user_agent text,
 CONSTRAINT audit_logs_pkey PRIMARY KEY (id),
 CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.staff_profiles(id)
 );
@@ -307,4 +313,77 @@ file_url text,
 created_at timestamp with time zone NOT NULL DEFAULT now(),
 CONSTRAINT backups_pkey PRIMARY KEY (id),
 CONSTRAINT backups_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff_profiles(id)
+);
+CREATE TABLE public.municipality_audit_log (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+municipality_id uuid NOT NULL,
+action text NOT NULL CHECK (action = ANY (ARRAY['created'::text, 'status_changed'::text, 'updated'::text])),
+performed_by uuid,
+previous_value jsonb,
+new_value jsonb NOT NULL,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT municipality_audit_log_pkey PRIMARY KEY (id),
+CONSTRAINT municipality_audit_log_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id),
+CONSTRAINT municipality_audit_log_performed_by_fkey FOREIGN KEY (performed_by) REFERENCES public.staff_profiles(id)
+);
+CREATE TABLE public.review_reports (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+review_id uuid NOT NULL,
+reported_by uuid NOT NULL,
+reason text NOT NULL,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT review_reports_pkey PRIMARY KEY (id),
+CONSTRAINT review_reports_review_id_fkey FOREIGN KEY (review_id) REFERENCES public.reviews(id),
+CONSTRAINT review_reports_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES public.tourist_profiles(id)
+);
+CREATE TABLE public.heritage_site_versions (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+heritage_site_id uuid NOT NULL,
+snapshot jsonb NOT NULL,
+changed_by uuid,
+change_type text NOT NULL CHECK (change_type = ANY (ARRAY['created'::text, 'updated'::text, 'status_changed'::text])),
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT heritage_site_versions_pkey PRIMARY KEY (id),
+CONSTRAINT heritage_site_versions_heritage_site_id_fkey FOREIGN KEY (heritage_site_id) REFERENCES public.heritage_sites(id),
+CONSTRAINT heritage_site_versions_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES public.staff_profiles(id)
+);
+CREATE TABLE public.governance_reviews (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+heritage_site_id uuid NOT NULL,
+heritage_site_version_id uuid NOT NULL,
+status text NOT NULL DEFAULT 'submitted'::text CHECK (status = ANY (ARRAY['submitted'::text, 'approved'::text, 'rejected'::text, 'archived'::text])),
+submitted_by uuid NOT NULL,
+submitted_at timestamp with time zone NOT NULL DEFAULT now(),
+reviewed_by uuid,
+reviewed_at timestamp with time zone,
+reviewer_comment text,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT governance_reviews_pkey PRIMARY KEY (id),
+CONSTRAINT governance_reviews_heritage_site_id_fkey FOREIGN KEY (heritage_site_id) REFERENCES public.heritage_sites(id),
+CONSTRAINT governance_reviews_heritage_site_version_id_fkey FOREIGN KEY (heritage_site_version_id) REFERENCES public.heritage_site_versions(id),
+CONSTRAINT governance_reviews_submitted_by_fkey FOREIGN KEY (submitted_by) REFERENCES public.staff_profiles(id),
+CONSTRAINT governance_reviews_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.staff_profiles(id)
+);
+CREATE TABLE public.login_attempts (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+user_id uuid,
+email_attempted text NOT NULL,
+outcome text NOT NULL CHECK (outcome = ANY (ARRAY['success'::text, 'failed_password'::text, 'failed_locked'::text, 'failed_unknown_account'::text])),
+ip_address text,
+user_agent text,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT login_attempts_pkey PRIMARY KEY (id),
+CONSTRAINT login_attempts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.security_events (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+user_id uuid,
+event_type text NOT NULL,
+detail text,
+ip_address text,
+user_agent text,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT security_events_pkey PRIMARY KEY (id),
+CONSTRAINT security_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );

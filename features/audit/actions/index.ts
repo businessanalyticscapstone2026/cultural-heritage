@@ -20,16 +20,29 @@ export async function logLoginAttemptAction(params: {
   ipAddress?: string | null
   userAgent?: string | null
 }) {
-  return logLoginAttempt(params)
+  try {
+    return await logLoginAttempt(params)
+  } catch (e) {
+    console.error("logLoginAttemptAction failed:", e)
+  }
 }
 
 export async function checkLoginRateLimitAction(email: string) {
-  const result = await checkLoginRateLimit(email)
-  return { allowed: !result.locked, ...result }
+  try {
+    const result = await checkLoginRateLimit(email)
+    return { allowed: !result.locked, ...result }
+  } catch (e) {
+    console.error("checkLoginRateLimitAction failed:", e)
+    return { allowed: true, locked: false, remainingAttempts: 5 }
+  }
 }
 
 export async function updateLastLoginAction(userId: string) {
-  return updateLastLogin(userId)
+  try {
+    return await updateLastLogin(userId)
+  } catch (e) {
+    console.error("updateLastLoginAction failed:", e)
+  }
 }
 
 export async function logAuditEventAction(params: {

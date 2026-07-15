@@ -83,12 +83,28 @@ export async function updateLastLogin(userId: string): Promise<void> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const { error } = await supabase
+  const { data: staffProfile } = await supabase
     .from("staff_profiles")
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle()
+
+  if (staffProfile) {
+    const { error } = await supabase
+      .from("staff_profiles")
+      .update({ last_login: new Date().toISOString() })
+      .eq("id", userId)
+
+    if (error) console.error("Failed to update staff last_login:", error.message)
+    return
+  }
+
+  const { error } = await supabase
+    .from("tourist_profiles")
     .update({ last_login: new Date().toISOString() })
     .eq("id", userId)
 
-  if (error) console.error("Failed to update last_login:", error.message)
+  if (error) console.error("Failed to update tourist last_login:", error.message)
 }
 
 export async function logAuditEvent(params: {

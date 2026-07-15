@@ -1,19 +1,31 @@
-import Link from "next/link";
-import Image from "next/image";
-import { Play } from "lucide-react";
+import Link from "next/link"
+import Image from "next/image"
+import { Play } from "lucide-react"
 
-export default function HeroSection() {
+interface HeroSectionProps {
+  siteName?: string | null
+  heroImage?: string | null
+}
+
+export default function HeroSection({
+  siteName,
+  heroImage,
+}: HeroSectionProps) {
   return (
     <section className="relative flex min-h-[600px] items-center overflow-hidden lg:min-h-[650px]">
-      <Image
-        src="/images/municipalities/taal/Basilica Minore de San Martin de Tours - Taal Batangas.jfif"
-        alt="Basilica Minore de San Martin de Tours - Taal, Batangas"
-        fill
-        preload
-        loading="eager"
-        className="object-cover"
-        sizes="100vw"
-      />
+      {heroImage ? (
+        <Image
+          src={heroImage}
+          alt={siteName ?? "First District of Batangas Cultural Heritage"}
+          fill
+          priority
+          loading="eager"
+          className="object-cover"
+          sizes="100vw"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-primary" />
+      )}
       <div className="absolute inset-0 bg-black/55" />
 
       <div className="relative z-10 mx-auto w-full max-w-7xl px-6 lg:px-10">
@@ -51,5 +63,5 @@ export default function HeroSection() {
         </div>
       </div>
     </section>
-  );
+  )
 }

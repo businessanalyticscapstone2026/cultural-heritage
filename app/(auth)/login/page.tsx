@@ -8,7 +8,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import LoginSelectorModal from "@/components/auth/login-selector-modal"
 import { useAuth } from "@/context/auth-context"
-import { checkLoginRateLimitAction, logLoginAttemptAction, updateLastLoginAction } from "@/features/audit/actions"
+import { checkLoginRateLimitAction } from "@/features/audit/actions"
 
 const currentYear = new Date().getFullYear()
 
@@ -72,10 +72,14 @@ export default function TouristLoginPage() {
     setIsLoading(true)
 
     try {
-      const { allowed } = await checkLoginRateLimitAction(email)
-      if (!allowed) {
-        setError("Too many failed attempts. Please try again in 15 minutes.")
-        return
+      try {
+        const { allowed } = await checkLoginRateLimitAction(email)
+        if (!allowed) {
+          setError("Too many failed attempts. Please try again in 15 minutes.")
+          return
+        }
+      } catch (e) {
+        console.error("Rate limit check failed:", e)
       }
 
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
@@ -84,42 +88,58 @@ export default function TouristLoginPage() {
       })
 
       if (signInError) {
-        await logLoginAttemptAction({ email, outcome: "failed_password" })
+        try { await supabase.from("login_attempts").insert({ email_attempted: email, outcome: "failed_password" }) } catch {}
         setError("Invalid email or password.")
         return
       }
 
-      const { data: touristProfile } = await supabase
-        .from("tourist_profiles")
-        .select("id")
-        .eq("id", data.user.id)
-        .maybeSingle()
+      try {
+        const [touristRes, staffRes] = await Promise.all([
+          supabase.from("tourist_profiles").select("id").eq("id", data.user.id).maybeSingle(),
+          supabase.from("staff_profiles").select("id").eq("id", data.user.id).maybeSingle(),
+        ])
 
-      if (!touristProfile) {
-        const { data: staffProfile } = await supabase
-          .from("staff_profiles")
-          .select("id")
-          .eq("id", data.user.id)
-          .maybeSingle()
+        if (touristRes.data) {
+          // tourist profile exists
+        } else if (staffRes.data) {
+          const meta = data.user.user_metadata
+          const fullName = (meta?.full_name as string) ?? ""
+          const space = fullName.indexOf(" ")
+          const firstName = space > 0 ? fullName.slice(0, space) : fullName
+          const lastName = space > 0 ? fullName.slice(space + 1) : ""
 
-        if (staffProfile) {
-          await signOut()
-          await logLoginAttemptAction({ email, outcome: "failed_password", userId: data.user.id })
-          setError("Please use the staff portal.")
-          return
+          const { error: createError } = await supabase
+            .from("tourist_profiles")
+            .insert({ id: data.user.id, first_name: firstName || undefined, last_name: lastName || undefined })
+
+          if (createError) {
+            console.error("Could not create tourist profile:", createError)
+          }
         }
-
-        await signOut()
-        await logLoginAttemptAction({ email, outcome: "failed_password", userId: data.user.id })
-        setError("Invalid email or password.")
-        return
+      } catch (e) {
+        console.error("Role detection error:", e)
       }
 
-      await logLoginAttemptAction({ email, outcome: "success", userId: data.user.id })
-      await updateLastLoginAction(data.user.id)
+      try {
+        await supabase.from("login_attempts").insert({
+          user_id: data.user.id,
+          email_attempted: email,
+          outcome: "success",
+        })
+      } catch (e) {
+        console.error("Failed to log login success:", e)
+      }
+
+      try {
+        await supabase.from("tourist_profiles").update({ last_login: new Date().toISOString() }).eq("id", data.user.id)
+      } catch (e) {
+        console.error("Failed to update last login:", e)
+      }
+
       await refreshSession()
       router.push("/tourist/dashboard")
-    } catch {
+    } catch (err) {
+      console.error("Tourist login error:", err)
       setError("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)

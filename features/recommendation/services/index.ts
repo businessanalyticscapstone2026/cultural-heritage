@@ -124,7 +124,7 @@ function jaccardSimilarity(a: string[], b: string[]): number {
   const setB = new Set(b.map((s) => s.toLowerCase().trim()))
   const intersection = new Set([...setA].filter((x) => setB.has(x)))
   const union = new Set([...setA, ...setB])
-  return intersection.size / union.size
+  return union.size === 0 ? 0 : intersection.size / union.size
 }
 
 function computeCategoryMatch(
@@ -250,19 +250,20 @@ export async function generateRecommendations(
       .eq("visibility", "public"),
     supabase
       .from("tourist_visits")
-      .select("site_id, count")
-      .is("tourist_id", null),
+      .select("site_id"),
   ])
 
-  if (sitesResult.error) throw new Error(`Failed to fetch heritage sites: ${sitesResult.error.message}`)
+  if (sitesResult.error) {
+    throw new Error(`Failed to fetch heritage sites: ${sitesResult.error.message}`)
+  }
 
   const weights = parseWeights(weightsResult.data?.value as Record<string, unknown> | null)
   const rawSites = (sitesResult.data ?? []) as unknown as RawSite[]
 
   const visitCounts = new Map<string, number>()
   if (visitsResult.data) {
-    for (const row of visitsResult.data as { site_id: string; count: number }[]) {
-      visitCounts.set(row.site_id, row.count)
+    for (const row of visitsResult.data as { site_id: string }[]) {
+      visitCounts.set(row.site_id, (visitCounts.get(row.site_id) ?? 0) + 1)
     }
   }
 
@@ -327,7 +328,32 @@ export async function generateRecommendations(
     }
   })
 
-  const validScores = scored.filter((s): s is SiteScoreBreakdown => s !== null)
+  let validScores = scored.filter((s): s is SiteScoreBreakdown => s !== null)
+
+  // Cold-start fallback: if every site has zero signal, fall back to pure popularity
+  if (validScores.length === 0 && rawSites.length > 0) {
+    validScores = rawSites.map((site) => {
+      const popScore = computePopularityScore(
+        site.average_rating,
+        site.review_count,
+        visitCounts.get(site.id) ?? 0,
+      )
+
+      return {
+        siteId: site.id,
+        categoryMatch: 0,
+        tagInterestScore: 0,
+        accessibilityScore: 0,
+        locationScore: 0,
+        popularityScore: popScore,
+        finalScore: popScore,
+        matchPercentage: Math.round(popScore * 100),
+        distanceKm: null,
+        reasons: ["Popular heritage destination"],
+      }
+    })
+  }
+
   validScores.sort((a, b) => b.finalScore - a.finalScore)
 
   const limit = preferences.limit ?? 20
@@ -344,20 +370,26 @@ export async function generateRecommendations(
   })
 
   if (results.length > 0) {
-    const municipalityIds = [...new Set(rawSites.map((s) => s.municipality_id).filter(Boolean))] as string[]
-    const primaryMunicipalityId = municipalityIds[0] ?? "00000000-0000-0000-0000-000000000000"
+    const insertData = topScores.map((s) => {
+      const site = rawSites.find((r) => r.id === s.siteId)!
+      return {
+        tourist_id: preferences.touristId ?? null,
+        session_id: preferences.sessionId ?? null,
+        site_id: s.siteId,
+        score: s.finalScore,
+        method: "weighted_hybrid" as const,
+        generated_at: new Date().toISOString(),
+        municipality_id: site.municipality_id ?? "00000000-0000-0000-0000-000000000000",
+      }
+    })
 
-    const insertData = topScores.map((s) => ({
-      tourist_id: null,
-      session_id: preferences.sessionId ?? null,
-      site_id: s.siteId,
-      score: s.finalScore,
-      method: "weighted_hybrid" as const,
-      generated_at: new Date().toISOString(),
-      municipality_id: primaryMunicipalityId,
-    }))
+    const { error: insertError } = await supabase
+      .from("recommendations")
+      .insert(insertData)
 
-    await supabase.from("recommendations").insert(insertData)
+    if (insertError) {
+      console.error("Failed to persist recommendations:", insertError.message)
+    }
   }
 
   return results

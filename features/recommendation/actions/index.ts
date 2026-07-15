@@ -1,6 +1,5 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { generateRecommendations } from "../services"
@@ -17,6 +16,7 @@ export async function getRecommendationsAction(
   const prefs: UserPreferences = {
     ...preferences,
     sessionId: preferences.sessionId ?? (user ? undefined : crypto.randomUUID()),
+    touristId: user?.id ?? null,
   }
 
   if (user) {
@@ -39,8 +39,6 @@ export async function getRecommendationsAction(
   }
 
   const results = await generateRecommendations(supabase, prefs)
-
-  revalidatePath("/recommendations")
 
   return results
 }

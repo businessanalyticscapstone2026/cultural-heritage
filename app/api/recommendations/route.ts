@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       homeLatitude: latParam ? Number(latParam) : undefined,
       homeLongitude: lngParam ? Number(lngParam) : undefined,
       limit: limitParam ? Number(limitParam) : 20,
+      touristId: user?.id ?? null,
     }
 
     if (user) {

@@ -25,6 +25,7 @@ export default function NearbyPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [categories, setCategories] = useState<HeritageCategory[]>([])
   const [sites, setSites] = useState<NearbySite[]>([])
+  const [loading, setLoading] = useState(false)
   const [manualLocation, setManualLocation] = useState<{
     lat: number
     long: number
@@ -44,7 +45,7 @@ export default function NearbyPage() {
   const effectiveShowFallback = showFallbackUI || showFallback
 
   const fetchNearby = useCallback(async () => {
-    if (lat === null || long === null) return
+    if (lat === null || long === null) return []
 
     const params = new URLSearchParams({
       lat: String(lat),
@@ -71,15 +72,17 @@ export default function NearbyPage() {
 
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
     fetchNearby().then((results) => {
       if (!cancelled) {
         setSites(results)
+        setLoading(false)
       }
     })
     return () => { cancelled = true }
   }, [fetchNearby])
 
-  const isLoading = sites.length === 0 && hasLocation
+  const isLoading = loading
 
   useEffect(() => {
     let cancelled = false

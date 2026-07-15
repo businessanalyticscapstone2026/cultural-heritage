@@ -14,6 +14,7 @@ export interface UserPreferences {
   homeLongitude?: number | null
   sessionId?: string | null
   limit?: number
+  touristId?: string | null
 }
 
 export interface RecommendationWeights {

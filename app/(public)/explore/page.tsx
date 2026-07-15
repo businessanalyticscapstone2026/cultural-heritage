@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
-import { getPublishedSites, getExploreCategories } from "@/features/heritage/services/explore"
+import { getPublishedSites, getExploreCategories, getExploreFilterOptions } from "@/features/heritage/services/explore"
 import { getGlobalSettingsPublic } from "@/features/settings/services"
 import ExploreClient from "@/features/heritage/components/explore-client"
 import ExploreSkeleton from "./loading"
@@ -12,18 +12,22 @@ export const metadata: Metadata = {
 }
 
 interface ExplorePageProps {
-  searchParams: Promise<{ q?: string; category?: string; page?: string }>
+  searchParams: Promise<{ q?: string; category?: string; municipality?: string; period?: string; accessibility?: string; page?: string }>
 }
 
 export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   const sp = await searchParams
   const searchQuery = sp.q ?? ""
   const categoryId = sp.category ?? ""
+  const municipalityId = sp.municipality ?? ""
+  const historicalPeriod = sp.period ?? ""
+  const accessibility = sp.accessibility ?? ""
   const page = Math.max(1, Number(sp.page) || 1)
 
-  const [globalSettings, categories] = await Promise.all([
+  const [globalSettings, categories, filterOptions] = await Promise.all([
     getGlobalSettingsPublic(),
     getExploreCategories(),
+    getExploreFilterOptions(),
   ])
 
   const pageSize = globalSettings.itemsPerPage
@@ -31,6 +35,9 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   const initialData = await getPublishedSites({
     search: searchQuery || undefined,
     categoryId: categoryId || undefined,
+    municipalityId: municipalityId || undefined,
+    historicalPeriod: historicalPeriod || undefined,
+    accessibility: accessibility || undefined,
     page,
     pageSize,
   })
@@ -50,8 +57,13 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
         <ExploreClient
           initialData={initialData}
           categories={categories}
+          municipalities={filterOptions.municipalities}
+          historicalPeriods={filterOptions.historicalPeriods}
           searchQuery={searchQuery}
           activeCategoryId={categoryId || null}
+          activeMunicipalityId={municipalityId}
+          activeHistoricalPeriod={historicalPeriod}
+          activeAccessibility={accessibility}
         />
       </Suspense>
     </div>

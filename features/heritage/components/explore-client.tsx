@@ -12,15 +12,25 @@ import type { ExploreResult, ExploreCategory } from "../services/explore"
 interface ExploreClientProps {
   initialData: ExploreResult
   categories: ExploreCategory[]
+  municipalities: { id: string; name: string }[]
+  historicalPeriods: string[]
   searchQuery: string
   activeCategoryId: string | null
+  activeMunicipalityId: string
+  activeHistoricalPeriod: string
+  activeAccessibility: string
 }
 
 export default function ExploreClient({
   initialData,
   categories,
+  municipalities,
+  historicalPeriods,
   searchQuery,
   activeCategoryId,
+  activeMunicipalityId,
+  activeHistoricalPeriod,
+  activeAccessibility,
 }: ExploreClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -135,6 +145,77 @@ export default function ExploreClient({
             ))}
           </div>
         )}
+      </div>
+
+      {/* Advanced filters toolbar — matches admin/MTO filter-bar pattern */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <label htmlFor="municipality" className="text-xs font-medium text-muted-foreground">
+            Municipality
+          </label>
+          <select
+            id="municipality"
+            value={activeMunicipalityId}
+            onChange={(e) => {
+              startTransition(() => {
+                router.replace(buildUrl({ municipality: e.target.value || null, page: "1" }), { scroll: false })
+              })
+            }}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <option value="">All Municipalities</option>
+            {municipalities.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label htmlFor="historicalPeriod" className="text-xs font-medium text-muted-foreground">
+            Historical Period
+          </label>
+          <select
+            id="historicalPeriod"
+            value={activeHistoricalPeriod}
+            onChange={(e) => {
+              startTransition(() => {
+                router.replace(buildUrl({ period: e.target.value || null, page: "1" }), { scroll: false })
+              })
+            }}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <option value="">All Periods</option>
+            {historicalPeriods.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label htmlFor="accessibility" className="text-xs font-medium text-muted-foreground">
+            Accessibility
+          </label>
+          <select
+            id="accessibility"
+            value={activeAccessibility}
+            onChange={(e) => {
+              startTransition(() => {
+                router.replace(buildUrl({ accessibility: e.target.value || null, page: "1" }), { scroll: false })
+              })
+            }}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <option value="">All Accessibility</option>
+            <option value="wheelchair">Wheelchair Accessible</option>
+            <option value="ramp">Ramp Available</option>
+            <option value="parking">Accessible Parking</option>
+            <option value="restroom">Accessible Restroom</option>
+            <option value="guide">Guide/Assistance Available</option>
+          </select>
+          <p className="text-[11px] text-muted-foreground/70">
+            Best-effort keyword match. Results may be incomplete.
+          </p>
+        </div>
       </div>
 
       {isPending && (

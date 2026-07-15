@@ -94,6 +94,9 @@ function mapDbRow(row: Record<string, unknown>): HeritageSite {
 export async function getPublishedSites(options: {
   search?: string
   categoryId?: string
+  municipalityId?: string
+  historicalPeriod?: string
+  accessibility?: string
   page?: number
   pageSize?: number
 } = {}): Promise<ExploreResult> {
@@ -127,6 +130,19 @@ export async function getPublishedSites(options: {
 
   if (options.categoryId) {
     query = query.eq("category_id", options.categoryId)
+  }
+
+  if (options.municipalityId) {
+    query = query.eq("municipality_id", options.municipalityId)
+  }
+
+  if (options.historicalPeriod) {
+    query = query.eq("historical_period", options.historicalPeriod)
+  }
+
+  if (options.accessibility) {
+    const escaped = options.accessibility.replace(/%/g, "\\%").replace(/_/g, "\\_")
+    query = query.ilike("accessibility_info", `%${escaped}%`)
   }
 
   const { data, error, count } = await query
@@ -176,4 +192,46 @@ export async function getExploreCategories(): Promise<ExploreCategory[]> {
   }
 
   return results
+}
+
+export async function getExploreFilterOptions(): Promise<{
+  municipalities: { id: string; name: string }[]
+  historicalPeriods: string[]
+}> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const [municipalitiesResult, periodsResult] = await Promise.all([
+    supabase
+      .from("municipalities")
+      .select("id, name")
+      .eq("status", "active")
+      .order("name", { ascending: true }),
+    supabase
+      .from("heritage_sites")
+      .select("historical_period")
+      .eq("publication_status", "published")
+      .eq("visibility", "public")
+      .not("historical_period", "is", null)
+      .neq("historical_period", "")
+      .order("historical_period", { ascending: true }),
+  ])
+
+  if (municipalitiesResult.error) throw municipalitiesResult.error
+  if (periodsResult.error) throw periodsResult.error
+
+  const seen = new Set<string>()
+  const historicalPeriods: string[] = []
+  for (const row of periodsResult.data ?? []) {
+    const period = row.historical_period as string
+    if (!seen.has(period)) {
+      seen.add(period)
+      historicalPeriods.push(period)
+    }
+  }
+
+  return {
+    municipalities: municipalitiesResult.data ?? [],
+    historicalPeriods,
+  }
 }

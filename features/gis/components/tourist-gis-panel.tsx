@@ -148,7 +148,7 @@ export default function TouristGISPanel({
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-0 overflow-hidden">
+    <div className="flex h-full gap-0 overflow-hidden">
       {/* Filter / Site List Sidebar */}
       <aside
         className={cn(

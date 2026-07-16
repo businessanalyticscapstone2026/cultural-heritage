@@ -1,8 +1,10 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { MapPin, Clock } from "lucide-react"
+import { CardBookmarkButton } from "@/features/bookmarks/components"
 import type { NearbySite, TravelMode } from "@/types/heritage"
 
 interface NearbySiteCardProps {
@@ -12,6 +14,18 @@ interface NearbySiteCardProps {
 
 export default function NearbySiteCard({ site, mode }: NearbySiteCardProps) {
   const modeLabel = mode === "walking" ? "walk" : "drive"
+  const [isBookmarked, setIsBookmarked] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/bookmarks/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ siteIds: [site.siteId] }),
+    })
+      .then((r) => r.json())
+      .then((data) => setIsBookmarked(data.bookmarked.includes(site.siteId)))
+      .catch(() => {})
+  }, [site.siteId])
 
   return (
     <Link
@@ -39,9 +53,17 @@ export default function NearbySiteCard({ site, mode }: NearbySiteCardProps) {
           <p className="truncate text-sm font-semibold text-heading group-hover:text-primary">
             {site.siteName}
           </p>
-          <p className="shrink-0 text-sm font-bold text-heading">
-            {site.distanceKm.toFixed(1)} km
-          </p>
+          <div className="flex shrink-0 items-center gap-2">
+            <p className="text-sm font-bold text-heading">
+              {site.distanceKm.toFixed(1)} km
+            </p>
+            <span onClick={(e) => e.preventDefault()}>
+              <CardBookmarkButton
+                siteId={site.siteId}
+                initialIsBookmarked={isBookmarked}
+              />
+            </span>
+          </div>
         </div>
 
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted">

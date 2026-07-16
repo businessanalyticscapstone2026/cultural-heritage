@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, MapPin, Tag, Save, Loader2, X, Plus, LogOut } from "lucide-react"
+import { ArrowLeft, ArrowRight, MapPin, Tag, Save, Loader2, X, Plus, LogOut, Bookmark } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { updateProfileAction } from "../actions"
 
@@ -35,6 +35,14 @@ export default function ProfileClient({ userId, profile }: ProfileClientProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  const [savedCount, setSavedCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch("/api/bookmarks/count")
+      .then((r) => r.json())
+      .then((d) => setSavedCount(d.count ?? 0))
+      .catch(() => setSavedCount(0))
+  }, [])
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -248,6 +256,34 @@ export default function ProfileClient({ userId, profile }: ProfileClientProps) {
                 Add tags that describe your travel interests.
               </p>
             )}
+          </section>
+
+          {/* Saved Sites */}
+          <section className="rounded-2xl border border-ink/10 bg-cream p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-accent/10 text-accent">
+                  <Bookmark size={16} strokeWidth={1.5} />
+                </span>
+                <div>
+                  <h2 className="text-display text-lg text-ink">Saved Sites</h2>
+                  <p className="text-xs text-ink-soft">
+                    {savedCount === null
+                      ? "Loading..."
+                      : savedCount === 0
+                        ? "No saved sites yet"
+                        : `${savedCount} site${savedCount === 1 ? "" : "s"} saved`}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/saved"
+                className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 px-4 py-2 text-xs font-medium text-ink-soft transition-colors hover:bg-parchment hover:text-ink"
+              >
+                View all
+                <ArrowRight size={12} strokeWidth={1.5} />
+              </Link>
+            </div>
           </section>
 
           {/* Save */}

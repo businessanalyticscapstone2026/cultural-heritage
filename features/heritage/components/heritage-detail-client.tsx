@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import type { HeritageSite, NearbySite } from "../types"
+import type { HeritageSite, NearbySite, TravelMode } from "../types"
 import Breadcrumb from "./breadcrumb"
 import HeroImage from "./hero-image"
 import TitleRow from "./title-row"
@@ -12,6 +12,7 @@ import HistoricalTimeline from "./historical-timeline"
 import PhotoGallery from "./photo-gallery"
 import AccessibilityNotes from "./accessibility-notes"
 import LocationCard from "./location-card"
+import NearbyMiniMap from "./nearby-mini-map"
 import NearbySitesSidebar from "./nearby-sites-sidebar"
 import { ReviewsSection } from "@/features/reviews/components"
 
@@ -28,22 +29,27 @@ export default function HeritageDetailClient({
 }: HeritageDetailClientProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [nearbySites, setNearbySites] = useState<NearbySite[]>([])
+  const [nearbyMode, setNearbyMode] = useState<TravelMode>("walking")
+  const [selectedNearbySiteId, setSelectedNearbySiteId] = useState<string | null>(null)
 
   const images = site.media.filter((m) => m.mediaType === "image")
+  const hasCoordinates = site.latitude !== null && site.longitude !== null
 
   useEffect(() => {
+    let cancelled = false
+
     async function fetchNearby() {
       try {
-        if (!site.latitude || !site.longitude) return
+        if (!hasCoordinates) return
         const params = new URLSearchParams({
           lat: String(site.latitude),
           long: String(site.longitude),
           radius: "10",
-          mode: "walking",
-          limit: "5",
+          mode: nearbyMode,
+          limit: "8",
         })
         const res = await fetch(`/api/heritage/nearby?${params}`)
-        if (res.ok) {
+        if (!cancelled && res.ok) {
           const data = await res.json()
           setNearbySites(data.results ?? [])
         }
@@ -53,7 +59,8 @@ export default function HeritageDetailClient({
     }
 
     fetchNearby()
-  }, [site.id])
+    return () => { cancelled = true }
+  }, [site.id, site.latitude, site.longitude, hasCoordinates, nearbyMode])
 
   const openLightbox = useCallback((index: number) => {
     setLightboxIndex(index)
@@ -161,7 +168,24 @@ export default function HeritageDetailClient({
               longitude={site.longitude}
             />
 
-            <NearbySitesSidebar sites={nearbySites} />
+            {hasCoordinates && nearbySites.length > 0 && (
+              <NearbyMiniMap
+                siteLatitude={site.latitude!}
+                siteLongitude={site.longitude!}
+                siteName={site.siteName}
+                sites={nearbySites}
+                selectedSiteId={selectedNearbySiteId}
+                onSiteHover={setSelectedNearbySiteId}
+              />
+            )}
+
+            <NearbySitesSidebar
+              sites={nearbySites}
+              mode={nearbyMode}
+              onModeChange={setNearbyMode}
+              selectedSiteId={selectedNearbySiteId}
+              onSiteSelect={setSelectedNearbySiteId}
+            />
           </aside>
         </div>
       </div>

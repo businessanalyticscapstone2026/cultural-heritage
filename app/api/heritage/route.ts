@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getNearbySites } from "@/features/heritage/services"
+import { getNearbySites, getCategories } from "@/features/heritage/services"
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
@@ -14,7 +14,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ message: "Heritage API" })
+  try {
+    const categories = await getCategories()
+    return NextResponse.json({ message: "Heritage API", categories })
+  } catch {
+    return NextResponse.json({ message: "Heritage API", categories: [] })
+  }
 }
 
 export async function POST() {

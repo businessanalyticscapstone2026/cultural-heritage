@@ -5,6 +5,7 @@ import Link from "next/link"
 import { motion, useScroll, useTransform, type Variants } from "motion/react"
 import { Church, Landmark, TreePine, BookOpen, MapPin, Calendar, Megaphone, Star, ChevronRight, ArrowRight, Compass, Map as MapIcon } from "lucide-react"
 import { getHomePageDataAction } from "@/features/home/actions"
+import { CardBookmarkButton } from "@/features/bookmarks/components"
 import type { HomeSite, HomeCategory } from "@/features/home/types"
 
 const fadeUp: Variants = {
@@ -49,10 +50,26 @@ const ctaTexture =
 
 export default function HomePage() {
   const [data, setData] = useState<{ sites: HomeSite[]; categories: HomeCategory[]; featuredSites: HomeSite[] } | null>(null)
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     getHomePageDataAction().then(setData)
   }, [])
+
+  useEffect(() => {
+    if (!data) return
+    const siteIds = [...data.featuredSites, ...data.sites].map((s) => s.id)
+    const unique = [...new Set(siteIds)]
+    if (unique.length === 0) return
+    fetch("/api/bookmarks/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ siteIds: unique }),
+    })
+      .then((r) => r.json())
+      .then((d) => setBookmarkedIds(new Set(d.bookmarked)))
+      .catch(() => {})
+  }, [data])
 
   const sites = data?.sites ?? []
   const categories = data?.categories ?? []
@@ -169,10 +186,10 @@ export default function HomePage() {
                   <img src={d.img} alt={d.name} className="h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-110" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-ink/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                   <span className="absolute left-3 top-3 rounded-full bg-cream/85 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-ink backdrop-blur">{d.category}</span>
-                  <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-cream/90 px-2.5 py-1 text-xs font-medium text-ink opacity-0 translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 backdrop-blur">
-                    <Star size={10} className="fill-amber-400 text-amber-400" />
-                    {d.rating}
-                  </div>
+                  <CardBookmarkButton
+                    siteId={d.id}
+                    initialIsBookmarked={bookmarkedIds.has(d.id)}
+                  />
                 </div>
                 <div className="mt-4 flex items-start justify-between gap-2">
                   <div>
@@ -411,6 +428,10 @@ export default function HomePage() {
                   <img src={d.img} alt={d.name} className="h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-110" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-ink/30 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                   <span className="absolute left-3 top-3 rounded-full bg-cream/90 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-ink backdrop-blur">{d.category}</span>
+                  <CardBookmarkButton
+                    siteId={d.id}
+                    initialIsBookmarked={bookmarkedIds.has(d.id)}
+                  />
                 </div>
                 <div className="p-5">
                   <h3 className="text-display text-lg leading-tight text-ink group-hover:text-accent transition-colors">{d.name}</h3>

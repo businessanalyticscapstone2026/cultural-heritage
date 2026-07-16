@@ -6,6 +6,7 @@ import Link from "next/link"
 import { motion } from "motion/react"
 import { Search, X, SlidersHorizontal, Star, MapPin, Clock, ChevronRight, ChevronLeft } from "lucide-react"
 import { useDebounce } from "@/hooks/use-debounce"
+import { CardBookmarkButton } from "@/features/bookmarks/components"
 import type { HeritageSite } from "@/types/heritage"
 import type { ExploreResult, ExploreCategory } from "../services/explore"
 
@@ -38,7 +39,21 @@ export default function ExploreClient({
 
   const [searchInput, setSearchInput] = useState(searchQuery)
   const debouncedSearch = useDebounce(searchInput, 300)
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
   const displaySites = isPending ? initialData.sites : initialData.sites
+
+  useEffect(() => {
+    const siteIds = initialData.sites.map((s) => s.id)
+    if (siteIds.length === 0) return
+    fetch("/api/bookmarks/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ siteIds }),
+    })
+      .then((r) => r.json())
+      .then((data) => setBookmarkedIds(new Set(data.bookmarked)))
+      .catch(() => {})
+  }, [initialData.sites])
 
   const buildUrl = useCallback(
     (updates: Record<string, string | null>) => {
@@ -268,6 +283,10 @@ export default function ExploreClient({
                           {site.category.name}
                         </span>
                       )}
+                      <CardBookmarkButton
+                        siteId={site.id}
+                        initialIsBookmarked={bookmarkedIds.has(site.id)}
+                      />
                     </div>
 
                     <div className="flex flex-1 flex-col p-5">

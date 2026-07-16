@@ -1,6 +1,6 @@
 export { mapDbRowToSite, getHeritageSites, getHeritageSiteById, getHeritageSiteByIdAdmin, getAllHeritageSites, getHeritageSitesByMunicipality, getArchivedSites, getArchivedSitesByMunicipality, createHeritageSite, updateHeritageSite, deleteHeritageSite } from "./sites"
 export { getNearbySites, getNearbySitesFromLocation } from "./nearby"
-export { isBookmarked, toggleBookmark, getBookmarkedSites } from "./bookmarks"
+export { isBookmarked, toggleBookmark, getBookmarkedSiteIds, getBookmarkedSites } from "./bookmarks"
 export { getCategories, getAllCategories, createCategory, updateCategory, deleteCategory, getCategoriesWithSiteCount } from "./categories"
 export { createHeritageSiteVersion, getHeritageSiteVersions, restoreHeritageSiteVersion } from "./versions"
 export { backupHeritageRepository, getBackupsList } from "./backup"

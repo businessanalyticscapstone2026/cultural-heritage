@@ -36,6 +36,19 @@ export async function toggleBookmark(touristId: string, siteId: string): Promise
   return { isBookmarked: true }
 }
 
+export async function getBookmarkedSiteIds(touristId: string): Promise<string[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("bookmarks")
+    .select("site_id")
+    .eq("tourist_id", touristId)
+
+  if (error) throw error
+  return (data ?? []).map((row) => row.site_id as string)
+}
+
 export async function getBookmarkedSites(touristId: string): Promise<SavedSite[]> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)

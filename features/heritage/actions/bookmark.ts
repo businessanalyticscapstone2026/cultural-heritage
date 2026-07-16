@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
-import { toggleBookmark, getBookmarkedSites } from "../services"
+import { toggleBookmark, getBookmarkedSites, getBookmarkedSiteIds } from "../services"
 
 export async function toggleBookmarkAction(siteId: string) {
   const cookieStore = await cookies()
@@ -26,4 +26,16 @@ export async function getBookmarkedSitesAction() {
   if (!user) return []
 
   return getBookmarkedSites(user.id)
+}
+
+export async function getBookmarkedSiteIdsAction(): Promise<string[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return []
+
+  return getBookmarkedSiteIds(user.id)
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Compass, Map, Info, User, Shield, Search, Star } from "lucide-react"
+import { Home, Compass, Map, Info, User, Shield, Search, Star, Bookmark } from "lucide-react"
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import AuthPromptModal from "@/components/auth/auth-prompt-modal"
@@ -11,6 +11,7 @@ const navLinks = [
   { href: "/", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/map", label: "Map", icon: Map },
+  { href: "/saved", label: "Saved", icon: Bookmark },
   { href: "/reviews", label: "Reviews", icon: Star },
   { href: "/heritage", label: "About", icon: Info },
 ]

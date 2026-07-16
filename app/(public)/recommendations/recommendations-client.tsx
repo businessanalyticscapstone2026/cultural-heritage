@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { getRecommendationsAction } from "@/features/recommendation/actions"
+import { CardBookmarkButton } from "@/features/bookmarks/components"
 import type { RecommendationResult } from "@/types/recommendation"
 import Link from "next/link"
 
@@ -12,6 +13,20 @@ interface Props {
 export default function RecommendationsClient({ initialResults }: Props) {
   const [results, setResults] = useState<RecommendationResult[]>(initialResults)
   const [loading, setLoading] = useState(false)
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const siteIds = initialResults.map((r) => r.site.id)
+    if (siteIds.length === 0) return
+    fetch("/api/bookmarks/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ siteIds }),
+    })
+      .then((r) => r.json())
+      .then((data) => setBookmarkedIds(new Set(data.bookmarked)))
+      .catch(() => {})
+  }, [initialResults])
 
   async function refresh() {
     setLoading(true)
@@ -59,7 +74,7 @@ export default function RecommendationsClient({ initialResults }: Props) {
               href={`/heritage/${r.site.id}`}
               className="group rounded-xl border bg-card p-4 transition hover:shadow-md"
             >
-              <div className="aspect-[4/3] mb-3 overflow-hidden rounded-lg bg-muted">
+              <div className="relative aspect-[4/3] mb-3 overflow-hidden rounded-lg bg-muted">
                 {r.site.media.find((m) => m.isPrimary) ? (
                   <img
                     src={r.site.media.find((m) => m.isPrimary)!.fileUrl}
@@ -71,6 +86,10 @@ export default function RecommendationsClient({ initialResults }: Props) {
                     No image
                   </div>
                 )}
+                <CardBookmarkButton
+                  siteId={r.site.id}
+                  initialIsBookmarked={bookmarkedIds.has(r.site.id)}
+                />
               </div>
 
               <div className="space-y-1.5">

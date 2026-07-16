@@ -1,4 +1,5 @@
 import PublicNavbar from "@/components/layout/public-navbar"
+import { QRScannerFAB } from "@/features/qr-code/components"
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -6,6 +7,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <PublicNavbar />
       <main className="min-h-screen bg-background text-ink overflow-x-hidden">{children}</main>
       <PublicFooter />
+      <QRScannerFAB />
     </>
   )
 }

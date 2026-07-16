@@ -64,6 +64,7 @@ account_status text NOT NULL DEFAULT 'active'::text CHECK (account_status = ANY 
 last_login timestamp with time zone,
 created_at timestamp with time zone NOT NULL DEFAULT now(),
 updated_at timestamp with time zone NOT NULL DEFAULT now(),
+onboarding_completed_at timestamp with time zone,
 CONSTRAINT tourist_profiles_pkey PRIMARY KEY (id),
 CONSTRAINT tourist_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );

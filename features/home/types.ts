@@ -1,3 +1,80 @@
+/** Site card used across home sections (featured, trending, recommended). */
+export interface HomeSiteCard {
+  id: string
+  siteName: string
+  shortDescription: string | null
+  yearEstablished: string | null
+  averageRating: number | null
+  reviewCount: number | null
+  municipalityName: string | null
+  categoryId: string | null
+  categoryName: string | null
+  categoryIcon: string | null
+  categoryColor: string | null
+  imageUrl: string | null
+  /** Engagement metric for trending (visits, clicks, or reviews depending on source). */
+  metricValue?: number
+  metricLabel?: string
+}
+
+export interface HomeCategoryTile {
+  id: string
+  name: string
+  description: string | null
+  icon: string | null
+  color: string | null
+  siteCount: number
+}
+
+export interface HomeMapPin {
+  id: string
+  name: string
+  categoryName: string | null
+  categoryColor: string | null
+  latitude: number
+  longitude: number
+}
+
+export interface HomeAtlasStats {
+  heritageSiteCount: number
+  municipalityCount: number
+  publishedReviewCount: number
+}
+
+export interface HomeTestimonial {
+  id: string
+  rating: number
+  comment: string | null
+  createdAt: string
+  reviewerName: string
+  siteId: string
+  siteName: string
+}
+
+export type TrendingSource =
+  | "visits"
+  | "recommendation_clicks"
+  | "combined_engagement"
+  | "most_reviewed"
+
+export interface HomePagePayload {
+  featuredSites: HomeSiteCard[]
+  categories: HomeCategoryTile[]
+  trendingSites: HomeSiteCard[]
+  trendingSource: TrendingSource
+  mapPins: HomeMapPin[]
+  atlasStats: HomeAtlasStats
+  /**
+   * CR-CHTS-005: replace this list with the personalized recommendation engine.
+   * Currently top-rated published public sites (placeholder).
+   */
+  recommendedSites: HomeSiteCard[]
+  testimonials: HomeTestimonial[]
+  /** Optional hero background from featured/published site media or district asset. */
+  heroImageUrl: string | null
+}
+
+/** @deprecated Kept for older shared components; prefer HomePagePayload. */
 export interface FeaturedMunicipality {
   id: string
   name: string
@@ -5,6 +82,7 @@ export interface FeaturedMunicipality {
   siteCount: number
 }
 
+/** @deprecated Prefer HomeMapPin. */
 export interface HomeMapSite {
   id: string
   name: string
@@ -13,6 +91,7 @@ export interface HomeMapSite {
   longitude: number
 }
 
+/** @deprecated Prefer HomeCategoryTile. */
 export interface HomeCategory {
   id: string
   name: string
@@ -21,6 +100,7 @@ export interface HomeCategory {
   color: string | null
 }
 
+/** @deprecated Prefer HomeSiteCard. */
 export interface HomeSite {
   id: string
   siteName: string

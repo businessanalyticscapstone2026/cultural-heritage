@@ -17,7 +17,7 @@ export async function createRouteAction(
 
   const route = await createRoute(supabase, { ...input, touristId })
 
-  revalidatePath("/tourist/routes")
+  revalidatePath("/routes")
 
   return route
 }
@@ -44,5 +44,5 @@ export async function completeRouteAction(routeId: string): Promise<void> {
 
   await updateRouteStatus(supabase, routeId, "completed")
 
-  revalidatePath("/tourist/routes")
+  revalidatePath("/routes")
 }

@@ -22,7 +22,7 @@ export function EmptyState() {
           Explore Heritage Sites
         </Link>
         <Link
-          href="/tourist/nearby"
+          href="/nearby"
           className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-heading transition-colors hover:bg-muted"
         >
           <MapPin className="size-4" />

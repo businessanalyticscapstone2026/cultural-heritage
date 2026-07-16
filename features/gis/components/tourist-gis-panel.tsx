@@ -29,7 +29,7 @@ const Map = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center bg-muted/30 text-sm text-muted-foreground">
+      <div className="flex h-full items-center justify-center bg-parchment/30 text-sm text-ink-soft">
         Loading map...
       </div>
     ),
@@ -152,7 +152,7 @@ export default function TouristGISPanel({
       {/* Filter / Site List Sidebar */}
       <aside
         className={cn(
-          "flex w-80 shrink-0 flex-col border-r border-border bg-card transition-all duration-300",
+          "flex w-80 shrink-0 flex-col border-r border-ink/10 bg-cream transition-all duration-300",
           "max-lg:fixed max-lg:inset-y-16 max-lg:left-0 max-lg:z-30 max-lg:w-full max-lg:max-w-sm max-lg:shadow-xl",
           "max-md:-translate-x-full max-md:data-open:translate-x-0",
         )}
@@ -160,15 +160,15 @@ export default function TouristGISPanel({
         aria-label="Map sidebar with site list and filters"
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-heading">
-            <MapIcon className="size-4 text-primary" />
+        <div className="flex items-center justify-between border-b border-ink/10 px-4 py-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <MapIcon className="size-4 text-accent" />
             Heritage Map
           </h2>
           <button
             type="button"
             onClick={() => setShowFilters(false)}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+            className="rounded-lg p-1 text-ink-soft hover:bg-parchment hover:text-ink lg:hidden"
             aria-label="Close sidebar"
           >
             <X className="size-4" />
@@ -176,15 +176,15 @@ export default function TouristGISPanel({
         </div>
 
         {/* Search */}
-        <div className="border-b border-border p-3">
+        <div className="border-b border-ink/10 p-3">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-soft" />
             <input
               type="text"
               placeholder="Search sites..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background py-1.5 pl-8 pr-3 text-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="w-full rounded-xl border border-ink/10 bg-cream py-1.5 pl-8 pr-3 text-xs focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/50"
               aria-label="Search heritage sites"
             />
           </div>
@@ -192,8 +192,8 @@ export default function TouristGISPanel({
 
         {/* User location indicator */}
         {hasLocation && (
-          <div className="border-b border-border bg-primary/5 px-4 py-2">
-            <p className="flex items-center gap-1.5 text-[11px] text-primary">
+          <div className="border-b border-ink/10 bg-accent/5 px-4 py-2">
+            <p className="flex items-center gap-1.5 text-[11px] text-accent">
               <Locate className="size-3" />
               Showing distances from your location
             </p>
@@ -201,7 +201,7 @@ export default function TouristGISPanel({
         )}
 
         {!hasLocation && (
-          <div className="border-b border-border bg-warning/5 px-4 py-2">
+          <div className="border-b border-ink/10 bg-warning/5 px-4 py-2">
             <p className="text-[11px] text-warning">
               Enable location access or set a home location to see distances.
             </p>
@@ -209,15 +209,15 @@ export default function TouristGISPanel({
         )}
 
         {/* Filters */}
-        <div className="border-b border-border p-3">
+        <div className="border-b border-ink/10 p-3">
           <div className="mb-3">
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
               Category
             </label>
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="w-full rounded-xl border border-ink/10 bg-cream px-2.5 py-1.5 text-xs focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/50"
               aria-label="Filter by category"
             >
               <option value="all">All Categories</option>
@@ -232,7 +232,7 @@ export default function TouristGISPanel({
           {/* Category legend / layer toggles */}
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
                 <Layers className="mr-1 inline size-3" />
                 Legend
               </span>
@@ -245,7 +245,7 @@ export default function TouristGISPanel({
                       : categories.map((c) => c.id),
                   )
                 }}
-                className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                className="text-[10px] text-ink-soft underline underline-offset-2 hover:text-ink"
               >
                 {visibleCategoryIds.length === categories.length
                   ? "Deselect All"
@@ -256,7 +256,7 @@ export default function TouristGISPanel({
               {categories.map((cat) => (
                 <label
                   key={cat.id}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors hover:bg-accent"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-xs transition-colors hover:bg-parchment"
                 >
                   <input
                     type="checkbox"
@@ -268,14 +268,14 @@ export default function TouristGISPanel({
                           : visibleCategoryIds.filter((id) => id !== cat.id),
                       )
                     }}
-                    className="size-3.5 accent-primary"
+                    className="size-3.5 accent-ink"
                   />
                   <span
                     className="inline-block size-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: cat.color ?? "#6366f1" }}
                   />
                   <span className="flex-1">{cat.name}</span>
-                  <span className="text-muted-foreground">{cat.siteCount}</span>
+                  <span className="text-ink-soft">{cat.siteCount}</span>
                 </label>
               ))}
             </div>
@@ -285,16 +285,16 @@ export default function TouristGISPanel({
         {/* Site List (accessible keyboard/screen-reader alternative to map) */}
         <div className="flex-1 overflow-y-auto p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
               Heritage Sites
             </span>
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="secondary" className="text-[10px] bg-parchment text-ink-soft">
               {filteredSites.length}
             </Badge>
           </div>
 
           {filteredSites.length === 0 ? (
-            <p className="py-8 text-center text-xs text-muted-foreground">
+            <p className="py-8 text-center text-xs text-ink-soft">
               No sites match the current filters.
             </p>
           ) : (
@@ -305,8 +305,8 @@ export default function TouristGISPanel({
                     type="button"
                     onClick={() => handleSiteClick(site)}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-xs transition-colors hover:bg-accent",
-                      selectedSiteId === site.id && "bg-primary/10 font-medium",
+                      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors hover:bg-parchment",
+                      selectedSiteId === site.id && "bg-accent/10 font-medium",
                     )}
                   >
                     <span
@@ -316,21 +316,21 @@ export default function TouristGISPanel({
                       }}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-heading">{site.siteName}</p>
-                      <p className="truncate text-[10px] text-muted-foreground">
+                      <p className="truncate font-medium text-ink">{site.siteName}</p>
+                      <p className="truncate text-[10px] text-ink-soft">
                         {[site.barangay, site.municipalityName].filter(Boolean).join(", ")}
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-0.5">
                       {site.distanceKm != null && (
-                        <span className="whitespace-nowrap text-[10px] font-medium text-primary">
+                        <span className="whitespace-nowrap text-[10px] font-medium text-accent">
                           {site.distanceKm < 1
                             ? `${(site.distanceKm * 1000).toFixed(0)}m`
                             : `${site.distanceKm.toFixed(1)}km`}
                         </span>
                       )}
                       {site.averageRating > 0 && (
-                        <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                        <span className="flex items-center gap-0.5 text-[10px] text-ink-soft">
                           <Star className="size-2.5 fill-warning text-warning" />
                           {site.averageRating.toFixed(1)}
                         </span>
@@ -349,7 +349,7 @@ export default function TouristGISPanel({
         type="button"
         onClick={() => setShowFilters(true)}
         className={cn(
-          "fixed bottom-4 left-4 z-20 rounded-full bg-primary p-3 text-white shadow-lg transition-all hover:bg-primary/90 lg:hidden",
+          "fixed bottom-4 left-4 z-20 rounded-full bg-ink p-3 text-cream shadow-lg transition-all hover:bg-ink/90 lg:hidden",
           showFilters && "hidden",
         )}
         aria-label="Open filters and site list"
@@ -398,8 +398,8 @@ export default function TouristGISPanel({
                   <button
                     type="button"
                     className={cn(
-                      "flex size-7 items-center justify-center rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none",
-                      selectedSiteId === site.id && "scale-125 ring-2 ring-primary",
+                      "flex size-7 items-center justify-center rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
+                      selectedSiteId === site.id && "scale-125 ring-2 ring-accent",
                     )}
                     style={{
                       backgroundColor: site.categoryColor ?? "#6366f1",
@@ -419,7 +419,7 @@ export default function TouristGISPanel({
 
         {/* Mobile filter bar toggle */}
         <div className="absolute left-3 top-3 z-10 hidden gap-2 lg:flex">
-          <span className="rounded-md bg-card px-3 py-1.5 text-xs font-medium text-heading shadow-sm">
+          <span className="rounded-lg bg-cream px-3 py-1.5 text-xs font-medium text-ink shadow-sm">
             {filteredSites.length} site{filteredSites.length !== 1 ? "s" : ""}
             {hasLocation && " · sorted by distance"}
           </span>
@@ -437,7 +437,7 @@ export default function TouristGISPanel({
 
           <div
             className={cn(
-              "fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-xl transition-transform duration-300 ease-in-out",
+              "fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-ink/10 bg-cream shadow-xl transition-transform duration-300 ease-in-out",
               "max-lg:max-w-full",
             )}
             role="dialog"
@@ -445,15 +445,15 @@ export default function TouristGISPanel({
             aria-modal="true"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-border px-5 py-3">
-              <h2 className="flex items-center gap-2 text-base font-semibold text-heading">
-                <MapPin className="size-4 text-primary" />
+            <div className="flex items-center justify-between border-b border-ink/10 px-5 py-3">
+              <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
+                <MapPin className="size-4 text-accent" />
                 Site Details
               </h2>
               <button
                 type="button"
                 onClick={handleCloseDetail}
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-parchment hover:text-ink"
                 aria-label="Close detail panel"
               >
                 <X className="size-4" />
@@ -463,7 +463,7 @@ export default function TouristGISPanel({
             {/* Content */}
             <div className="flex-1 overflow-y-auto">
               {/* Image */}
-              <div className="flex aspect-video items-center justify-center bg-muted">
+              <div className="flex aspect-video items-center justify-center bg-parchment">
                 {selectedSite.primaryImage ? (
                   <img
                     src={selectedSite.primaryImage}
@@ -471,15 +471,15 @@ export default function TouristGISPanel({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <Landmark className="size-14 text-muted-foreground/40" />
+                  <Landmark className="size-14 text-ink-soft/40" />
                 )}
               </div>
 
               {/* Title */}
               <div className="space-y-2 px-5 py-4">
-                <h3 className="text-lg font-semibold leading-tight text-heading">
-                  {selectedSite.siteName}
-                </h3>
+              <h3 className="text-lg font-semibold leading-tight text-ink">
+                {selectedSite.siteName}
+              </h3>
 
                 {selectedSite.categoryName && (
                   <span
@@ -495,22 +495,22 @@ export default function TouristGISPanel({
                   </span>
                 )}
 
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-ink-soft">
                   {[selectedSite.barangay, selectedSite.municipalityName]
                     .filter(Boolean)
                     .join(", ")}
                 </p>
 
                 {selectedSite.shortDescription && (
-                  <p className="text-sm leading-relaxed text-body">
+                  <p className="text-sm leading-relaxed text-ink-soft">
                     {selectedSite.shortDescription}
                   </p>
                 )}
 
                 {selectedSite.averageRating > 0 && (
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1 text-sm text-ink-soft">
                     <Star className="size-4 fill-warning text-warning" />
-                    <span className="font-medium text-heading">
+                    <span className="font-medium text-ink">
                       {selectedSite.averageRating.toFixed(1)}
                     </span>
                     <span>({selectedSite.reviewCount} reviews)</span>
@@ -518,8 +518,8 @@ export default function TouristGISPanel({
                 )}
 
                 {selectedSite.distanceKm != null && (
-                  <p className="flex items-center gap-1.5 text-sm text-body">
-                    <Navigation className="size-3.5 text-primary" />
+                  <p className="flex items-center gap-1.5 text-sm text-ink-soft">
+                    <Navigation className="size-3.5 text-accent" />
                     <span>
                       {selectedSite.distanceKm < 1
                         ? `${(selectedSite.distanceKm * 1000).toFixed(0)} meters`
@@ -534,7 +534,7 @@ export default function TouristGISPanel({
               <div className="space-y-2 px-5 pb-6">
                 <Link
                   href={`/heritage/${selectedSite.id}`}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-cream transition-opacity hover:opacity-90"
                 >
                   <Landmark className="size-4" />
                   View Full Details
@@ -547,7 +547,7 @@ export default function TouristGISPanel({
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-heading transition-colors hover:bg-muted"
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-ink/10 bg-cream px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-parchment"
                 >
                   <ExternalLink className="size-4" />
                   Get Directions
@@ -556,8 +556,8 @@ export default function TouristGISPanel({
 
               {/* Nearby Sites in Detail Panel */}
               {filteredSites.length > 1 && (
-                <div className="border-t border-border px-5 py-4">
-                  <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="border-t border-ink/10 px-5 py-4">
+                  <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-soft">
                     Other Sites
                   </h4>
                   <ul className="space-y-2">
@@ -569,7 +569,7 @@ export default function TouristGISPanel({
                           <button
                             type="button"
                             onClick={() => handleSiteClick(site)}
-                            className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-parchment"
                           >
                             <span
                               className="inline-block size-2 shrink-0 rounded-full"
@@ -577,11 +577,11 @@ export default function TouristGISPanel({
                                 backgroundColor: site.categoryColor ?? "#6366f1",
                               }}
                             />
-                            <span className="min-w-0 flex-1 truncate font-medium text-heading">
+                            <span className="min-w-0 flex-1 truncate font-medium text-ink">
                               {site.siteName}
                             </span>
                             {site.distanceKm != null && (
-                              <span className="shrink-0 text-muted-foreground">
+                              <span className="shrink-0 text-ink-soft">
                                 {site.distanceKm < 1
                                   ? `${(site.distanceKm * 1000).toFixed(0)}m`
                                   : `${site.distanceKm.toFixed(1)}km`}

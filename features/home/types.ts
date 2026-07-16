@@ -16,8 +16,20 @@ export interface HomeMapSite {
 export interface HomeCategory {
   id: string
   name: string
+  description?: string | null
   icon: string | null
   color: string | null
+}
+
+export interface HomeSite {
+  id: string
+  siteName: string
+  shortDescription: string | null
+  yearEstablished: string | null
+  averageRating: number | null
+  reviewCount: number | null
+  municipalityName: string | null
+  categoryName: string | null
 }
 
 export interface HomeStats {

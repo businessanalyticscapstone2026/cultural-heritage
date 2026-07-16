@@ -38,7 +38,7 @@ export default function AdminTopbar() {
   const handleSignOut = useCallback(async () => {
     setDropdownOpen(false)
     await signOut()
-    router.push("/ptcao/login")
+    router.push("/login")
   }, [signOut, router])
 
   return (

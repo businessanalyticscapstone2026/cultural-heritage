@@ -4,9 +4,30 @@ import { createServerClient } from "@supabase/ssr"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 
-const publicRoutes = ["/", "/login", "/register", "/signup", "/explore", "/map", "/recommendations", "/routes", "/heritage", "/tourist/scan", "/mto/login", "/ptcao/login"]
+const publicRoutes = [
+  "/",
+  "/login",
+  "/register",
+  "/signup",
+  "/explore",
+  "/map",
+  "/recommendations",
+  "/routes",
+  "/heritage",
+  "/reviews",
+  "/feedback",
+  "/profile",
+  "/nearby",
+  "/saved",
+  "/scan",
+  "/maintenance",
+]
 const adminRoutes = ["/admin", "/ptcao"]
 const maintenanceExemptRoutes = ["/maintenance", "/api"]
+
+function isPublicRoute(pathname: string): boolean {
+  return publicRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"))
+}
 
 async function getGlobalSetting(supabase: ReturnType<typeof createServerClient>, key: string): Promise<Record<string, unknown> | null> {
   const { data } = await supabase
@@ -46,7 +67,6 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const isAuthenticated = !!user
-  const isPublic = publicRoutes.some((route) => pathname.startsWith(route))
   const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route))
 
   // Check maintenance mode
@@ -62,40 +82,96 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (!isAuthenticated && !isPublic) {
+  // Unauthenticated users
+  if (!isAuthenticated) {
+    if (isPublicRoute(pathname)) {
+      return supabaseResponse
+    }
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  if (isAuthenticated && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/tourist/dashboard", request.url))
-  }
+  // Authenticated user — resolve role
+  const { data: staffProfile } = await supabase
+    .from("staff_profiles")
+    .select("id, account_status, roles(name)")
+    .eq("id", user!.id)
+    .maybeSingle()
 
-  // Role guard: /mto/* routes require staff_profiles record (MTO Staff or PTCAO Admin)
-  if (isAuthenticated && pathname.startsWith("/mto/")) {
-    const { data: staffProfile } = await supabase
-      .from("staff_profiles")
-      .select("id")
-      .eq("id", user!.id)
-      .maybeSingle()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const roleName: string | undefined = (staffProfile as any)?.roles?.name
+  const isStaff = !!staffProfile
+  const isMTO = roleName === "MTO Staff"
+  const isPTCAO = roleName !== "MTO Staff" && isStaff
 
-    if (!staffProfile) {
+  // MTO routes guard
+  if (pathname.startsWith("/mto")) {
+    if (!isStaff || !isMTO) {
       return NextResponse.redirect(new URL("/login", request.url))
     }
-  }
-
-  // Role guard: /admin/* and /ptcao/* routes require PTCAO Admin role
-  if (isAuthenticated && isAdminRoute) {
-    const { data: staffProfile } = await supabase
-      .from("staff_profiles")
-      .select("id")
-      .eq("id", user!.id)
-      .maybeSingle()
-
-    if (!staffProfile) {
+    if (staffProfile?.account_status !== "active") {
       return NextResponse.redirect(new URL("/login", request.url))
     }
+    return supabaseResponse
+  }
+
+  // Admin routes guard
+  if (isAdminRoute) {
+    if (!isStaff || !isPTCAO) {
+      return NextResponse.redirect(new URL("/login", request.url))
+    }
+    if (staffProfile?.account_status !== "active") {
+      return NextResponse.redirect(new URL("/login", request.url))
+    }
+    return supabaseResponse
+  }
+
+  // Staff trying to access tourist-specific routes or onboarding
+  if (isStaff) {
+    if (pathname === "/onboarding") {
+      const dest = isMTO ? "/mto/dashboard" : "/admin/dashboard"
+      return NextResponse.redirect(new URL(dest, request.url))
+    }
+
+    // Allow staff on public pages or login/register redirect
+    if (pathname === "/login" || pathname === "/signup" || pathname === "/register") {
+      const dest = isMTO ? "/mto/dashboard" : "/admin/dashboard"
+      return NextResponse.redirect(new URL(dest, request.url))
+    }
+
+    return supabaseResponse
+  }
+
+  // From here on, user is a tourist
+  let onboardingCompleted = false
+  const { data: touristProfile } = await supabase
+    .from("tourist_profiles")
+    .select("onboarding_completed_at")
+    .eq("id", user!.id)
+    .maybeSingle()
+
+  onboardingCompleted = touristProfile?.onboarding_completed_at != null
+
+  // Onboarding check for home
+  if (pathname.startsWith("/home")) {
+    if (!onboardingCompleted) {
+      return NextResponse.redirect(new URL("/onboarding", request.url))
+    }
+    return supabaseResponse
+  }
+
+  // Already-onboarded tourist visiting /onboarding
+  if (pathname === "/onboarding" && onboardingCompleted) {
+    return NextResponse.redirect(new URL("/home", request.url))
+  }
+
+  // Authenticated tourist on login/register/signup → redirect
+  if (pathname === "/login" || pathname === "/signup" || pathname === "/register") {
+    if (onboardingCompleted) {
+      return NextResponse.redirect(new URL("/home", request.url))
+    }
+    return NextResponse.redirect(new URL("/onboarding", request.url))
   }
 
   return supabaseResponse

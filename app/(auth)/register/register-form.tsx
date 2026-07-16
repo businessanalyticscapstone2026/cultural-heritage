@@ -3,10 +3,9 @@
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, User, Compass, Route, Star, Heart, X } from "lucide-react"
+import { Eye, EyeOff, Mail, Lock, User, Compass, Route, Star, Heart, X, ArrowLeft } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
-import LoginSelectorModal from "@/components/auth/login-selector-modal"
 
 const currentYear = new Date().getFullYear()
 
@@ -47,8 +46,6 @@ export default function RegisterForm() {
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
-
   const validateForm = useCallback((): boolean => {
     if (!firstName.trim()) {
       setError("Please enter your first name.")
@@ -114,7 +111,7 @@ export default function RegisterForm() {
         }
       }
 
-      router.push("/tourist/dashboard")
+      router.push("/onboarding")
     } catch {
       setError("An unexpected error occurred. Please try again.")
     } finally {
@@ -123,10 +120,7 @@ export default function RegisterForm() {
   }
 
   return (
-    <>
-      <LoginSelectorModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
-
-      <div className="flex min-h-screen">
+    <div className="flex min-h-screen">
         {/* Left Panel — Hero / Branding (hidden below 1024px) */}
         <div className="hidden lg:flex lg:w-1/2 relative flex-col overflow-hidden">
           <div
@@ -187,18 +181,12 @@ export default function RegisterForm() {
         {/* Right Panel — Form (full height, no sub-card) */}
         <div className="flex-1 flex flex-col justify-center bg-white px-8 lg:px-16 py-10">
           <div className="w-full max-w-sm mx-auto lg:mx-0 lg:ml-auto">
-            {/* Back to role selection */}
-            <button
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors mb-8"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back to role selection
-            </button>
-
             {/* Logo */}
             <div className="mb-8">
+              <Link href="/" className="mb-6 inline-flex items-center gap-1.5 text-xs text-ink-soft transition-colors hover:text-ink">
+                <ArrowLeft size={14} strokeWidth={1.5} />
+                Back to home
+              </Link>
               <div className="w-12 h-12 rounded-full bg-[#EAF2FB] flex items-center justify-center mb-4">
                 <User className="w-5 h-5 text-[#1D5FA8]" />
               </div>
@@ -387,7 +375,6 @@ export default function RegisterForm() {
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
-                    <ArrowLeft className="w-4 h-4" />
                     Create account
                   </span>
                 )}
@@ -409,7 +396,6 @@ export default function RegisterForm() {
             </div>
           </div>
         </div>
-      </div>
-    </>
+    </div>
   )
 }

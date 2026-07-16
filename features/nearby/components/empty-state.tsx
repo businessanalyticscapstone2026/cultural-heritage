@@ -31,7 +31,7 @@ export default function EmptyState({ radius, onExpandRadius }: EmptyStateProps) 
           Expand search
         </button>
         <Link
-          href="/tourist/explore"
+          href="/explore"
           className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-heading transition-colors hover:bg-muted"
         >
           Browse all sites

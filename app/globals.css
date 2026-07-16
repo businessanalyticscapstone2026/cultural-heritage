@@ -8,6 +8,10 @@
   --color-primary: #0f2747;
   --color-secondary: #2e5bff;
   --color-warm-white: #faf8f4;
+  --color-cream: oklch(0.966 0.020 82);
+  --color-parchment: oklch(0.935 0.028 80);
+  --color-ink: oklch(0.22 0.055 250);
+  --color-ink-soft: oklch(0.36 0.055 250);
   --color-card: #ffffff;
   --color-border: #e8e8e8;
   --color-heading: #222222;
@@ -141,6 +145,25 @@ body {
   }
   .maplibregl-popup-tip {
     @apply hidden!;
+  }
+}
+
+@utility text-display {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+@utility grain {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   }
 }
 

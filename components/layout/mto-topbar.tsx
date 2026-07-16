@@ -50,7 +50,7 @@ export default function MTOTopbar() {
   const handleSignOut = useCallback(async () => {
     setDropdownOpen(false)
     await signOut()
-    router.push("/mto/login")
+    router.push("/login")
   }, [signOut, router])
 
   return (

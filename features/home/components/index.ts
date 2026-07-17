@@ -1,3 +1,5 @@
 export { TouristHomePage } from "./tourist-home-page"
 export { AtlasMapPreview } from "./atlas-map-preview"
+export { TourismHighlightsSection } from "./tourism-highlights-section"
+export { HighlightsMapPreview } from "./highlights-map-preview"
 export { getCategoryIcon } from "./category-icon"

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import {
@@ -65,6 +65,8 @@ interface TouristGISPanelProps {
   userLatitude: number | null
   userLongitude: number | null
   locationSource: "browser" | "profile" | "none"
+  /** Deep-link from homepage CTAs (`/map?site=<uuid>`). */
+  initialSiteId?: string | null
 }
 
 export default function TouristGISPanel({
@@ -72,6 +74,7 @@ export default function TouristGISPanel({
   categories,
   userLatitude,
   userLongitude,
+  initialSiteId = null,
 }: TouristGISPanelProps) {
   const {
     selectedSiteId,
@@ -124,6 +127,16 @@ export default function TouristGISPanel({
     },
     [openDetail],
   )
+
+  // Honor /map?site= deep links (e.g. tourism highlights "View on map" CTA)
+  useEffect(() => {
+    if (!initialSiteId) return
+    const match = nearbySites.find((s) => s.id === initialSiteId)
+    if (match) {
+      setSelectedSite(match)
+      openDetail(match.id)
+    }
+  }, [initialSiteId, nearbySites, openDetail])
 
   const handleCloseDetail = useCallback(() => {
     setSelectedSite(null)

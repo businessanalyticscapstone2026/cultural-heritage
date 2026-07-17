@@ -57,8 +57,27 @@ export type TrendingSource =
   | "combined_engagement"
   | "most_reviewed"
 
+/** Editorial tourism-highlight site with narrative significance fields. */
+export interface HomeEditorialHighlight {
+  id: string
+  siteName: string
+  shortDescription: string | null
+  /** Preferred narrative body (historical or cultural significance). */
+  narrative: string
+  narrativeKind: "historical" | "cultural"
+  yearEstablished: string | null
+  municipalityName: string | null
+  categoryName: string | null
+  categoryColor: string | null
+  imageUrl: string | null
+  latitude: number | null
+  longitude: number | null
+}
+
 export interface HomePagePayload {
   featuredSites: HomeSiteCard[]
+  /** CR-CHTS-002: narrative-rich sites for the tourism highlights editorial section (0–2). */
+  editorialHighlights: HomeEditorialHighlight[]
   categories: HomeCategoryTile[]
   trendingSites: HomeSiteCard[]
   trendingSource: TrendingSource

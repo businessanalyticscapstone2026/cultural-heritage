@@ -5,15 +5,14 @@ import Link from "next/link"
 import { motion, useScroll, useTransform, type Variants } from "motion/react"
 import {
   ArrowRight,
-  Calendar,
   ChevronRight,
   Map as MapIcon,
-  Megaphone,
   Star,
 } from "lucide-react"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
 import { AtlasMapPreview } from "@/features/home/components/atlas-map-preview"
 import { getCategoryIcon } from "@/features/home/components/category-icon"
+import { TourismHighlightsSection } from "@/features/home/components/tourism-highlights-section"
 import type { HomePagePayload, TrendingSource } from "@/features/home/types"
 
 const fadeUp: Variants = {
@@ -76,6 +75,7 @@ interface TouristHomePageProps {
 export function TouristHomePage({ data }: TouristHomePageProps) {
   const {
     featuredSites,
+    editorialHighlights,
     categories,
     trendingSites,
     trendingSource,
@@ -262,56 +262,8 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
         )}
       </section>
 
-      {/* 3. Tourism highlights — CR-CHTS-002 placeholder */}
-      <section
-        id="tourism-highlights"
-        className="border-y border-ink/10 bg-parchment/40 grain"
-        data-cr-placeholder="CR-CHTS-002"
-        aria-label="Tourism highlights (coming soon)"
-      >
-        <div className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeUp}
-            className="mb-10"
-          >
-            <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-accent">
-              <span className="h-px w-8 bg-accent" /> Tourism Highlights
-            </div>
-            <h2 className="text-display text-5xl leading-[1] md:text-7xl">
-              What&apos;s <em className="italic text-accent">happening</em> in the district.
-            </h2>
-            <p className="mt-4 max-w-md text-ink-soft">
-              Festivals, heritage walks, and cultural events across the municipalities.
-            </p>
-          </motion.div>
-
-          {/*
-            CR-CHTS-002 will replace this placeholder with live announcements /
-            events content (announcements table or equivalent).
-          */}
-          <div className="rounded-3xl border border-dashed border-ink/15 bg-card/60 p-10 text-center md:p-14">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-parchment text-ink-soft">
-              <Calendar size={20} strokeWidth={1.5} />
-            </div>
-            <p className="text-display text-xl text-ink">Highlights coming soon</p>
-            <p className="mx-auto mt-2 max-w-md text-sm text-ink-soft">
-              District events and announcements will appear in this section once
-              CR-CHTS-002 is implemented.
-            </p>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-ink-soft">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-parchment px-3 py-1">
-                <Megaphone size={12} /> Announcements
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-parchment px-3 py-1">
-                <Calendar size={12} /> Events
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* 3. Tourism highlights (CR-CHTS-002) */}
+      <TourismHighlightsSection highlights={editorialHighlights} />
 
       {/* 4. Explore by type */}
       <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">

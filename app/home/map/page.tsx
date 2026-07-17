@@ -3,7 +3,12 @@ import { createClient } from "@/utils/supabase/server"
 import { getTouristMapSites, getTouristMapCategories } from "@/features/gis/services/tourist-map"
 import { TouristMapClient } from "@/app/map/tourist-map-client"
 
-export default async function HomeMapPage() {
+interface HomeMapPageProps {
+  searchParams: Promise<{ site?: string }>
+}
+
+export default async function HomeMapPage({ searchParams }: HomeMapPageProps) {
+  const sp = await searchParams
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
@@ -36,6 +41,7 @@ export default async function HomeMapPage() {
         user={user}
         homeLatitude={homeLatitude}
         homeLongitude={homeLongitude}
+        initialSiteId={sp.site ?? null}
       />
     </div>
   )

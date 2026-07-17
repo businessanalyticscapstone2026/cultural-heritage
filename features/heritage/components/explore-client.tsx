@@ -129,7 +129,7 @@ export default function ExploreClient({
   return (
     <>
       <section className="bg-cream border-b border-ink/10 pt-20 md:pt-24">
-        <div className="px-6 py-12 md:px-10">
+        <div className="px-4 py-12 md:px-6 lg:px-10">
           <div className="mx-auto max-w-7xl">
             <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-accent">
               <span className="h-px w-8 bg-accent" /> Explore Heritage
@@ -144,7 +144,7 @@ export default function ExploreClient({
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 md:px-10 pb-24 md:pb-32">
+      <section className="mx-auto max-w-7xl px-4 pb-24 md:px-6 md:pb-32 lg:px-10">
         <div className="flex flex-col gap-4 py-8 border-b border-ink/10 md:flex-row md:items-center">
           <div className="relative flex-1">
             <Search size={16} strokeWidth={1.5} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />

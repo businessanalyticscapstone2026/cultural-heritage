@@ -77,7 +77,7 @@ export async function getRecommendationHistoryAction(userId: string): Promise<Re
       was_clicked,
       clicked_at,
       bookmarked,
-      created_at,
+      generated_at,
       site:heritage_sites(
         id,
         site_name,
@@ -87,7 +87,7 @@ export async function getRecommendationHistoryAction(userId: string): Promise<Re
       )
     `)
     .eq("tourist_id", userId)
-    .order("created_at", { ascending: false })
+    .order("generated_at", { ascending: false })
     .limit(50)
 
   if (error) throw new Error(error.message)
@@ -114,7 +114,7 @@ export async function getRecommendationHistoryAction(userId: string): Promise<Re
       wasClicked: (row.was_clicked as boolean) ?? false,
       clickedAt: (row.clicked_at as string) ?? null,
       bookmarked: (row.bookmarked as boolean) ?? false,
-      createdAt: row.created_at as string,
+      createdAt: row.generated_at as string,
     }
   })
 }

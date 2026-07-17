@@ -4,7 +4,7 @@ import { getTouristMapSites, getTouristMapCategories, getCuratedTrails } from "@
 import { TouristMapClient } from "./tourist-map-client"
 
 interface MapPageProps {
-  searchParams: Promise<{ site?: string }>
+  searchParams: Promise<{ site?: string; planRoute?: string }>
 }
 
 export default async function MapPage({ searchParams }: MapPageProps) {
@@ -43,6 +43,7 @@ export default async function MapPage({ searchParams }: MapPageProps) {
       homeLatitude={homeLatitude}
       homeLongitude={homeLongitude}
       initialSiteId={sp.site ?? null}
+      initialPlanRouteSiteId={sp.planRoute ?? null}
     />
   )
 }

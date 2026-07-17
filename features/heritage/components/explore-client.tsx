@@ -326,18 +326,19 @@ export default function ExploreClient({
                       }}
                       className="group flex flex-col rounded-2xl border border-ink/10 bg-card overflow-hidden transition-shadow hover:shadow-lg"
                     >
-                      <div className="relative aspect-[4/3] overflow-hidden bg-parchment">
-                        <img
-                          src={site.media?.find(m => m.isPrimary || m.mediaType === "image")?.fileUrl ?? ""}
-                          alt={site.siteName}
-                          className="h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-105"
-                          loading="lazy"
-                          onError={(e) => {
-                            const t = e.currentTarget
-                            t.style.display = "none"
-                            t.parentElement!.style.background = "linear-gradient(135deg, #0f2747 0%, #1a3f6a 50%)"
-                          }}
-                        />
+                      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#0f2747] to-[#1a3f6a]">
+                        {site.media?.find(m => m.isPrimary || m.mediaType === "image")?.fileUrl && (
+                          <img
+                            src={site.media!.find(m => m.isPrimary || m.mediaType === "image")!.fileUrl}
+                            alt={site.siteName}
+                            className="h-full w-full object-cover transition-transform duration-[1200px] group-hover:scale-105"
+                            loading="lazy"
+                            onError={(e) => {
+                              const t = e.currentTarget
+                              t.style.display = "none"
+                            }}
+                          />
+                        )}
                         {site.category?.name && (
                           <span className="absolute left-3 top-3 rounded-full bg-cream/90 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-ink backdrop-blur">
                             {site.category.name}

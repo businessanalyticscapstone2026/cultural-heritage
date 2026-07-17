@@ -16,6 +16,8 @@ import {
   Loader2,
   Locate,
   Sparkles,
+  Route,
+  Plus,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -26,6 +28,7 @@ import MapEntryState from "./map-entry-state"
 import HeritageStatistics from "./heritage-statistics"
 import NearbyDestinationsList from "./nearby-destinations-list"
 import CuratedTrailsPanel from "./curated-trails-panel"
+import { RoutePlannerPanel } from "@/features/route-optimization/components"
 import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
 import type { TouristMapSite, TouristMapCategory, CuratedTrail } from "../services/tourist-map"
 import type { SiteWithDistance } from "../hooks/use-nearby-sites"
@@ -62,6 +65,10 @@ const MapPopup = dynamic(
   () => import("@/components/ui/map").then((m) => m.MapPopup),
   { ssr: false },
 )
+const MapRoute = dynamic(
+  () => import("@/components/ui/map").then((m) => m.MapRoute),
+  { ssr: false },
+)
 
 interface TouristGISPanelProps {
   sites: TouristMapSite[]
@@ -75,15 +82,19 @@ interface TouristGISPanelProps {
   locationSource: "browser" | "profile" | "none"
   /** Deep-link from homepage CTAs (`/map?site=<uuid>`). */
   initialSiteId?: string | null
+  /** Deep-link from "Plan My Trip" CTAs (`/map?planRoute=<uuid>`). */
+  initialPlanRouteSiteId?: string | null
 }
 
 export default function TouristGISPanel({
   sites,
   categories,
   curatedTrails,
+  user,
   userLatitude,
   userLongitude,
   initialSiteId = null,
+  initialPlanRouteSiteId = null,
 }: TouristGISPanelProps) {
   const {
     selectedSiteId,
@@ -102,6 +113,12 @@ export default function TouristGISPanel({
     setMapBounds,
     setShowRecommended,
     setRecommendedSiteIds,
+    routePlanningMode,
+    routeStopIds,
+    activeRoute,
+    addRouteStop,
+    setRoutePlanningMode,
+    showRouteOnMap,
   } = useGisUiStore()
 
   const [selectedSite, setSelectedSite] = useState<SiteWithDistance | null>(null)
@@ -162,10 +179,14 @@ export default function TouristGISPanel({
 
   const handleSiteClick = useCallback(
     (site: SiteWithDistance) => {
+      if (routePlanningMode) {
+        addRouteStop(site.id)
+        return
+      }
       setSelectedSite(site)
       openDetail(site.id)
     },
-    [openDetail],
+    [routePlanningMode, addRouteStop, openDetail],
   )
 
   // Honor /map?site= deep links (e.g. tourism highlights "View on map" CTA)
@@ -177,6 +198,18 @@ export default function TouristGISPanel({
       openDetail(match.id)
     }
   }, [initialSiteId, nearbySites, openDetail])
+
+  // Honor /map?planRoute= deep link — start route planning with that site
+  useEffect(() => {
+    if (!initialPlanRouteSiteId) return
+    const match = nearbySites.find((s) => s.id === initialPlanRouteSiteId)
+    if (match) {
+      setRoutePlanningMode(true)
+      addRouteStop(match.id)
+      setSelectedSite(match)
+      openDetail(match.id)
+    }
+  }, [initialPlanRouteSiteId, nearbySites, setRoutePlanningMode, addRouteStop, openDetail])
 
   const handleCloseDetail = useCallback(() => {
     setSelectedSite(null)
@@ -279,12 +312,9 @@ export default function TouristGISPanel({
           - sites (TouristMapSite[]) for context
           - current viewport bounds from store for scoping
 
-          CR-CHTS-006: Route optimization integration point.
-          Insert <RouteOptimizationPanel> here. Receives:
-          - selectedSiteId and isDetailOpen from store
-          - nearbySites for stop picker
-          - user for saved-routes persistence
         */}
+
+        <RoutePlannerPanel sites={nearbySites} user={user} />
 
         {/* User location indicator */}
         <div className="border-b border-ink/10">
@@ -425,7 +455,9 @@ export default function TouristGISPanel({
             </p>
           ) : (
             <ul className="space-y-1" role="listbox" aria-label="Heritage sites list">
-              {filteredSites.map((site) => (
+              {filteredSites.map((site) => {
+                const inRoute = routeStopIds.includes(site.id)
+                return (
                 <li key={site.id} role="option" aria-selected={selectedSiteId === site.id}>
                   <button
                     type="button"
@@ -433,14 +465,34 @@ export default function TouristGISPanel({
                     className={cn(
                       "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors hover:bg-parchment",
                       selectedSiteId === site.id && "bg-accent/10 font-medium",
+                      inRoute && "bg-accent/5",
                     )}
                   >
-                    <span
-                      className="inline-block size-2.5 shrink-0 rounded-full"
-                      style={{
-                        backgroundColor: site.categoryColor ?? "#6366f1",
-                      }}
-                    />
+                    {routePlanningMode ? (
+                      <span
+                        className={cn(
+                          "flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold transition-colors",
+                          inRoute
+                            ? "bg-accent text-white"
+                            : "border border-ink/20 text-ink-soft hover:border-accent",
+                        )}
+                      >
+                        {inRoute ? (
+                          <svg className="size-2.5" viewBox="0 0 12 12" fill="currentColor">
+                            <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" fill="none" />
+                          </svg>
+                        ) : (
+                          <Plus className="size-2.5" />
+                        )}
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-block size-2.5 shrink-0 rounded-full"
+                        style={{
+                          backgroundColor: site.categoryColor ?? "#6366f1",
+                        }}
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-ink">{site.siteName}</p>
                       <p className="truncate text-[10px] text-ink-soft">
@@ -464,7 +516,8 @@ export default function TouristGISPanel({
                     </div>
                   </button>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
         </div>
@@ -555,6 +608,43 @@ export default function TouristGISPanel({
                 </MarkerLabel>
               </MapMarker>
             )})}
+
+          {/* Route visualization overlay */}
+          {showRouteOnMap && activeRoute && activeRoute.path.length >= 2 && (
+            <MapRoute
+              id="active-route-path"
+              coordinates={activeRoute.path}
+              color="#2E5BFF"
+              width={5}
+              opacity={0.8}
+            />
+          )}
+          {showRouteOnMap && activeRoute && activeRoute.stops.map((stop, index) => (
+            <MapMarker
+              key={`route-stop-${stop.siteId}`}
+              longitude={stop.longitude}
+              latitude={stop.latitude}
+            >
+              <MarkerContent>
+                <div className="relative">
+                  <MapPin
+                    className="size-6 -translate-x-1/2 -translate-y-full drop-shadow-lg"
+                    style={{
+                      fill: ["#2E5BFF","#34A853","#F4B400","#EA4335","#9C27B0","#00BCD4","#FF5722","#607D8B"][index % 8],
+                      color: "#ffffff",
+                    }}
+                  />
+                  <span className="absolute left-1/2 top-0 flex size-4 -translate-x-1/2 -translate-y-1 items-center justify-center rounded-full bg-white text-[8px] font-bold shadow-sm"
+                    style={{ color: ["#2E5BFF","#34A853","#F4B400","#EA4335","#9C27B0","#00BCD4","#FF5722","#607D8B"][index % 8] }}
+                    aria-hidden="true"
+                  >
+                    {stop.stopOrder}
+                  </span>
+                </div>
+              </MarkerContent>
+              <MarkerLabel>{stop.siteName}</MarkerLabel>
+            </MapMarker>
+          ))}
 
           <MapControls showZoom showLocate showCompass />
         </Map>
@@ -685,6 +775,18 @@ export default function TouristGISPanel({
                   <Landmark className="size-4" />
                   View Full Details
                 </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    addRouteStop(selectedSite.id)
+                    setRoutePlanningMode(true)
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-4 py-2.5 text-sm font-medium text-accent transition-colors hover:bg-accent/10"
+                >
+                  <Route className="size-4" />
+                  {routeStopIds.includes(selectedSite.id) ? "Added to Trip" : "Add to Trip"}
+                </button>
 
                 <a
                   href={getDirectionsUrl(

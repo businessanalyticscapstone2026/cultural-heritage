@@ -14,6 +14,8 @@ interface TouristMapClientProps {
   homeLongitude: number | null
   /** Deep-link target from `/map?site=<uuid>`. */
   initialSiteId?: string | null
+  /** Deep-link target from `/map?planRoute=<uuid>` to start route planning. */
+  initialPlanRouteSiteId?: string | null
 }
 
 export function TouristMapClient({
@@ -24,6 +26,7 @@ export function TouristMapClient({
   homeLatitude,
   homeLongitude,
   initialSiteId = null,
+  initialPlanRouteSiteId = null,
 }: TouristMapClientProps) {
   const {
     latitude: userLatitude,
@@ -43,6 +46,7 @@ export function TouristMapClient({
       userLongitude={userLongitude}
       locationSource={locationSource}
       initialSiteId={initialSiteId}
+      initialPlanRouteSiteId={initialPlanRouteSiteId}
     />
   )
 }

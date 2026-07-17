@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
+import { Route } from "lucide-react"
 import type { HeritageSite, NearbySite, TravelMode } from "../types"
 import Breadcrumb from "./breadcrumb"
 import HeroImage from "./hero-image"
@@ -167,6 +169,16 @@ export default function HeritageDetailClient({
               latitude={site.latitude}
               longitude={site.longitude}
             />
+
+            {hasCoordinates && (
+              <Link
+                href={`/map?planRoute=${site.id}`}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              >
+                <Route className="size-4" />
+                Plan My Trip
+              </Link>
+            )}
 
             {hasCoordinates && nearbySites.length > 0 && (
               <NearbyMiniMap

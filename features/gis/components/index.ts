@@ -1,3 +1,7 @@
 export { default as GisAdminPanel } from "./gis-admin-panel"
 export { default as MTOGISPanel } from "./mto-gis-panel"
 export { default as TouristGISPanel } from "./tourist-gis-panel"
+export { default as MapEntryState } from "./map-entry-state"
+export { default as HeritageStatistics } from "./heritage-statistics"
+export { default as NearbyDestinationsList } from "./nearby-destinations-list"
+export { default as CuratedTrailsPanel } from "./curated-trails-panel"

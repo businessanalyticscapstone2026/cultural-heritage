@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo, useEffect } from "react"
+import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import {
@@ -18,9 +18,14 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { getBoundsFromViewport } from "@/utils/geo"
 import { useGisUiStore } from "../stores/gis-ui"
 import { useNearbySites } from "../hooks/use-nearby-sites"
-import type { TouristMapSite, TouristMapCategory } from "../services/tourist-map"
+import MapEntryState from "./map-entry-state"
+import HeritageStatistics from "./heritage-statistics"
+import NearbyDestinationsList from "./nearby-destinations-list"
+import CuratedTrailsPanel from "./curated-trails-panel"
+import type { TouristMapSite, TouristMapCategory, CuratedTrail } from "../services/tourist-map"
 import type { SiteWithDistance } from "../hooks/use-nearby-sites"
 import type { User } from "@supabase/supabase-js"
 
@@ -59,6 +64,7 @@ const MapPopup = dynamic(
 interface TouristGISPanelProps {
   sites: TouristMapSite[]
   categories: TouristMapCategory[]
+  curatedTrails: CuratedTrail[]
   user: User | null
   homeLatitude: number | null
   homeLongitude: number | null
@@ -72,6 +78,7 @@ interface TouristGISPanelProps {
 export default function TouristGISPanel({
   sites,
   categories,
+  curatedTrails,
   userLatitude,
   userLongitude,
   initialSiteId = null,
@@ -87,15 +94,16 @@ export default function TouristGISPanel({
     setCategoryFilter,
     setSearchQuery,
     setVisibleCategoryIds,
+    dismissEntryState,
+    setMapBounds,
   } = useGisUiStore()
 
   const [selectedSite, setSelectedSite] = useState<SiteWithDistance | null>(null)
   const [showFilters, setShowFilters] = useState(true)
+  const mapRef = useRef<HTMLDivElement>(null)
 
   const nearbySites = useNearbySites(sites, userLatitude, userLongitude)
   const hasLocation = userLatitude != null && userLongitude != null
-
-  const categoryIds = useMemo(() => categories.map((c) => c.id), [categories])
 
   const filteredSites = useMemo(
     () =>
@@ -160,9 +168,26 @@ export default function TouristGISPanel({
     return `https://www.google.com/maps?q=${lat},${lng}`
   }
 
+  const handleViewportChange = useCallback(
+    (vp: { center: [number, number]; zoom: number }) => {
+      const bounds = getBoundsFromViewport(vp.center[0], vp.center[1], vp.zoom)
+      setMapBounds(bounds)
+    },
+    [setMapBounds],
+  )
+
+  const handleExplore = useCallback(() => {
+    dismissEntryState()
+  }, [dismissEntryState])
+
+  const handleCenterOnLocation = useCallback(() => {
+    if (!hasUserMarker || mapRef.current == null) return
+    dismissEntryState()
+  }, [hasUserMarker, dismissEntryState])
+
   return (
     <div className="flex h-full gap-0 overflow-hidden">
-      {/* Filter / Site List Sidebar */}
+      {/* Sidebar */}
       <aside
         className={cn(
           "flex w-80 shrink-0 flex-col border-r border-ink/10 bg-cream transition-all duration-300",
@@ -203,23 +228,50 @@ export default function TouristGISPanel({
           </div>
         </div>
 
-        {/* User location indicator */}
-        {hasLocation && (
-          <div className="border-b border-ink/10 bg-accent/5 px-4 py-2">
-            <p className="flex items-center gap-1.5 text-[11px] text-accent">
-              <Locate className="size-3" />
-              Showing distances from your location
-            </p>
-          </div>
-        )}
+        {/* Heritage Statistics — counts update on pan/zoom via mapBounds */}
+        <HeritageStatistics sites={sites} categories={categories} />
 
-        {!hasLocation && (
-          <div className="border-b border-ink/10 bg-warning/5 px-4 py-2">
-            <p className="text-[11px] text-warning">
-              Enable location access or set a home location to see distances.
-            </p>
-          </div>
-        )}
+        {/* Nearby Destinations — top 5 by distance from user location */}
+        <NearbyDestinationsList
+          sites={nearbySites}
+          onSiteClick={handleSiteClick}
+          selectedSiteId={selectedSiteId}
+        />
+
+        {/* Curated Heritage Trails — renders trail cards when is_curated routes exist */}
+        <CuratedTrailsPanel trails={curatedTrails} />
+        {/*
+          CR-CHTS-005: Recommendation integration point.
+          Insert <RecommendationPanel> here. Receives:
+          - user (User | null) from props
+          - sites (TouristMapSite[]) for context
+          - current viewport bounds from store for scoping
+
+          CR-CHTS-006: Route optimization integration point.
+          Insert <RouteOptimizationPanel> here. Receives:
+          - selectedSiteId and isDetailOpen from store
+          - nearbySites for stop picker
+          - user for saved-routes persistence
+        */}
+
+        {/* User location indicator */}
+        <div className="border-b border-ink/10">
+          {hasLocation && (
+            <div className="bg-accent/5 px-4 py-2">
+              <p className="flex items-center gap-1.5 text-[11px] text-accent">
+                <Locate className="size-3" />
+                Showing distances from your location
+              </p>
+            </div>
+          )}
+          {!hasLocation && (
+            <div className="bg-warning/5 px-4 py-2">
+              <p className="text-[11px] text-warning">
+                Enable location access or set a home location to see distances.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Filters */}
         <div className="border-b border-ink/10 p-3">
@@ -241,8 +293,6 @@ export default function TouristGISPanel({
               ))}
             </select>
           </div>
-
-          {/* Category legend / layer toggles */}
           <div>
             <div className="mb-1 flex items-center justify-between">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
@@ -295,7 +345,7 @@ export default function TouristGISPanel({
           </div>
         </div>
 
-        {/* Site List (accessible keyboard/screen-reader alternative to map) */}
+        {/* Full Site List */}
         <div className="flex-1 overflow-y-auto p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
@@ -371,15 +421,21 @@ export default function TouristGISPanel({
       </button>
 
       {/* Main Map Area */}
-      <div className="relative flex-1">
+      <div ref={mapRef} className="relative flex-1">
+        {/* Map Entry State — summary overlay shown on first load */}
+        <MapEntryState
+          sites={nearbySites}
+          categories={categories}
+          hasUserLocation={hasUserMarker}
+          onCenterOnLocation={handleCenterOnLocation}
+          onExplore={handleExplore}
+        />
+
         <Map
           className="h-full w-full"
-          viewport={{
-            center: mapCenter,
-            zoom: hasUserMarker ? 11 : 10,
-            bearing: 0,
-            pitch: 0,
-          }}
+          center={mapCenter}
+          zoom={hasUserMarker ? 11 : 10}
+          onViewportChange={handleViewportChange}
         >
           {/* User location marker */}
           {hasUserMarker && (
@@ -430,7 +486,7 @@ export default function TouristGISPanel({
           <MapControls showZoom showLocate showCompass />
         </Map>
 
-        {/* Mobile filter bar toggle */}
+        {/* Site count badge */}
         <div className="absolute left-3 top-3 z-10 hidden gap-2 lg:flex">
           <span className="rounded-lg bg-cream px-3 py-1.5 text-xs font-medium text-ink shadow-sm">
             {filteredSites.length} site{filteredSites.length !== 1 ? "s" : ""}

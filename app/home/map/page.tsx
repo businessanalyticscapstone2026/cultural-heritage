@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
-import { getTouristMapSites, getTouristMapCategories } from "@/features/gis/services/tourist-map"
+import { getTouristMapSites, getTouristMapCategories, getCuratedTrails } from "@/features/gis/services/tourist-map"
 import { TouristMapClient } from "@/app/map/tourist-map-client"
 
 interface HomeMapPageProps {
@@ -28,9 +28,10 @@ export default async function HomeMapPage({ searchParams }: HomeMapPageProps) {
     homeLongitude = profile?.home_longitude ?? null
   }
 
-  const [sites, categories] = await Promise.all([
+  const [sites, categories, curatedTrails] = await Promise.all([
     getTouristMapSites(),
     getTouristMapCategories(),
+    getCuratedTrails(),
   ])
 
   return (
@@ -38,6 +39,7 @@ export default async function HomeMapPage({ searchParams }: HomeMapPageProps) {
       <TouristMapClient
         sites={sites}
         categories={categories}
+        curatedTrails={curatedTrails}
         user={user}
         homeLatitude={homeLatitude}
         homeLongitude={homeLongitude}

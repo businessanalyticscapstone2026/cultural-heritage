@@ -50,14 +50,26 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   const { data: { user } } = await supabase.auth.getUser()
 
   let recommendedSiteIds: string[] = []
+  let recommendedRecIdMap: Record<string, string> = {}
   let bookmarkedSiteIds: string[] = []
+
+  const sessionId = cookieStore.get("session_id")?.value
+
+  const recQuery = supabase
+    .from("recommendations")
+    .select("id, site_id")
+
+  if (user) {
+    recQuery.eq("tourist_id", user.id)
+  } else if (sessionId) {
+    recQuery.eq("session_id", sessionId)
+  } else {
+    recQuery.eq("tourist_id", "00000000-0000-0000-0000-000000000000")
+  }
 
   if (user) {
     const [recsResult, bookmarksResult] = await Promise.all([
-      supabase
-        .from("recommendations")
-        .select("site_id")
-        .eq("tourist_id", user.id),
+      recQuery,
       supabase
         .from("bookmarks")
         .select("site_id")
@@ -68,12 +80,24 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
       const seen = new Set<string>()
       for (const row of recsResult.data) {
         seen.add(row.site_id)
+        recommendedRecIdMap[row.site_id] = row.id
       }
       recommendedSiteIds = [...seen]
     }
 
     if (!bookmarksResult.error && bookmarksResult.data) {
       bookmarkedSiteIds = bookmarksResult.data.map((row) => row.site_id)
+    }
+  } else if (sessionId) {
+    const recsResult = await recQuery
+
+    if (!recsResult.error && recsResult.data) {
+      const seen = new Set<string>()
+      for (const row of recsResult.data) {
+        seen.add(row.site_id)
+        recommendedRecIdMap[row.site_id] = row.id
+      }
+      recommendedSiteIds = [...seen]
     }
   }
 
@@ -100,6 +124,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
           activeHistoricalPeriod={historicalPeriod}
           activeAccessibility={accessibility}
           recommendedSiteIds={recommendedSiteIds}
+          recommendedRecIdMap={recommendedRecIdMap}
           initialBookmarkedIds={bookmarkedSiteIds}
         />
       </Suspense>

@@ -1,3 +1,5 @@
+import type { RecommendationResult } from "@/types/recommendation"
+
 /** Site card used across home sections (featured, trending, recommended). */
 export interface HomeSiteCard {
   id: string
@@ -83,11 +85,8 @@ export interface HomePagePayload {
   trendingSource: TrendingSource
   mapPins: HomeMapPin[]
   atlasStats: HomeAtlasStats
-  /**
-   * CR-CHTS-005: replace this list with the personalized recommendation engine.
-   * Currently top-rated published public sites (placeholder).
-   */
   recommendedSites: HomeSiteCard[]
+  recommendedResults: RecommendationResult[]
   testimonials: HomeTestimonial[]
   /** Optional hero background from featured/published site media or district asset. */
   heroImageUrl: string | null

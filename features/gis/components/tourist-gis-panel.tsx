@@ -15,6 +15,7 @@ import {
   Star,
   Loader2,
   Locate,
+  Sparkles,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -25,6 +26,7 @@ import MapEntryState from "./map-entry-state"
 import HeritageStatistics from "./heritage-statistics"
 import NearbyDestinationsList from "./nearby-destinations-list"
 import CuratedTrailsPanel from "./curated-trails-panel"
+import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
 import type { TouristMapSite, TouristMapCategory, CuratedTrail } from "../services/tourist-map"
 import type { SiteWithDistance } from "../hooks/use-nearby-sites"
 import type { User } from "@supabase/supabase-js"
@@ -89,6 +91,8 @@ export default function TouristGISPanel({
     categoryFilter,
     searchQuery,
     visibleCategoryIds,
+    showRecommended,
+    recommendedSiteIds,
     openDetail,
     closeDetail,
     setCategoryFilter,
@@ -96,11 +100,33 @@ export default function TouristGISPanel({
     setVisibleCategoryIds,
     dismissEntryState,
     setMapBounds,
+    setShowRecommended,
+    setRecommendedSiteIds,
   } = useGisUiStore()
 
   const [selectedSite, setSelectedSite] = useState<SiteWithDistance | null>(null)
   const [showFilters, setShowFilters] = useState(true)
+  const [recommendationRecIds, setRecommendationRecIds] = useState<Record<string, string>>({})
   const mapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/recommendations")
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return
+        const ids: string[] = []
+        const recIdMap: Record<string, string> = {}
+        for (const item of json.data ?? []) {
+          ids.push(item.site.id)
+          if (item.recommendationId) recIdMap[item.site.id] = item.recommendationId
+        }
+        setRecommendedSiteIds(ids)
+        setRecommendationRecIds(recIdMap)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [setRecommendedSiteIds])
 
   const nearbySites = useNearbySites(sites, userLatitude, userLongitude)
   const hasLocation = userLatitude != null && userLongitude != null
@@ -114,6 +140,7 @@ export default function TouristGISPanel({
           !visibleCategoryIds.includes(s.categoryId ?? "")
         )
           return false
+        if (showRecommended && !recommendedSiteIds.includes(s.id)) return false
         if (searchQuery) {
           const q = searchQuery.toLowerCase()
           if (
@@ -125,7 +152,12 @@ export default function TouristGISPanel({
         }
         return true
       }),
-    [nearbySites, categoryFilter, visibleCategoryIds, searchQuery],
+    [nearbySites, categoryFilter, visibleCategoryIds, showRecommended, recommendedSiteIds, searchQuery],
+  )
+
+  const isRecommendedSite = useCallback(
+    (siteId: string) => recommendedSiteIds.includes(siteId),
+    [recommendedSiteIds],
   )
 
   const handleSiteClick = useCallback(
@@ -275,6 +307,37 @@ export default function TouristGISPanel({
 
         {/* Filters */}
         <div className="border-b border-ink/10 p-3">
+          <div className="mb-3">
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
+              <Sparkles className="mr-1 inline size-3 text-accent" />
+              Recommended
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowRecommended(!showRecommended)}
+              className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs transition-colors ${
+                showRecommended
+                  ? "bg-accent/10 text-accent font-medium"
+                  : "text-ink-soft hover:bg-parchment"
+              }`}
+            >
+              <span className={`inline-block size-3 rounded border ${
+                showRecommended ? "bg-accent border-accent" : "border-ink/30 bg-cream"
+              }`}>
+                {showRecommended && (
+                  <svg className="size-full text-white" viewBox="0 0 12 12" fill="currentColor">
+                    <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                  </svg>
+                )}
+              </span>
+              Show recommended sites
+              {recommendedSiteIds.length > 0 && (
+                <span className="ml-auto font-mono text-[10px] text-accent/70">
+                  {recommendedSiteIds.length}
+                </span>
+              )}
+            </button>
+          </div>
           <div className="mb-3">
             <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
               Category
@@ -456,7 +519,9 @@ export default function TouristGISPanel({
           {/* Site markers */}
           {filteredSites
             .filter((s) => s.latitude != null && s.longitude != null)
-            .map((site) => (
+            .map((site) => {
+              const recommended = isRecommendedSite(site.id)
+              return (
               <MapMarker
                 key={site.id}
                 longitude={site.longitude}
@@ -469,6 +534,7 @@ export default function TouristGISPanel({
                     className={cn(
                       "flex size-7 items-center justify-center rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
                       selectedSiteId === site.id && "scale-125 ring-2 ring-accent",
+                      recommended && "ring-2 ring-accent/40",
                     )}
                     style={{
                       backgroundColor: site.categoryColor ?? "#6366f1",
@@ -476,12 +542,19 @@ export default function TouristGISPanel({
                     title={site.siteName}
                     aria-label={`${site.siteName}${site.distanceKm != null ? `, ${site.distanceKm < 1 ? `${(site.distanceKm * 1000).toFixed(0)}m` : `${site.distanceKm.toFixed(1)}km`}` : ""}`}
                   >
-                    <Landmark className="size-3 text-white" />
+                    {recommended ? (
+                      <Sparkles className="size-3.5 text-white" />
+                    ) : (
+                      <Landmark className="size-3 text-white" />
+                    )}
                   </button>
                 </MarkerContent>
-                <MarkerLabel>{site.siteName}</MarkerLabel>
+                <MarkerLabel>
+                  {site.siteName}
+                  {recommended && " ★"}
+                </MarkerLabel>
               </MapMarker>
-            ))}
+            )})}
 
           <MapControls showZoom showLocate showCompass />
         </Map>
@@ -603,6 +676,10 @@ export default function TouristGISPanel({
               <div className="space-y-2 px-5 pb-6">
                 <Link
                   href={`/heritage/${selectedSite.id}`}
+                  onClick={() => {
+                    const recId = recommendationRecIds[selectedSite.id]
+                    if (recId) trackRecommendationClickAction(recId)
+                  }}
                   className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-cream transition-opacity hover:opacity-90"
                 >
                   <Landmark className="size-4" />

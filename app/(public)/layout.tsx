@@ -44,7 +44,7 @@ function PublicFooter() {
           <div>
             <h3 className="text-display text-sm text-ink">Traveler</h3>
             <ul className="mt-4 flex flex-col gap-2.5">
-              {[{ href: "/login", label: "Bookmarks" }, { href: "/login", label: "Recommendations" }, { href: "/login", label: "QR Scanner" }, { href: "/login", label: "Profile" }].map((link) => (
+              {[{ href: "/login", label: "Bookmarks" }, { href: "/explore", label: "Recommendations" }, { href: "/login", label: "QR Scanner" }, { href: "/login", label: "Profile" }].map((link) => (
                 <li key={link.label}>
                   <a href={link.href} className="text-sm text-ink-soft transition-colors hover:text-accent">{link.label}</a>
                 </li>

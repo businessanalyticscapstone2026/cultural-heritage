@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server"
+import { createAdminClient } from "@/utils/supabase/admin"
 import { haversineDistance } from "@/utils/geo"
 import type {
   RecommendationResult,
@@ -359,9 +360,12 @@ export async function generateRecommendations(
   const limit = preferences.limit ?? 20
   const topScores = validScores.slice(0, limit)
 
-  const results: RecommendationResult[] = topScores.map((s) => {
+  const recIds = topScores.map(() => crypto.randomUUID())
+
+  const results: RecommendationResult[] = topScores.map((s, i) => {
     const raw = rawSites.find((r) => r.id === s.siteId)!
     return {
+      recommendationId: recIds[i],
       site: toHeritageSite(raw),
       score: s.finalScore,
       matchPercentage: s.matchPercentage,
@@ -370,9 +374,10 @@ export async function generateRecommendations(
   })
 
   if (results.length > 0) {
-    const insertData = topScores.map((s) => {
+    const insertData = topScores.map((s, i) => {
       const site = rawSites.find((r) => r.id === s.siteId)!
       return {
+        id: recIds[i],
         tourist_id: preferences.touristId ?? null,
         session_id: preferences.sessionId ?? null,
         site_id: s.siteId,
@@ -383,7 +388,15 @@ export async function generateRecommendations(
       }
     })
 
-    const { error: insertError } = await supabase
+    let db = supabase
+    try {
+      db = createAdminClient()
+    } catch {
+      // service-role key not available — fall back to user-scoped client
+      // (may fail RLS for anonymous users, logged-in users should succeed)
+    }
+
+    const { error: insertError } = await db
       .from("recommendations")
       .insert(insertData)
 

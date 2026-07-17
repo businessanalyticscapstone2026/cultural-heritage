@@ -1,19 +1,22 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useCallback } from "react"
 import Link from "next/link"
 import { motion, useScroll, useTransform, type Variants } from "motion/react"
 import {
   ArrowRight,
   ChevronRight,
   Map as MapIcon,
+  Sparkles,
   Star,
 } from "lucide-react"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
 import { AtlasMapPreview } from "@/features/home/components/atlas-map-preview"
 import { getCategoryIcon } from "@/features/home/components/category-icon"
 import { TourismHighlightsSection } from "@/features/home/components/tourism-highlights-section"
+import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
 import type { HomePagePayload, TrendingSource } from "@/features/home/types"
+import type { RecommendationResult } from "@/types/recommendation"
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 32 },
@@ -82,9 +85,16 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
     mapPins,
     atlasStats,
     recommendedSites,
+    recommendedResults,
     testimonials,
     heroImageUrl,
   } = data
+
+  const recById = new Map(recommendedResults.map((r) => [r.site.id, r]))
+
+  const handleRecClick = useCallback((recId: string) => {
+    trackRecommendationClickAction(recId)
+  }, [])
 
   const heroRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
@@ -490,10 +500,9 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
         </div>
       </section>
 
-      {/* 7. Recommended destinations — CR-CHTS-005 shell */}
+      {/* 7. Recommended destinations */}
       <section
         id="recommended"
-        data-cr-placeholder="CR-CHTS-005"
         className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32"
       >
         <motion.div
@@ -505,90 +514,101 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
         >
           <div>
             <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-accent">
-              <span className="h-px w-8 bg-accent" /> Recommended Sites
+              <span className="h-px w-8 bg-accent" /> Recommended for You
             </div>
             <h2 className="text-display text-5xl leading-[1] md:text-7xl">
-              Explore <em className="italic text-accent">popular</em> destinations.
+              Explore <em className="italic text-accent">your</em> matches.
             </h2>
             <p className="mt-4 max-w-md text-ink-soft">
-              {/* CR-CHTS-005: swap this copy when personalization is wired. */}
-              Top-rated heritage sites across the district. Personalized picks arrive with
-              CR-CHTS-005.
+              Personalized heritage picks based on your interests, location, and popularity.
             </p>
           </div>
           <Link
-            href="/recommendations"
+            href="/explore"
             className="group hidden items-center gap-1 text-sm text-ink-soft transition-colors hover:text-ink md:inline-flex"
           >
-            Get personalized picks{" "}
+            Browse all sites{" "}
             <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
           </Link>
         </motion.div>
 
-        {/*
-          CR-CHTS-005 will replace this data source with the real recommendation engine.
-          Current source: top-rated published public sites (placeholder query).
-        */}
         {recommendedSites.length === 0 ? (
           <EmptyPanel
             title="No recommendations yet"
-            description="Published heritage sites will appear here as soon as they are available."
+            description="Set your interests in your profile or start exploring to get personalized suggestions."
             actionHref="/explore"
             actionLabel="Explore sites"
           />
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {recommendedSites.map((site, i) => (
-              <motion.div
-                key={site.id}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.7, delay: i * 0.1 }}
-              >
-                <Link
-                  href={`/heritage/${site.id}`}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-ink/10 bg-card transition-all duration-300 hover:-translate-y-1 hover:border-ink/20 hover:shadow-xl"
+            {recommendedSites.map((site, i) => {
+              const rec = recById.get(site.id)
+              return (
+                <motion.div
+                  key={site.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.7, delay: i * 0.1 }}
                 >
-                  <div className="relative aspect-[4/3] overflow-hidden">
-                    <SiteImage
-                      src={site.imageUrl}
-                      alt={site.siteName}
-                      className="h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-110"
-                    />
-                    {site.categoryName && (
-                      <span className="absolute left-3 top-3 rounded-full bg-cream/90 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-ink backdrop-blur">
-                        {site.categoryName}
-                      </span>
-                    )}
-                    <CardBookmarkButton siteId={site.id} />
-                  </div>
-                  <div className="p-5">
-                    <h3 className="text-display text-lg leading-tight text-ink transition-colors group-hover:text-accent">
-                      {site.siteName}
-                    </h3>
-                    <p className="mt-1 text-sm text-ink-soft">
-                      {site.municipalityName ?? "Batangas"}
-                    </p>
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <Star size={12} className="fill-amber-400 text-amber-400" />
-                        <span className="text-xs text-ink-soft">
-                          {(site.averageRating ?? 0) > 0
-                            ? Number(site.averageRating).toFixed(1)
-                            : "—"}
-                          {site.yearEstablished ? ` · ${site.yearEstablished}` : ""}
-                        </span>
-                      </div>
-                      <ArrowRight
-                        size={14}
-                        className="text-ink-soft transition-transform group-hover:translate-x-1 group-hover:text-accent"
+                  <Link
+                    href={`/heritage/${site.id}`}
+                    onClick={() => {
+                      if (rec?.recommendationId) handleRecClick(rec.recommendationId)
+                    }}
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-ink/10 bg-card transition-all duration-300 hover:-translate-y-1 hover:border-ink/20 hover:shadow-xl"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden">
+                      <SiteImage
+                        src={site.imageUrl}
+                        alt={site.siteName}
+                        className="h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-110"
                       />
+                      {site.categoryName && (
+                        <span className="absolute left-3 top-3 rounded-full bg-cream/90 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-ink backdrop-blur">
+                          {site.categoryName}
+                        </span>
+                      )}
+                      {rec && (
+                        <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-accent/90 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-white backdrop-blur">
+                          <Sparkles size={10} strokeWidth={1.5} />
+                          {rec.matchPercentage}% Match
+                        </span>
+                      )}
+                      <CardBookmarkButton siteId={site.id} />
                     </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
+                    <div className="p-5">
+                      <h3 className="text-display text-lg leading-tight text-ink transition-colors group-hover:text-accent">
+                        {site.siteName}
+                      </h3>
+                      <p className="mt-1 text-sm text-ink-soft">
+                        {site.municipalityName ?? "Batangas"}
+                      </p>
+                      {rec && rec.reasons.length > 0 && (
+                        <p className="mt-1 text-xs text-ink-soft/80 line-clamp-1">
+                          {rec.reasons[0]}
+                        </p>
+                      )}
+                      <div className="mt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <Star size={12} className="fill-amber-400 text-amber-400" />
+                          <span className="text-xs text-ink-soft">
+                            {(site.averageRating ?? 0) > 0
+                              ? Number(site.averageRating).toFixed(1)
+                              : "—"}
+                            {site.yearEstablished ? ` · ${site.yearEstablished}` : ""}
+                          </span>
+                        </div>
+                        <ArrowRight
+                          size={14}
+                          className="text-ink-soft transition-transform group-hover:translate-x-1 group-hover:text-accent"
+                        />
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              )
+            })}
           </div>
         )}
       </section>

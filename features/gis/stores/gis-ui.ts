@@ -20,6 +20,8 @@ interface GisUiState {
   showStatsPanel: boolean
   showNearbyPanel: boolean
   showCuratedTrails: boolean
+  showRecommended: boolean
+  recommendedSiteIds: string[]
 
   selectSite: (siteId: string | null) => void
   openDetail: (siteId: string) => void
@@ -33,6 +35,8 @@ interface GisUiState {
   setShowStatsPanel: (show: boolean) => void
   setShowNearbyPanel: (show: boolean) => void
   setShowCuratedTrails: (show: boolean) => void
+  setShowRecommended: (show: boolean) => void
+  setRecommendedSiteIds: (ids: string[]) => void
 }
 
 export const useGisUiStore = create<GisUiState>((set) => ({
@@ -48,6 +52,8 @@ export const useGisUiStore = create<GisUiState>((set) => ({
   showStatsPanel: true,
   showNearbyPanel: true,
   showCuratedTrails: true,
+  showRecommended: false,
+  recommendedSiteIds: [],
 
   selectSite: (siteId) => set({ selectedSiteId: siteId }),
 
@@ -74,4 +80,6 @@ export const useGisUiStore = create<GisUiState>((set) => ({
   setShowNearbyPanel: (show) => set({ showNearbyPanel: show }),
 
   setShowCuratedTrails: (show) => set({ showCuratedTrails: show }),
+  setShowRecommended: (show) => set({ showRecommended: show }),
+  setRecommendedSiteIds: (ids) => set({ recommendedSiteIds: ids }),
 }))

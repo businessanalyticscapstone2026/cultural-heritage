@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
 import { getMunicipalityImage } from "@/utils/images"
+import { generateRecommendations } from "@/features/recommendation/services"
 import type {
   HomeAtlasStats,
   HomeCategoryTile,
@@ -11,6 +12,7 @@ import type {
   HomeTestimonial,
   TrendingSource,
 } from "@/features/home/types"
+import type { RecommendationResult } from "@/types/recommendation"
 
 const FEATURED_LIMIT = 4
 const TRENDING_LIMIT = 3
@@ -340,24 +342,53 @@ async function getAtlasStats(supabase: SupabaseServer): Promise<HomeAtlasStats> 
   }
 }
 
-/**
- * CR-CHTS-005 will replace this data source with the real recommendation engine.
- * Placeholder: top-rated published public heritage sites.
- */
-async function getRecommendedPlaceholderSites(
+async function getRecommendedSites(
   supabase: SupabaseServer,
-): Promise<HomeSiteCard[]> {
-  const { data, error } = await supabase
-    .from("heritage_sites")
-    .select(SITE_CARD_SELECT)
-    .eq("publication_status", "published")
-    .eq("visibility", "public")
-    .order("average_rating", { ascending: false })
-    .order("review_count", { ascending: false })
-    .limit(RECOMMENDED_LIMIT)
+): Promise<{ sites: HomeSiteCard[]; results: RecommendationResult[] }> {
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (error) throw new Error(`Recommended placeholder: ${error.message}`)
-  return (data ?? []).map((row) => mapSiteRow(row as SiteJoinRow))
+  const preferences: import("@/types/recommendation").UserPreferences = {
+    interests: [],
+    preferredCategoryIds: [],
+    limit: RECOMMENDED_LIMIT,
+    touristId: user?.id ?? null,
+    sessionId: user ? undefined : crypto.randomUUID(),
+  }
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from("tourist_profiles")
+      .select("interests, preferred_category_ids, home_latitude, home_longitude")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    if (profile) {
+      preferences.interests = (profile.interests as string[]) ?? []
+      preferences.preferredCategoryIds = (profile.preferred_category_ids as string[]) ?? []
+      if (profile.home_latitude) preferences.homeLatitude = Number(profile.home_latitude)
+      if (profile.home_longitude) preferences.homeLongitude = Number(profile.home_longitude)
+    }
+  }
+
+  const results = await generateRecommendations(supabase, preferences)
+  const sites = results.map<HomeSiteCard>((r) => ({
+    id: r.site.id,
+    siteName: r.site.siteName,
+    shortDescription: r.site.shortDescription,
+    yearEstablished: r.site.yearEstablished,
+    averageRating: r.site.averageRating,
+    reviewCount: r.site.reviewCount,
+    municipalityName: r.site.municipalityName,
+    categoryId: r.site.categoryId,
+    categoryName: r.site.category?.name ?? null,
+    categoryIcon: r.site.category?.icon ?? null,
+    categoryColor: r.site.category?.color ?? null,
+    imageUrl: r.site.media.find((m) => m.isPrimary)?.fileUrl
+      ?? r.site.media.find((m) => m.mediaType === "image")?.fileUrl
+      ?? null,
+  }))
+
+  return { sites, results }
 }
 
 async function getTestimonials(supabase: SupabaseServer): Promise<HomeTestimonial[]> {
@@ -568,7 +599,7 @@ export async function getTouristHomePageData(): Promise<HomePagePayload> {
     trending,
     mapPins,
     atlasStats,
-    recommendedSites,
+    recommended,
     testimonials,
   ] = await Promise.all([
     getFeaturedSites(supabase),
@@ -577,11 +608,11 @@ export async function getTouristHomePageData(): Promise<HomePagePayload> {
     getTrendingSites(supabase),
     getMapPins(supabase),
     getAtlasStats(supabase),
-    getRecommendedPlaceholderSites(supabase),
+    getRecommendedSites(supabase),
     getTestimonials(supabase),
   ])
 
-  const heroImageUrl = await resolveHeroImageUrl(supabase, featuredSites, recommendedSites)
+  const heroImageUrl = await resolveHeroImageUrl(supabase, featuredSites, recommended.sites)
 
   return {
     featuredSites,
@@ -591,7 +622,8 @@ export async function getTouristHomePageData(): Promise<HomePagePayload> {
     trendingSource: trending.source,
     mapPins,
     atlasStats,
-    recommendedSites,
+    recommendedSites: recommended.sites,
+    recommendedResults: recommended.results,
     testimonials,
     heroImageUrl,
   }

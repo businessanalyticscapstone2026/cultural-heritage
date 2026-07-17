@@ -1,6 +1,7 @@
 import type { HeritageSite } from "./heritage"
 
 export interface RecommendationResult {
+  recommendationId: string
   site: HeritageSite
   score: number
   matchPercentage: number

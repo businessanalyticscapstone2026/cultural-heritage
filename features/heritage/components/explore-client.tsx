@@ -7,6 +7,7 @@ import { motion } from "motion/react"
 import { Search, X, SlidersHorizontal, Star, MapPin, Clock, ChevronRight, ChevronLeft, Sparkles } from "lucide-react"
 import { useDebounce } from "@/hooks/use-debounce"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
+import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
 import type { HeritageSite } from "@/types/heritage"
 import type { ExploreResult, ExploreCategory } from "../services/explore"
 
@@ -21,6 +22,7 @@ interface ExploreClientProps {
   activeHistoricalPeriod: string
   activeAccessibility: string
   recommendedSiteIds: string[]
+  recommendedRecIdMap?: Record<string, string>
   initialBookmarkedIds: string[]
 }
 
@@ -35,6 +37,7 @@ export default function ExploreClient({
   activeHistoricalPeriod,
   activeAccessibility,
   recommendedSiteIds,
+  recommendedRecIdMap = {},
   initialBookmarkedIds,
 }: ExploreClientProps) {
   const router = useRouter()
@@ -317,6 +320,10 @@ export default function ExploreClient({
                   >
                     <Link
                       href={`/heritage/${site.id}`}
+                      onClick={() => {
+                        const recId = recommendedRecIdMap[site.id]
+                        if (recId) trackRecommendationClickAction(recId)
+                      }}
                       className="group flex flex-col rounded-2xl border border-ink/10 bg-card overflow-hidden transition-shadow hover:shadow-lg"
                     >
                       <div className="relative aspect-[4/3] overflow-hidden bg-parchment">

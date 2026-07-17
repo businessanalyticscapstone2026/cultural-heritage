@@ -11,7 +11,7 @@ interface NearbySitesListProps {
 export default function NearbySitesList({ sites, mode }: NearbySitesListProps) {
   return (
     <section aria-label="Nearby heritage sites" aria-live="polite">
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         {sites.map((site) => (
           <NearbySiteCard key={site.siteId} site={site} mode={mode} />
         ))}

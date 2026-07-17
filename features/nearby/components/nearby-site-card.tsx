@@ -30,7 +30,7 @@ export default function NearbySiteCard({ site, mode }: NearbySiteCardProps) {
   return (
     <Link
       href={`/heritage/${site.siteId}`}
-      className="group flex items-start gap-4 rounded-xl border border-border bg-card p-3 transition-shadow hover:shadow-md"
+      className="group flex items-start gap-4 rounded-xl border border-border bg-card p-3 transition-shadow hover:shadow-md w-full"
     >
       {site.thumbnail ? (
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg">

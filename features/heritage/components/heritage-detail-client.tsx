@@ -99,7 +99,7 @@ export default function HeritageDetailClient({
   return (
     <div className="min-h-screen bg-warm-white">
       {/* ── Breadcrumb ── */}
-      <div className="mx-auto max-w-7xl px-6 pt-6 lg:px-10">
+      <div className="mx-auto max-w-7xl px-4 pt-6 md:px-6 lg:px-10">
         <Breadcrumb
           items={[
             { label: "Explore", href: "/explore" },
@@ -111,7 +111,7 @@ export default function HeritageDetailClient({
       {/* ═══════════════════════════════════════════════════════
           1. HERO
          ═══════════════════════════════════════════════════════ */}
-      <section className="mx-auto mt-4 max-w-7xl px-6 lg:px-10">
+      <section className="mx-auto mt-4 max-w-7xl px-4 md:px-6 lg:px-10">
         <div className="relative h-[320px] overflow-hidden rounded-xl sm:h-[420px] lg:h-[520px]">
           {heroImage ? (
             <Image
@@ -171,7 +171,7 @@ export default function HeritageDetailClient({
       {/* ═══════════════════════════════════════════════════════
           2. TWO-COLUMN LAYOUT
          ═══════════════════════════════════════════════════════ */}
-      <div className="mx-auto mt-10 max-w-7xl px-6 pb-24 lg:px-10">
+      <div className="mx-auto mt-10 max-w-7xl px-4 pb-24 md:px-6 lg:px-10">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[3fr_2fr]">
           {/* ── MAIN CONTENT ── */}
           <div className="space-y-10">

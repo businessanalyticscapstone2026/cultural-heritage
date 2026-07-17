@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
+import type { RecommendationHistoryItem } from "../types"
 
 export async function getProfileAction(userId: string) {
   const cookieStore = await cookies()
@@ -38,6 +39,7 @@ export async function updateProfileAction(
     homeLatitude?: number | null
     homeLongitude?: number | null
     interests?: string[]
+    preferredCategoryIds?: string[]
   },
 ) {
   const cookieStore = await cookies()
@@ -49,6 +51,7 @@ export async function updateProfileAction(
   if (data.homeLatitude !== undefined) updates.home_latitude = data.homeLatitude
   if (data.homeLongitude !== undefined) updates.home_longitude = data.homeLongitude
   if (data.interests !== undefined) updates.interests = data.interests
+  if (data.preferredCategoryIds !== undefined) updates.preferred_category_ids = data.preferredCategoryIds
 
   if (Object.keys(updates).length === 0) return
 
@@ -58,4 +61,60 @@ export async function updateProfileAction(
     .eq("id", userId)
 
   if (error) throw new Error(error.message)
+}
+
+export async function getRecommendationHistoryAction(userId: string): Promise<RecommendationHistoryItem[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("recommendations")
+    .select(`
+      id,
+      site_id,
+      score,
+      method,
+      was_clicked,
+      clicked_at,
+      bookmarked,
+      generated_at,
+      site:heritage_sites(
+        id,
+        site_name,
+        municipality:municipalities(name),
+        category:heritage_categories(name),
+        media:heritage_site_media!inner(file_url, is_primary, media_type)
+      )
+    `)
+    .eq("tourist_id", userId)
+    .order("generated_at", { ascending: false })
+    .limit(50)
+
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).map((row) => {
+    const site = row.site as unknown as Record<string, unknown> | null
+    const mediaArr = (site?.media ?? []) as { file_url: string; is_primary: boolean; media_type: string }[]
+    const primaryImage = mediaArr.find((m) => m.is_primary) ?? mediaArr.find((m) => m.media_type === "image")
+    const munArr = site?.municipality as { name: string }[] | null | undefined
+    const mun = Array.isArray(munArr) ? munArr[0] : munArr
+    const catArr = site?.category as { name: string }[] | null | undefined
+    const cat = Array.isArray(catArr) ? catArr[0] : catArr
+
+    return {
+      id: row.id as string,
+      siteId: row.site_id as string,
+      siteName: (site?.site_name as string) ?? "Unknown site",
+      municipalityName: mun?.name ?? null,
+      categoryName: cat?.name ?? null,
+      imageUrl: primaryImage?.file_url ?? null,
+      matchScore: Math.round(((row.score as number) ?? 0) * 100),
+      reasons: [] as string[],
+      method: (row.method as string) ?? null,
+      wasClicked: (row.was_clicked as boolean) ?? false,
+      clickedAt: (row.clicked_at as string) ?? null,
+      bookmarked: (row.bookmarked as boolean) ?? false,
+      createdAt: row.generated_at as string,
+    }
+  })
 }

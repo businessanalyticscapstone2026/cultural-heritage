@@ -44,9 +44,7 @@ export default function PublicNavbar() {
     }
   }
 
-  const visibleLinks = navLinks.filter(
-    (link) => link.href !== "/saved" || user,
-  )
+  const visibleLinks = navLinks
 
   return (
     <>
@@ -72,10 +70,22 @@ export default function PublicNavbar() {
                 link.href === "/"
                   ? pathname === "/"
                   : pathname.startsWith(link.href)
+              const needsAuth = link.href === "/saved" && !user
               return (
                 <Link
                   key={link.label}
                   href={link.href}
+                  onClick={
+                    needsAuth
+                      ? (e) => {
+                          e.preventDefault()
+                          showAuthPrompt(
+                            "Sign in to view saved sites",
+                            "Create a free account to bookmark and track heritage destinations.",
+                          )
+                        }
+                      : undefined
+                  }
                   className={
                     active
                       ? "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium text-accent transition-all"
@@ -131,10 +141,22 @@ export default function PublicNavbar() {
               tab.href === "/"
                 ? pathname === "/"
                 : pathname.startsWith(tab.href)
+            const needsAuth = tab.href === "/saved" && !user
             return (
               <Link
                 key={tab.label}
                 href={tab.href}
+                onClick={
+                  needsAuth
+                    ? (e) => {
+                        e.preventDefault()
+                        showAuthPrompt(
+                          "Sign in to view saved sites",
+                          "Create a free account to bookmark and track heritage destinations.",
+                        )
+                      }
+                    : undefined
+                }
                 className="flex flex-1 flex-col items-center gap-0.5 py-1"
               >
                 <span className={`grid h-10 w-10 place-items-center rounded-xl transition-all ${active ? "bg-ink text-cream" : "text-ink-soft"}`}>

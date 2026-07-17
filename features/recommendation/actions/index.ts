@@ -22,7 +22,7 @@ export async function getRecommendationsAction(
   if (user) {
     const { data: profile } = await supabase
       .from("tourist_profiles")
-      .select("interests, preferred_category_ids, home_latitude, home_longitude")
+      .select("interests, preferred_category_ids, home_latitude, home_longitude, travel_style, group_type, accessibility_needs")
       .eq("id", user.id)
       .maybeSingle()
 
@@ -34,6 +34,15 @@ export async function getRecommendationsAction(
       }
       if (!preferences.homeLongitude && profile.home_longitude) {
         prefs.homeLongitude = Number(profile.home_longitude)
+      }
+      if (!preferences.travelStyle && profile.travel_style) {
+        prefs.travelStyle = profile.travel_style as string
+      }
+      if (!preferences.groupType && profile.group_type) {
+        prefs.groupType = profile.group_type as string
+      }
+      if (!preferences.accessibilityNeeds?.length && profile.accessibility_needs) {
+        prefs.accessibilityNeeds = (profile.accessibility_needs as string[]) ?? []
       }
     }
   }

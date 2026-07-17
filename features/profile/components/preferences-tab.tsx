@@ -1,14 +1,24 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Compass, Tag, X, Plus, Check } from "lucide-react"
+import { Compass, Tag, X, Plus, Check, Users, Accessibility, Navigation } from "lucide-react"
+import { TRAVEL_STYLES, GROUP_TYPES, ACCESSIBILITY_NEEDS } from "@/lib/constants"
 import type { ProfileCategory } from "../types"
 
 interface PreferencesTabProps {
   preferredCategoryIds: string[]
   interests: string[]
   categories: ProfileCategory[]
-  onSave: (data: { preferredCategoryIds: string[]; interests: string[] }) => void
+  travelStyle: string | null
+  groupType: string | null
+  accessibilityNeeds: string[]
+  onSave: (data: {
+    preferredCategoryIds: string[]
+    interests: string[]
+    travelStyle: string | null
+    groupType: string | null
+    accessibilityNeeds: string[]
+  }) => void
   saving: boolean
 }
 
@@ -16,16 +26,25 @@ export default function PreferencesTab({
   preferredCategoryIds,
   interests,
   categories,
+  travelStyle: initialTravelStyle,
+  groupType: initialGroupType,
+  accessibilityNeeds: initialAccessibilityNeeds,
   onSave,
   saving,
 }: PreferencesTabProps) {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(preferredCategoryIds)
   const [currentInterests, setCurrentInterests] = useState<string[]>(interests)
   const [interestInput, setInterestInput] = useState("")
+  const [selectedTravelStyle, setSelectedTravelStyle] = useState<string | null>(initialTravelStyle)
+  const [selectedGroupType, setSelectedGroupType] = useState<string | null>(initialGroupType)
+  const [selectedAccessibilityNeeds, setSelectedAccessibilityNeeds] = useState<string[]>(initialAccessibilityNeeds)
 
   const hasChanges =
     JSON.stringify(selectedCategoryIds.sort()) !== JSON.stringify(preferredCategoryIds.sort()) ||
-    JSON.stringify(currentInterests.sort()) !== JSON.stringify(interests.sort())
+    JSON.stringify(currentInterests.sort()) !== JSON.stringify(interests.sort()) ||
+    selectedTravelStyle !== initialTravelStyle ||
+    selectedGroupType !== initialGroupType ||
+    JSON.stringify(selectedAccessibilityNeeds.sort()) !== JSON.stringify(initialAccessibilityNeeds.sort())
 
   const handleToggleCategory = useCallback((categoryId: string) => {
     setSelectedCategoryIds((prev) =>
@@ -56,6 +75,14 @@ export default function PreferencesTab({
     },
     [handleAddInterest],
   )
+
+  const handleToggleAccessibility = useCallback((need: string) => {
+    setSelectedAccessibilityNeeds((prev) =>
+      prev.includes(need)
+        ? prev.filter((n) => n !== need)
+        : [...prev, need],
+    )
+  }, [])
 
   return (
     <div className="space-y-8">
@@ -109,7 +136,115 @@ export default function PreferencesTab({
         </div>
       </section>
 
-      {/* Travel Interests */}
+      {/* Travel Style */}
+      <section>
+        <div className="mb-4">
+          <h3 className="flex items-center gap-2 text-display text-lg text-ink">
+            <Users size={18} strokeWidth={1.5} className="text-accent" />
+            Travel Style
+          </h3>
+          <p className="mt-1 text-sm text-ink-soft">
+            How do you like to travel?
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {TRAVEL_STYLES.map((style) => {
+            const isSelected = selectedTravelStyle === style.value
+            return (
+              <button
+                key={style.value}
+                type="button"
+                onClick={() => setSelectedTravelStyle(isSelected ? null : style.value)}
+                className={`flex items-center gap-2 rounded-xl border p-3 text-left transition-all ${
+                  isSelected
+                    ? "border-accent bg-accent/5 ring-1 ring-accent/20"
+                    : "border-ink/10 hover:border-ink/25 hover:bg-parchment/30"
+                }`}
+              >
+                <Users size={14} strokeWidth={1.5} className={isSelected ? "text-accent" : "text-ink-soft"} />
+                <span className={`text-sm ${isSelected ? "font-medium text-ink" : "text-ink-soft"}`}>
+                  {style.label}
+                </span>
+                {isSelected && <Check size={12} strokeWidth={2} className="ml-auto shrink-0 text-accent" />}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Group Type */}
+      <section>
+        <div className="mb-4">
+          <h3 className="flex items-center gap-2 text-display text-lg text-ink">
+            <Navigation size={18} strokeWidth={1.5} className="text-accent" />
+            Group Type
+          </h3>
+          <p className="mt-1 text-sm text-ink-soft">
+            How will you get around?
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          {GROUP_TYPES.map((type) => {
+            const isSelected = selectedGroupType === type.value
+            return (
+              <button
+                key={type.value}
+                type="button"
+                onClick={() => setSelectedGroupType(isSelected ? null : type.value)}
+                className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-center transition-all ${
+                  isSelected
+                    ? "border-accent bg-accent/5 ring-1 ring-accent/20"
+                    : "border-ink/10 hover:border-ink/25 hover:bg-parchment/30"
+                }`}
+              >
+                <span className={`text-sm ${isSelected ? "font-medium text-ink" : "text-ink-soft"}`}>
+                  {type.label}
+                </span>
+                {isSelected && <Check size={12} strokeWidth={2} className="text-accent" />}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Accessibility Needs */}
+      <section>
+        <div className="mb-4">
+          <h3 className="flex items-center gap-2 text-display text-lg text-ink">
+            <Accessibility size={18} strokeWidth={1.5} className="text-accent" />
+            Accessibility Needs
+          </h3>
+          <p className="mt-1 text-sm text-ink-soft">
+            Select any that apply — this helps us recommend accessible sites.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {ACCESSIBILITY_NEEDS.map((need) => {
+            const isSelected = selectedAccessibilityNeeds.includes(need.value)
+            return (
+              <button
+                key={need.value}
+                type="button"
+                onClick={() => handleToggleAccessibility(need.value)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                  isSelected
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-ink/10 text-ink-soft hover:border-ink/25"
+                }`}
+              >
+                <Accessibility size={10} strokeWidth={1.5} />
+                {need.label}
+                {isSelected && <Check size={10} strokeWidth={2} />}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Travel Tags */}
       <section>
         <div className="mb-4">
           <h3 className="flex items-center gap-2 text-display text-lg text-ink">
@@ -176,6 +311,9 @@ export default function PreferencesTab({
               onSave({
                 preferredCategoryIds: selectedCategoryIds,
                 interests: currentInterests,
+                travelStyle: selectedTravelStyle,
+                groupType: selectedGroupType,
+                accessibilityNeeds: selectedAccessibilityNeeds,
               })
             }
             disabled={saving}

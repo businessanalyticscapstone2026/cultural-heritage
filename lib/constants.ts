@@ -84,3 +84,25 @@ export const MUNICIPALITY_COORDINATES: Record<string, { lat: number; long: numbe
 
 export const WALKING_SPEED_KMH = 5
 export const DRIVING_SPEED_KMH = 30
+
+export const TRAVEL_STYLES = [
+  { value: "solo", label: "Solo" },
+  { value: "couple", label: "Couple" },
+  { value: "family", label: "Family" },
+  { value: "friends", label: "Friends" },
+  { value: "group", label: "Tour Group" },
+] as const
+
+export const GROUP_TYPES = [
+  { value: "walking", label: "Walking" },
+  { value: "driving", label: "Driving" },
+  { value: "mixed", label: "Mixed" },
+] as const
+
+export const ACCESSIBILITY_NEEDS = [
+  { value: "wheelchair", label: "Wheelchair Accessible" },
+  { value: "visual", label: "Visual Assistance" },
+  { value: "hearing", label: "Hearing Assistance" },
+  { value: "mobility", label: "Mobility Support" },
+  { value: "cognitive", label: "Cognitive Support" },
+] as const

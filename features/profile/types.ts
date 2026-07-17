@@ -6,6 +6,9 @@ export interface ProfileData {
   homeLongitude: number | null
   interests: string[]
   preferredCategoryIds: string[]
+  travelStyle: string | null
+  groupType: string | null
+  accessibilityNeeds: string[]
   onboarded: boolean
 }
 

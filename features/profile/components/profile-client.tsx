@@ -76,10 +76,19 @@ export default function ProfileClient({
   }
 
   const handleSavePreferences = useCallback(
-    async (data: { preferredCategoryIds: string[]; interests: string[] }) => {
+    async (data: {
+      preferredCategoryIds: string[]
+      interests: string[]
+      travelStyle: string | null
+      groupType: string | null
+      accessibilityNeeds: string[]
+    }) => {
       await updateProfileAction(userId, {
         preferredCategoryIds: data.preferredCategoryIds,
         interests: data.interests,
+        travelStyle: data.travelStyle,
+        groupType: data.groupType,
+        accessibilityNeeds: data.accessibilityNeeds,
       })
     },
     [userId],
@@ -230,6 +239,9 @@ export default function ProfileClient({
               preferredCategoryIds={profile.preferredCategoryIds}
               interests={profile.interests}
               categories={categories}
+              travelStyle={profile.travelStyle}
+              groupType={profile.groupType}
+              accessibilityNeeds={profile.accessibilityNeeds}
               onSave={handleSavePreferences}
               saving={false}
             />

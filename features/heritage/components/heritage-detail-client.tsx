@@ -2,21 +2,28 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import { Route } from "lucide-react"
-import type { HeritageSite, NearbySite, TravelMode } from "../types"
+import Image from "next/image"
+import {
+  Route,
+  MapPin,
+  Clock,
+  Tag,
+  ExternalLink,
+  Share2,
+  Star,
+  Accessibility,
+  Building,
+  Landmark,
+  Navigation,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Camera,
+} from "lucide-react"
+import { motion, AnimatePresence } from "motion/react"
+import type { HeritageSite, HeritageSiteMedia, HeritageSiteTag, HeritageSiteReferenceLink } from "../types"
 import Breadcrumb from "./breadcrumb"
-import HeroImage from "./hero-image"
-import TitleRow from "./title-row"
-import ClassificationTags from "./classification-tags"
-import QuickFactsStrip from "./quick-facts-strip"
-import AboutSection from "./about-section"
-import HistoricalTimeline from "./historical-timeline"
-import PhotoGallery from "./photo-gallery"
-import AccessibilityNotes from "./accessibility-notes"
-import LocationCard from "./location-card"
-import NearbyMiniMap from "./nearby-mini-map"
-import NearbySitesSidebar from "./nearby-sites-sidebar"
-import { ReviewsSection } from "@/features/reviews/components"
+import { BookmarkButton } from "./bookmark-button"
 
 interface HeritageDetailClientProps {
   site: HeritageSite
@@ -30,39 +37,17 @@ export default function HeritageDetailClient({
   initialIsBookmarked = false,
 }: HeritageDetailClientProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  const [nearbySites, setNearbySites] = useState<NearbySite[]>([])
-  const [nearbyMode, setNearbyMode] = useState<TravelMode>("walking")
-  const [selectedNearbySiteId, setSelectedNearbySiteId] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const images = site.media.filter((m) => m.mediaType === "image")
   const hasCoordinates = site.latitude !== null && site.longitude !== null
+  const locationParts = [site.barangay, site.municipalityName].filter(Boolean)
 
-  useEffect(() => {
-    let cancelled = false
+  const heroImage = images.find((m) => m.isPrimary) ?? images[0]
+  const heroImageCount = images.length
 
-    async function fetchNearby() {
-      try {
-        if (!hasCoordinates) return
-        const params = new URLSearchParams({
-          lat: String(site.latitude),
-          long: String(site.longitude),
-          radius: "10",
-          mode: nearbyMode,
-          limit: "8",
-        })
-        const res = await fetch(`/api/heritage/nearby?${params}`)
-        if (!cancelled && res.ok) {
-          const data = await res.json()
-          setNearbySites(data.results ?? [])
-        }
-      } catch {
-        // Silently fail — nearby is optional
-      }
-    }
-
-    fetchNearby()
-    return () => { cancelled = true }
-  }, [site.id, site.latitude, site.longitude, hasCoordinates, nearbyMode])
+  const hasHistory = site.historicalPeriod || site.yearEstablished || site.architectBuilder || site.architecturalStyle
+  const hasSignificance = site.historicalSignificance || site.culturalSignificance
 
   const openLightbox = useCallback((index: number) => {
     setLightboxIndex(index)
@@ -81,12 +66,12 @@ export default function HeritageDetailClient({
       if (e.key === "Escape") closeLightbox()
       if (e.key === "ArrowRight") {
         setLightboxIndex((prev) =>
-          prev !== null ? (prev < images.length - 1 ? prev + 1 : 0) : null
+          prev !== null ? (prev < images.length - 1 ? prev + 1 : 0) : null,
         )
       }
       if (e.key === "ArrowLeft") {
         setLightboxIndex((prev) =>
-          prev !== null ? (prev > 0 ? prev - 1 : images.length - 1) : null
+          prev !== null ? (prev > 0 ? prev - 1 : images.length - 1) : null,
         )
       }
     }
@@ -95,112 +80,493 @@ export default function HeritageDetailClient({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [lightboxIndex, images.length, closeLightbox])
 
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // silent
+    }
+  }
+
+  const mapsUrl = hasCoordinates
+    ? `https://www.google.com/maps?q=${site.latitude},${site.longitude}`
+    : `/map?site=${site.id}`
+
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto max-w-7xl px-6 py-6 lg:px-10">
+    <div className="min-h-screen bg-warm-white">
+      {/* ── Breadcrumb ── */}
+      <div className="mx-auto max-w-7xl px-6 pt-6 lg:px-10">
         <Breadcrumb
           items={[
             { label: "Explore", href: "/explore" },
             { label: site.siteName },
           ]}
         />
+      </div>
 
-        <div className="mt-6">
-          <HeroImage
-            media={site.media}
-            siteName={site.siteName}
-            onViewAll={images.length > 0 ? () => openLightbox(0) : undefined}
-          />
+      {/* ═══════════════════════════════════════════════════════
+          1. HERO
+         ═══════════════════════════════════════════════════════ */}
+      <section className="mx-auto mt-4 max-w-7xl px-6 lg:px-10">
+        <div className="relative h-[320px] overflow-hidden rounded-xl sm:h-[420px] lg:h-[520px]">
+          {heroImage ? (
+            <Image
+              src={heroImage.fileUrl}
+              alt={heroImage.caption ?? site.siteName}
+              fill
+              priority
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-muted">
+              <div className="text-center">
+                <Camera className="mx-auto h-10 w-10 text-muted-foreground/50" />
+                <p className="mt-2 text-sm text-muted-foreground">No images available</p>
+              </div>
+            </div>
+          )}
+
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+
+          {site.category && (
+            <span
+              className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium uppercase tracking-wider backdrop-blur-md"
+              style={{
+                backgroundColor: site.category.color ? `${site.category.color}20` : "rgba(255,255,255,0.15)",
+                color: site.category.color ?? "#fff",
+              }}
+            >
+              {site.category.icon && <Tag className="h-3 w-3" />}
+              {site.category.name}
+            </span>
+          )}
+
+          <div className="absolute bottom-6 left-6 right-6">
+            <h1 className="text-display text-3xl text-white md:text-4xl lg:text-5xl">
+              {site.siteName}
+            </h1>
+            {locationParts.length > 0 && (
+              <p className="mt-2 flex items-center gap-1.5 text-sm text-white/80">
+                <MapPin className="h-4 w-4" />
+                {locationParts.join(", ")}
+              </p>
+            )}
+          </div>
         </div>
+      </section>
 
-        <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[3fr_2fr]">
-          <div className="space-y-8">
-            <TitleRow
-              siteName={site.siteName}
-              municipalityName={site.municipalityName}
-              barangay={site.barangay}
-              matchScore={matchScore}
-              siteId={site.id}
-              initialIsBookmarked={initialIsBookmarked}
-            />
+      {/* ═══════════════════════════════════════════════════════
+          2. TWO-COLUMN LAYOUT
+         ═══════════════════════════════════════════════════════ */}
+      <div className="mx-auto mt-10 max-w-7xl px-6 pb-24 lg:px-10">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[3fr_2fr]">
+          {/* ── MAIN CONTENT ── */}
+          <div className="space-y-10">
+            {/* Title row + actions */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                {site.shortDescription && (
+                  <p className="text-base leading-relaxed text-body">{site.shortDescription}</p>
+                )}
+              </div>
 
-            <ClassificationTags
-              category={site.category}
-              tags={site.tags}
-            />
+              <div className="flex shrink-0 items-center gap-2">
+                {matchScore !== undefined && (
+                  <span className="flex items-center gap-1 rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
+                    <Star className="h-3 w-3 fill-success" />
+                    {matchScore}% Match
+                  </span>
+                )}
 
-            <QuickFactsStrip
-              category={site.category}
-              yearEstablished={site.yearEstablished}
-              designation={site.designation}
-              operatingHours={site.operatingHours}
-              entranceFee={site.entranceFee}
-            />
+                <BookmarkButton siteId={site.id} initialIsBookmarked={initialIsBookmarked} />
 
-            <AboutSection
-              shortDescription={site.shortDescription}
-              detailedDescription={site.detailedDescription}
-            />
+                <div className="relative">
+                  <button
+                    onClick={handleShare}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-heading transition-colors hover:bg-muted"
+                    aria-label="Share this page"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                  {copied && (
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-heading px-2 py-1 text-xs text-white">
+                      Link copied!
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
 
-            <HistoricalTimeline
-              historicalPeriod={site.historicalPeriod}
-              yearEstablished={site.yearEstablished}
-              historicalSignificance={site.historicalSignificance}
-            />
+            {heroImageCount > 1 && (
+              <div className="flex flex-wrap gap-2">
+                {images.slice(0, heroImageCount > 5 ? 5 : heroImageCount).map((img, i) => (
+                  <button
+                    key={img.id}
+                    onClick={() => openLightbox(i)}
+                    className="group relative aspect-[4/3] w-[calc(20%-8px)] min-w-[80px] overflow-hidden rounded-lg border border-border"
+                    aria-label={`View photo ${i + 1}`}
+                  >
+                    <Image
+                      src={img.fileUrl}
+                      alt={img.caption ?? `Photo ${i + 1}`}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      sizes="20vw"
+                    />
+                  </button>
+                ))}
+                {heroImageCount > 5 && (
+                  <button
+                    onClick={() => openLightbox(0)}
+                    className="flex aspect-[4/3] w-[calc(20%-8px)] min-w-[80px] items-center justify-center rounded-lg border border-border bg-muted text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+                  >
+                    +{heroImageCount - 5}
+                  </button>
+                )}
+              </div>
+            )}
 
-            <PhotoGallery
-              media={site.media}
-              lightboxIndex={lightboxIndex}
-              onOpenLightbox={openLightbox}
-              onCloseLightbox={closeLightbox}
-            />
+            {/* ── HISTORY SECTION ── */}
+            {hasHistory && (
+              <section aria-labelledby="history-heading">
+                <h2 id="history-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
+                  <Building className="h-5 w-5 text-secondary" />
+                  History
+                </h2>
+                <div className="mt-4 space-y-4">
+                  {site.detailedDescription && (
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-body">
+                      {site.detailedDescription}
+                    </p>
+                  )}
 
-            <AccessibilityNotes accessibilityInfo={site.accessibilityInfo} />
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    {site.historicalPeriod && (
+                      <div className="rounded-lg border border-border bg-card p-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Period</p>
+                        <p className="mt-1 text-sm font-medium text-heading">{site.historicalPeriod}</p>
+                      </div>
+                    )}
+                    {site.yearEstablished && (
+                      <div className="rounded-lg border border-border bg-card p-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Established</p>
+                        <p className="mt-1 text-sm font-medium text-heading">{site.yearEstablished}</p>
+                      </div>
+                    )}
+                    {site.architectBuilder && (
+                      <div className="rounded-lg border border-border bg-card p-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Architect / Builder</p>
+                        <p className="mt-1 text-sm font-medium text-heading">{site.architectBuilder}</p>
+                      </div>
+                    )}
+                    {site.architecturalStyle && (
+                      <div className="rounded-lg border border-border bg-card p-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Architectural Style</p>
+                        <p className="mt-1 text-sm font-medium text-heading">{site.architecturalStyle}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
 
-            <ReviewsSection siteId={site.id} />
+            {/* ── SIGNIFICANCE SECTION ── */}
+            {hasSignificance && (
+              <section aria-labelledby="significance-heading">
+                <h2 id="significance-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
+                  <Landmark className="h-5 w-5 text-secondary" />
+                  Significance
+                </h2>
+                <div className="mt-4 space-y-4">
+                  {site.historicalSignificance && (
+                    <div className="rounded-lg border-l-4 border-secondary/60 bg-card px-4 py-3">
+                      <p className="text-xs font-medium uppercase tracking-wider text-secondary">Historical Significance</p>
+                      <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-body">{site.historicalSignificance}</p>
+                    </div>
+                  )}
+                  {site.culturalSignificance && (
+                    <div className="rounded-lg border-l-4 border-accent/60 bg-card px-4 py-3">
+                      <p className="text-xs font-medium uppercase tracking-wider text-accent">Cultural Significance</p>
+                      <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-body">{site.culturalSignificance}</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* ── IMAGE GALLERY ── */}
+            {images.length > 1 && (
+              <section aria-labelledby="gallery-heading">
+                <h2 id="gallery-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
+                  <Camera className="h-5 w-5 text-secondary" />
+                  Photo Gallery
+                </h2>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {images.map((img, i) => (
+                    <button
+                      key={img.id}
+                      onClick={() => openLightbox(i)}
+                      className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-border"
+                      aria-label={`View photo ${i + 1}${img.caption ? `: ${img.caption}` : ""}`}
+                    >
+                      <Image
+                        src={img.fileUrl}
+                        alt={img.caption ?? `Photo ${i + 1}`}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        loading={i < 6 ? "eager" : "lazy"}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ── ACCESSIBILITY ── */}
+            {site.accessibilityInfo && (
+              <section aria-labelledby="accessibility-heading">
+                <h2 id="accessibility-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
+                  <Accessibility className="h-5 w-5 text-secondary" />
+                  Accessibility
+                </h2>
+                <div className="mt-4 rounded-lg border border-secondary/20 bg-secondary/5 p-4">
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-body">{site.accessibilityInfo}</p>
+                </div>
+              </section>
+            )}
+
+            {/* ── OPERATING HOURS ── */}
+            {site.operatingHours && (
+              <section aria-labelledby="hours-heading">
+                <h2 id="hours-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
+                  <Clock className="h-5 w-5 text-secondary" />
+                  Operating Hours
+                </h2>
+                <div className="mt-4 flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+                  <Clock className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  <p className="text-sm text-body">{site.operatingHours}</p>
+                </div>
+              </section>
+            )}
+
+            {/* ── TAGS & REFERENCE LINKS ── */}
+            {(site.tags.length > 0 || (site.referenceLinks?.length ?? 0) > 0) && (
+              <section aria-labelledby="metadata-heading">
+                <h2 id="metadata-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
+                  <Tag className="h-5 w-5 text-secondary" />
+                  Destination Info
+                </h2>
+
+                <div className="mt-4 space-y-4">
+                  {site.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {site.tags.map((tag: HeritageSiteTag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex items-center rounded-full bg-secondary/10 px-3 py-1 text-xs font-medium text-secondary"
+                        >
+                          {tag.tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {site.referenceLinks && site.referenceLinks.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Reference Links</p>
+                      <ul className="space-y-1.5">
+                        {site.referenceLinks.map((link: HeritageSiteReferenceLink) => (
+                          <li key={link.id}>
+                            <a
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-sm text-accent transition-colors hover:text-accent/80"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              {link.label ?? link.url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* ── NEARBY ATTRACTIONS — INSERTION POINT ── */}
+            {/*
+             * ═══════════════════════════════════════════════════════
+             *   INSERTION POINT: CR-CHTS-008 — Nearby Attractions
+             *   Build a section showing nearby heritage sites within
+             *   walking/driving distance using site_distances table.
+             *   Expected: list of nearby sites with distance, travel
+             *   time, thumbnail, and category badge.
+             * ═══════════════════════════════════════════════════════
+             */}
+            <div id="nearby-attractions-slot" className="hidden" aria-hidden="true" />
+
+            {/* ── FEEDBACK & REVIEWS — INSERTION POINT ── */}
+            {/*
+             * ═══════════════════════════════════════════════════════
+             *   INSERTION POINT: CR-CHTS-011 — Feedback & Reviews
+             *   Build a reviews/feedback section showing user ratings,
+             *   review cards, and a review submission form.
+             *   Expected: RatingSummary + ReviewForm + ReviewsList
+             *   from features/reviews/components.
+             * ═══════════════════════════════════════════════════════
+             */}
+            <div id="feedback-reviews-slot" className="hidden" aria-hidden="true" />
           </div>
 
-          <aside className="space-y-6">
-            <LocationCard
-              siteId={site.id}
-              barangay={site.barangay}
-              municipalityName={site.municipalityName}
-              exactAddress={site.exactAddress}
-              latitude={site.latitude}
-              longitude={site.longitude}
-            />
+          {/* ── SIDEBAR ── */}
+          <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+            {/* Location Card */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                  <MapPin className="h-4 w-4 text-primary" />
+                </div>
+                <h3 className="font-heading text-base font-semibold text-heading">Location</h3>
+              </div>
 
+              {site.exactAddress && (
+                <p className="mt-3 text-sm leading-relaxed text-body">{site.exactAddress}</p>
+              )}
+
+              {locationParts.length > 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">{locationParts.join(", ")}</p>
+              )}
+
+              {hasCoordinates && (
+                <>
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  >
+                    <Navigation className="h-4 w-4" />
+                    View on Map
+                  </a>
+                  <p className="mt-2 text-center text-[10px] text-muted-foreground">
+                    {site.latitude!.toFixed(4)}, {site.longitude!.toFixed(4)}
+                    {site.elevation && <> · Elev. {site.elevation}m</>}
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Quick Facts */}
+            {(site.designation || site.entranceFee) && (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <h3 className="font-heading text-base font-semibold text-heading">Quick Facts</h3>
+                <div className="mt-3 space-y-3">
+                  {site.designation && (
+                    <div className="flex items-start gap-3">
+                      <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Designation</p>
+                        <p className="text-sm font-medium text-heading">{site.designation}</p>
+                      </div>
+                    </div>
+                  )}
+                  {site.entranceFee && (
+                    <div className="flex items-start gap-3">
+                      <Tag className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Entrance Fee</p>
+                        <p className="text-sm font-medium text-heading">{site.entranceFee}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Plan My Trip CTA */}
             {hasCoordinates && (
               <Link
                 href={`/map?planRoute=${site.id}`}
-                className="flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
               >
-                <Route className="size-4" />
+                <Route className="h-4 w-4" />
                 Plan My Trip
               </Link>
             )}
-
-            {hasCoordinates && nearbySites.length > 0 && (
-              <NearbyMiniMap
-                siteLatitude={site.latitude!}
-                siteLongitude={site.longitude!}
-                siteName={site.siteName}
-                sites={nearbySites}
-                selectedSiteId={selectedNearbySiteId}
-                onSiteHover={setSelectedNearbySiteId}
-              />
-            )}
-
-            <NearbySitesSidebar
-              sites={nearbySites}
-              mode={nearbyMode}
-              onModeChange={setNearbyMode}
-              selectedSiteId={selectedNearbySiteId}
-              onSiteSelect={setSelectedNearbySiteId}
-            />
           </aside>
         </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════
+          LIGHTBOX
+         ═══════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {lightboxIndex !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Photo lightbox"
+          >
+            <button
+              onClick={closeLightbox}
+              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+              aria-label="Close lightbox"
+              autoFocus
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="relative h-[80vh] w-[90vw] max-w-5xl">
+              <Image
+                src={images[lightboxIndex].fileUrl}
+                alt={images[lightboxIndex].caption ?? `Photo ${lightboxIndex + 1}`}
+                fill
+                className="object-contain"
+                sizes="90vw"
+              />
+            </div>
+
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-4 py-1.5 text-sm text-white backdrop-blur-sm">
+              {lightboxIndex + 1} / {images.length}
+            </div>
+
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={() =>
+                    openLightbox(lightboxIndex > 0 ? lightboxIndex - 1 : images.length - 1)
+                  }
+                  className="absolute left-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                  aria-label="Previous photo"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+                <button
+                  onClick={() =>
+                    openLightbox(lightboxIndex < images.length - 1 ? lightboxIndex + 1 : 0)
+                  }
+                  className="absolute right-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                  aria-label="Next photo"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -2,6 +2,7 @@ export type {
   HeritageSite,
   HeritageSiteTag,
   HeritageSiteMedia,
+  HeritageSiteReferenceLink,
   HeritageCategory,
   HeritageSiteVersion,
   HeritageBackup,

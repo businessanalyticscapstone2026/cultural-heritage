@@ -4,6 +4,7 @@ import type {
   HeritageSite,
   HeritageSiteTag,
   HeritageSiteMedia,
+  HeritageSiteReferenceLink,
   HeritageCategory,
 } from "../types"
 
@@ -12,6 +13,13 @@ export function mapDbRowToSite(row: Record<string, unknown>, joined: Record<stri
   const municipality = joined.municipality as Record<string, unknown> | null
   const tags = (joined.tags ?? []) as HeritageSiteTag[]
   const rawMedia = (joined.media ?? []) as Record<string, unknown>[]
+  const rawReferenceLinks = (joined.reference_links ?? []) as Record<string, unknown>[]
+  const referenceLinks: HeritageSiteReferenceLink[] = rawReferenceLinks.map((l) => ({
+    id: l.id as string,
+    siteId: l.site_id as string,
+    url: l.url as string,
+    label: (l.label ?? null) as string | null,
+  }))
   const media: HeritageSiteMedia[] = rawMedia.map((m) => ({
     id: m.id as string,
     siteId: m.site_id as string,
@@ -72,6 +80,7 @@ export function mapDbRowToSite(row: Record<string, unknown>, joined: Record<stri
     municipalityName: (municipality?.name as string) ?? null,
     tags,
     media,
+    referenceLinks,
   }
 }
 
@@ -80,7 +89,8 @@ const SITE_SELECT = `
   category:heritage_categories(*),
   municipality:municipalities(name),
   tags:heritage_site_tags(*),
-  media:heritage_site_media(*)
+  media:heritage_site_media(*),
+  reference_links:heritage_site_reference_links(*)
 `
 
 export async function getHeritageSites(): Promise<HeritageSite[]> {

@@ -1,18 +1,28 @@
+import { cookies } from "next/headers"
 import PublicNavbar from "@/components/layout/public-navbar"
+import { createClient } from "@/utils/supabase/server"
 import { QRScannerFAB } from "@/features/qr-code/components"
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+export default async function PublicLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const { data: { user } } = await supabase.auth.getUser()
+
   return (
     <>
       <PublicNavbar />
       <main className="min-h-screen bg-background text-ink overflow-x-hidden">{children}</main>
-      <PublicFooter />
+      <PublicFooter isAuthenticated={!!user} />
       <QRScannerFAB />
     </>
   )
 }
 
-function PublicFooter() {
+function PublicFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
+  const travelerLinks = isAuthenticated
+    ? [{ href: "/saved", label: "Bookmarks" }, { href: "/recommendations", label: "Recommendations" }, { href: "/scan", label: "QR Scanner" }, { href: "/profile", label: "Profile" }]
+    : [{ href: "/explore", label: "Recommendations" }, { href: "/login", label: "QR Scanner" }, { href: "/login", label: "Profile" }]
+
   return (
     <footer className="border-t border-ink/10 bg-cream">
       <div className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-20">
@@ -44,7 +54,7 @@ function PublicFooter() {
           <div>
             <h3 className="text-display text-sm text-ink">Traveler</h3>
             <ul className="mt-4 flex flex-col gap-2.5">
-              {[{ href: "/login", label: "Bookmarks" }, { href: "/explore", label: "Recommendations" }, { href: "/login", label: "QR Scanner" }, { href: "/login", label: "Profile" }].map((link) => (
+              {travelerLinks.map((link) => (
                 <li key={link.label}>
                   <a href={link.href} className="text-sm text-ink-soft transition-colors hover:text-accent">{link.label}</a>
                 </li>

@@ -1,16 +1,22 @@
+import { cookies } from "next/headers"
 import { HomeNavbar } from "@/components/layout/home-navbar"
+import { createClient } from "@/utils/supabase/server"
 
-export default function HomeLayout({ children }: { children: React.ReactNode }) {
+export default async function HomeLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const { data: { user } } = await supabase.auth.getUser()
+
   return (
     <>
       <HomeNavbar />
       <main className="min-h-screen bg-background text-ink overflow-x-hidden">{children}</main>
-      <HomeSiteFooter />
+      <HomeSiteFooter isAuthenticated={!!user} />
     </>
   )
 }
 
-function HomeSiteFooter() {
+function HomeSiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <footer className="border-t border-ink/10 bg-cream">
       <div className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-20">
@@ -39,16 +45,18 @@ function HomeSiteFooter() {
               ))}
             </ul>
           </div>
-          <div>
-            <h3 className="text-display text-sm text-ink">Traveler</h3>
-            <ul className="mt-4 flex flex-col gap-2.5">
-              {[{ href: "/saved", label: "Bookmarks" }, { href: "/recommendations", label: "Recommendations" }, { href: "/scan", label: "QR Scanner" }, { href: "/profile", label: "Profile" }].map((link) => (
-                <li key={link.label}>
-                  <a href={link.href} className="text-sm text-ink-soft transition-colors hover:text-accent">{link.label}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {isAuthenticated && (
+            <div>
+              <h3 className="text-display text-sm text-ink">Traveler</h3>
+              <ul className="mt-4 flex flex-col gap-2.5">
+                {[{ href: "/saved", label: "Bookmarks" }, { href: "/recommendations", label: "Recommendations" }, { href: "/scan", label: "QR Scanner" }, { href: "/profile", label: "Profile" }].map((link) => (
+                  <li key={link.label}>
+                    <a href={link.href} className="text-sm text-ink-soft transition-colors hover:text-accent">{link.label}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
       <div className="border-t border-ink/10">

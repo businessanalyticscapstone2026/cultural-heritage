@@ -44,6 +44,10 @@ export default function PublicNavbar() {
     }
   }
 
+  const visibleLinks = navLinks.filter(
+    (link) => link.href !== "/saved" || user,
+  )
+
   return (
     <>
       <AuthPromptModal
@@ -63,7 +67,7 @@ export default function PublicNavbar() {
           </Link>
 
           <nav className="flex items-center gap-1">
-            {navLinks.map((link) => {
+            {visibleLinks.map((link) => {
               const active =
                 link.href === "/"
                   ? pathname === "/"
@@ -122,7 +126,7 @@ export default function PublicNavbar() {
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-ink/8 bg-cream/95 backdrop-blur-xl md:hidden">
         <div className="flex items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-          {navLinks.map((tab) => {
+          {visibleLinks.map((tab) => {
             const active =
               tab.href === "/"
                 ? pathname === "/"

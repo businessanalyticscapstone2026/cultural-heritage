@@ -372,32 +372,6 @@ export async function generateRecommendations(
     }
   })
 
-  if (results.length > 0 && preferences.touristId) {
-    // Only persist for authenticated users. Anonymous users skip DB insert
-    // since the RLS policy requires TO authenticated.
-    const insertData = topScores.map((s, i) => {
-      const site = rawSites.find((r) => r.id === s.siteId)!
-      return {
-        id: recIds[i],
-        tourist_id: preferences.touristId,
-        session_id: preferences.sessionId ?? null,
-        site_id: s.siteId,
-        score: s.finalScore,
-        method: "weighted_hybrid" as const,
-        generated_at: new Date().toISOString(),
-        municipality_id: site.municipality_id ?? "00000000-0000-0000-0000-000000000000",
-      }
-    })
-
-    const { error: insertError } = await supabase
-      .from("recommendations")
-      .insert(insertData)
-
-    if (insertError) {
-      console.error("Failed to persist recommendations:", insertError.message)
-    }
-  }
-
   return results
 }
 

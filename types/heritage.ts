@@ -37,6 +37,7 @@ export interface HeritageSite {
   municipalityName: string | null
   tags: HeritageSiteTag[]
   media: HeritageSiteMedia[]
+  referenceLinks?: HeritageSiteReferenceLink[]
   matchScore?: number
   averageRating: number
   reviewCount: number
@@ -46,6 +47,13 @@ export interface HeritageSiteTag {
   id: string
   siteId: string
   tag: string
+}
+
+export interface HeritageSiteReferenceLink {
+  id: string
+  siteId?: string
+  url: string
+  label: string | null
 }
 
 export interface HeritageSiteMedia {

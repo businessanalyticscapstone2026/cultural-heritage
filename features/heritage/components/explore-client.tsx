@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { motion } from "motion/react"
-import { Search, X, SlidersHorizontal, Star, MapPin, Clock, ChevronRight, ChevronLeft } from "lucide-react"
+import { Search, X, SlidersHorizontal, Star, MapPin, Clock, ChevronRight, ChevronLeft, Sparkles } from "lucide-react"
 import { useDebounce } from "@/hooks/use-debounce"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
 import type { HeritageSite } from "@/types/heritage"
@@ -20,6 +20,8 @@ interface ExploreClientProps {
   activeMunicipalityId: string
   activeHistoricalPeriod: string
   activeAccessibility: string
+  recommendedSiteIds: string[]
+  initialBookmarkedIds: string[]
 }
 
 export default function ExploreClient({
@@ -32,6 +34,8 @@ export default function ExploreClient({
   activeMunicipalityId,
   activeHistoricalPeriod,
   activeAccessibility,
+  recommendedSiteIds,
+  initialBookmarkedIds,
 }: ExploreClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -39,21 +43,12 @@ export default function ExploreClient({
 
   const [searchInput, setSearchInput] = useState(searchQuery)
   const debouncedSearch = useDebounce(searchInput, 300)
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
-  const displaySites = isPending ? initialData.sites : initialData.sites
 
-  useEffect(() => {
-    const siteIds = initialData.sites.map((s) => s.id)
-    if (siteIds.length === 0) return
-    fetch("/api/bookmarks/status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ siteIds }),
-    })
-      .then((r) => r.json())
-      .then((data) => setBookmarkedIds(new Set(data.bookmarked)))
-      .catch(() => {})
-  }, [initialData.sites])
+  const [accessibilityInput, setAccessibilityInput] = useState(activeAccessibility)
+  const debouncedAccessibility = useDebounce(accessibilityInput, 300)
+
+  const bookmarkedIds = new Set(initialBookmarkedIds)
+  const recommendedSet = new Set(recommendedSiteIds)
 
   const buildUrl = useCallback(
     (updates: Record<string, string | null>) => {
@@ -76,6 +71,14 @@ export default function ExploreClient({
     }
   }, [debouncedSearch, searchQuery, router, buildUrl])
 
+  useEffect(() => {
+    if (debouncedAccessibility !== activeAccessibility) {
+      startTransition(() => {
+        router.replace(buildUrl({ accessibility: debouncedAccessibility || null, page: "1" }), { scroll: false })
+      })
+    }
+  }, [debouncedAccessibility, activeAccessibility, router, buildUrl])
+
   const handleCategoryClick = (categoryId: string | null) => {
     startTransition(() => {
       router.replace(buildUrl({ category: categoryId, page: "1" }), { scroll: false })
@@ -90,6 +93,18 @@ export default function ExploreClient({
 
   const clearSearch = () => {
     setSearchInput("")
+  }
+
+  const clearAccessibility = () => {
+    setAccessibilityInput("")
+  }
+
+  const clearAllFilters = () => {
+    setSearchInput("")
+    setAccessibilityInput("")
+    startTransition(() => {
+      router.replace("/explore", { scroll: false })
+    })
   }
 
   const page = initialData.page
@@ -221,13 +236,28 @@ export default function ExploreClient({
               </select>
             </div>
 
+            <div className="flex items-center gap-1.5 rounded-full border border-ink/10 bg-card px-3 py-1.5">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-ink-soft">♿</span>
+              <input
+                type="text"
+                placeholder="Accessibility&hellip;"
+                value={accessibilityInput}
+                onChange={(e) => setAccessibilityInput(e.target.value)}
+                className="w-28 bg-transparent text-xs text-ink outline-none placeholder:text-ink-soft/60"
+              />
+              {accessibilityInput && (
+                <button
+                  onClick={clearAccessibility}
+                  className="text-ink-soft hover:text-ink"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
             {activeFilterCount > 0 && (
               <button
-                onClick={() => {
-                  startTransition(() => {
-                    router.replace("/explore", { scroll: false })
-                  })
-                }}
+                onClick={clearAllFilters}
                 className="flex items-center gap-1 rounded-full border border-ink/10 px-3 py-1.5 text-xs text-ink-soft hover:text-ink transition"
               >
                 <X size={10} />
@@ -239,6 +269,12 @@ export default function ExploreClient({
 
         <div className="flex items-center justify-between py-6 font-mono text-xs uppercase tracking-[0.25em] text-ink-soft">
           <span>Showing {from}&ndash;{to} of {totalCount} sites</span>
+          {recommendedSiteIds.length > 0 && (
+            <span className="flex items-center gap-1 text-accent">
+              <Sparkles size={12} strokeWidth={1.5} />
+              {recommendedSiteIds.length} recommended
+            </span>
+          )}
         </div>
 
         {isPending && (
@@ -250,75 +286,99 @@ export default function ExploreClient({
 
         {totalCount === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-ink/15 bg-parchment/30 px-8 py-20 text-center">
-            <p className="text-ink-soft">No sites match your filters. Try adjusting your search.</p>
+            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
+              <Search size={20} className="text-muted-foreground/50" />
+            </div>
+            <p className="text-lg font-medium text-ink">No sites found</p>
+            <p className="mt-1 max-w-sm mx-auto text-sm text-ink-soft">
+              No heritage sites match your current filters. Try adjusting your search terms, changing the municipality or category, or clearing all filters to browse all available sites.
+            </p>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-ink px-6 py-2.5 text-sm text-card transition-colors hover:bg-ink/90"
+              >
+                <X size={14} />
+                Clear all filters
+              </button>
+            )}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {displaySites.map((site: HeritageSite, i) => (
-                <motion.div
-                  key={site.id}
-                  initial={{ opacity: 0, y: 24 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <Link
-                    href={`/heritage/${site.id}`}
-                    className="group flex flex-col rounded-2xl border border-ink/10 bg-card overflow-hidden transition-shadow hover:shadow-lg"
+              {initialData.sites.map((site: HeritageSite, i) => {
+                const isRecommended = recommendedSet.has(site.id)
+                return (
+                  <motion.div
+                    key={site.id}
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] }}
                   >
-                    <div className="relative aspect-[4/3] overflow-hidden bg-parchment">
-                      <img
-                        src={site.media?.find(m => m.isPrimary || m.mediaType === "image")?.fileUrl ?? ""}
-                        alt={site.siteName}
-                        className="h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-105"
-                        loading="lazy"
-                        onError={(e) => {
-                          const t = e.currentTarget
-                          t.style.display = "none"
-                          t.parentElement!.style.background = "linear-gradient(135deg, #0f2747 0%, #1a3f6a 50%)"
-                        }}
-                      />
-                      {site.category?.name && (
-                        <span className="absolute left-3 top-3 rounded-full bg-cream/90 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-ink backdrop-blur">
-                          {site.category.name}
-                        </span>
-                      )}
-                      <CardBookmarkButton
-                        siteId={site.id}
-                        initialIsBookmarked={bookmarkedIds.has(site.id)}
-                      />
-                    </div>
-
-                    <div className="flex flex-1 flex-col p-5">
-                      <h3 className="text-display text-lg leading-tight text-ink">
-                        {site.siteName}
-                      </h3>
-
-                      <div className="mt-2 flex items-center gap-3 text-xs text-ink-soft">
-                        <span className="flex items-center gap-1">
-                          <MapPin size={12} strokeWidth={1.5} />
-                          {site.municipalityName}
-                        </span>
-                        {site.yearEstablished && (
-                          <span className="flex items-center gap-1">
-                            <Clock size={12} strokeWidth={1.5} />
-                            {site.yearEstablished}
+                    <Link
+                      href={`/heritage/${site.id}`}
+                      className="group flex flex-col rounded-2xl border border-ink/10 bg-card overflow-hidden transition-shadow hover:shadow-lg"
+                    >
+                      <div className="relative aspect-[4/3] overflow-hidden bg-parchment">
+                        <img
+                          src={site.media?.find(m => m.isPrimary || m.mediaType === "image")?.fileUrl ?? ""}
+                          alt={site.siteName}
+                          className="h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-105"
+                          loading="lazy"
+                          onError={(e) => {
+                            const t = e.currentTarget
+                            t.style.display = "none"
+                            t.parentElement!.style.background = "linear-gradient(135deg, #0f2747 0%, #1a3f6a 50%)"
+                          }}
+                        />
+                        {site.category?.name && (
+                          <span className="absolute left-3 top-3 rounded-full bg-cream/90 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-ink backdrop-blur">
+                            {site.category.name}
                           </span>
                         )}
+                        {isRecommended && (
+                          <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-accent/90 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-white backdrop-blur">
+                            <Sparkles size={10} strokeWidth={1.5} />
+                            Recommended
+                          </span>
+                        )}
+                        <CardBookmarkButton
+                          siteId={site.id}
+                          initialIsBookmarked={bookmarkedIds.has(site.id)}
+                        />
                       </div>
 
-                      <p className="mt-3 text-sm text-ink-soft line-clamp-2">
-                        {site.shortDescription}
-                      </p>
+                      <div className="flex flex-1 flex-col p-5">
+                        <h3 className="text-display text-lg leading-tight text-ink">
+                          {site.siteName}
+                        </h3>
 
-                      <div className="mt-auto pt-3 flex items-center gap-1.5 text-xs text-ink-soft">
-                        <Star size={12} strokeWidth={1.5} className="text-accent" />
-                        <span>{site.averageRating?.toFixed(1) ?? "N/A"}</span>
+                        <div className="mt-2 flex items-center gap-3 text-xs text-ink-soft">
+                          <span className="flex items-center gap-1">
+                            <MapPin size={12} strokeWidth={1.5} />
+                            {site.municipalityName}
+                          </span>
+                          {site.yearEstablished && (
+                            <span className="flex items-center gap-1">
+                              <Clock size={12} strokeWidth={1.5} />
+                              {site.yearEstablished}
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="mt-3 text-sm text-ink-soft line-clamp-2">
+                          {site.shortDescription}
+                        </p>
+
+                        <div className="mt-auto pt-3 flex items-center gap-1.5 text-xs text-ink-soft">
+                          <Star size={12} strokeWidth={1.5} className="text-accent" />
+                          <span>{site.averageRating?.toFixed(1) ?? "N/A"}</span>
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
+                    </Link>
+                  </motion.div>
+                )
+              })}
             </div>
 
             {totalPages > 1 && (
@@ -367,3 +427,4 @@ export default function ExploreClient({
     </>
   )
 }
+

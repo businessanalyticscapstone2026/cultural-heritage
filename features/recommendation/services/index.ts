@@ -9,11 +9,12 @@ import type {
 import type { HeritageSite, HeritageSiteTag } from "@/types/heritage"
 
 const DEFAULT_WEIGHTS: RecommendationWeights = {
-  categoryMatch: 0.3,
-  historicalSignificance: 0.25,
-  accessibility: 0.2,
+  categoryMatch: 0.25,
+  historicalSignificance: 0.2,
+  accessibility: 0.15,
   distance: 0.15,
   popularity: 0.1,
+  travelStyle: 0.15,
 }
 
 const DISTANCE_DECAY_FACTOR = 20
@@ -179,12 +180,47 @@ function computePopularityScore(
   return 0
 }
 
+function computeTravelStyleScore(
+  travelStyle: string | null,
+  groupType: string | null,
+  accessibilityInfo: string | null,
+): number {
+  if (!travelStyle && !groupType) return 0.5
+
+  let score = 0.5
+
+  if (travelStyle === "family" || travelStyle === "group") {
+    if (accessibilityInfo && accessibilityInfo.length > 0) {
+      score += 0.2
+    }
+  }
+
+  if (groupType === "walking") {
+    if (accessibilityInfo && /walk|foot|pedestrian/i.test(accessibilityInfo)) {
+      score += 0.15
+    }
+  }
+
+  if (groupType === "driving") {
+    if (accessibilityInfo && /park|car|vehicle/i.test(accessibilityInfo)) {
+      score += 0.15
+    }
+  }
+
+  if (travelStyle === "solo") {
+    score += 0.1
+  }
+
+  return Math.min(score, 1)
+}
+
 function buildReasons(breakdown: {
   categoryMatch: number
   tagInterestScore: number
   accessibilityScore: number
   locationScore: number
   popularityScore: number
+  travelStyleScore: number
   distanceKm: number | null
 }): string[] {
   const reasons: string[] = []
@@ -202,6 +238,9 @@ function buildReasons(breakdown: {
   if (breakdown.popularityScore > 0.7) {
     reasons.push("Highly rated by other visitors")
   }
+  if (breakdown.travelStyleScore > 0.6) {
+    reasons.push("Great fit for your travel style")
+  }
   if (reasons.length === 0) {
     reasons.push("Popular heritage destination")
   }
@@ -216,6 +255,7 @@ function parseWeights(value: Record<string, unknown> | null): RecommendationWeig
     accessibility: typeof value.accessibility === "number" ? value.accessibility : DEFAULT_WEIGHTS.accessibility,
     distance: typeof value.distance === "number" ? value.distance : DEFAULT_WEIGHTS.distance,
     popularity: typeof value.popularity === "number" ? value.popularity : DEFAULT_WEIGHTS.popularity,
+    travelStyle: typeof value.travelStyle === "number" ? value.travelStyle : DEFAULT_WEIGHTS.travelStyle,
   }
 }
 
@@ -271,6 +311,8 @@ export async function generateRecommendations(
   const originLng = preferences.homeLongitude ?? null
   const interests = preferences.interests ?? []
   const preferredCategoryIds = preferences.preferredCategoryIds ?? []
+  const travelStyle = preferences.travelStyle ?? null
+  const groupType = preferences.groupType ?? null
 
   const scored: (SiteScoreBreakdown | null)[] = rawSites.map((site) => {
     const categoryMatch = computeCategoryMatch(site.category_id, preferredCategoryIds)
@@ -287,6 +329,7 @@ export async function generateRecommendations(
       site.review_count,
       visitCounts.get(site.id) ?? 0,
     )
+    const travelScore = computeTravelStyleScore(travelStyle, groupType, site.accessibility_info)
 
     const hasSignal =
       categoryMatch > 0 ||
@@ -303,7 +346,8 @@ export async function generateRecommendations(
       weights.historicalSignificance * tagInterestScore +
       weights.accessibility * accessScore +
       weights.distance * locScore +
-      weights.popularity * popScore
+      weights.popularity * popScore +
+      weights.travelStyle * travelScore
 
     const matchPercentage = Math.round(finalScore * 100)
 
@@ -314,6 +358,7 @@ export async function generateRecommendations(
       accessibilityScore: accessScore,
       locationScore: locScore,
       popularityScore: popScore,
+      travelStyleScore: travelScore,
       finalScore,
       matchPercentage,
       distanceKm,
@@ -323,6 +368,7 @@ export async function generateRecommendations(
         accessibilityScore: accessScore,
         locationScore: locScore,
         popularityScore: popScore,
+        travelStyleScore: travelScore,
         distanceKm,
       }),
     }
@@ -346,6 +392,7 @@ export async function generateRecommendations(
         accessibilityScore: 0,
         locationScore: 0,
         popularityScore: popScore,
+        travelStyleScore: 0,
         finalScore: popScore,
         matchPercentage: Math.round(popScore * 100),
         distanceKm: null,
@@ -407,13 +454,19 @@ export function calculateScore(
     originLng,
   )
   const popScore = computePopularityScore(site.averageRating, site.reviewCount, 0)
+  const travelScore = computeTravelStyleScore(
+    preferences.travelStyle ?? null,
+    preferences.groupType ?? null,
+    site.accessibilityInfo,
+  )
 
   const finalScore =
     weights.categoryMatch * categoryMatch +
     weights.historicalSignificance * tagInterestScore +
     weights.accessibility * accessScore +
     weights.distance * locScore +
-    weights.popularity * popScore
+    weights.popularity * popScore +
+    weights.travelStyle * travelScore
 
   const matchPercentage = Math.round(finalScore * 100)
 
@@ -424,6 +477,7 @@ export function calculateScore(
     accessibilityScore: accessScore,
     locationScore: locScore,
     popularityScore: popScore,
+    travelStyleScore: travelScore,
     finalScore,
     matchPercentage,
     distanceKm,
@@ -433,6 +487,7 @@ export function calculateScore(
       accessibilityScore: accessScore,
       locationScore: locScore,
       popularityScore: popScore,
+      travelStyleScore: travelScore,
       distanceKm,
     }),
   }

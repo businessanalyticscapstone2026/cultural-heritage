@@ -13,6 +13,9 @@ export interface UserPreferences {
   preferredCategoryIds: string[]
   homeLatitude?: number | null
   homeLongitude?: number | null
+  travelStyle?: string | null
+  groupType?: string | null
+  accessibilityNeeds?: string[]
   sessionId?: string | null
   limit?: number
   touristId?: string | null
@@ -24,6 +27,7 @@ export interface RecommendationWeights {
   accessibility: number
   distance: number
   popularity: number
+  travelStyle: number
 }
 
 export interface RecommendationRecord {
@@ -56,6 +60,7 @@ export interface SiteScoreBreakdown {
   accessibilityScore: number
   locationScore: number
   popularityScore: number
+  travelStyleScore: number
   finalScore: number
   matchPercentage: number
   distanceKm: number | null

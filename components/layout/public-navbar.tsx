@@ -13,7 +13,7 @@ const navLinks = [
   { href: "/map", label: "Map", icon: Map },
   { href: "/saved", label: "Saved", icon: Bookmark },
   { href: "/reviews", label: "Reviews", icon: Star },
-  { href: "/heritage", label: "About", icon: Info },
+  { href: "/about", label: "About", icon: Info },
 ]
 
 export default function PublicNavbar() {

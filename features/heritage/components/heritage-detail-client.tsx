@@ -24,6 +24,8 @@ import { motion, AnimatePresence } from "motion/react"
 import type { HeritageSite, HeritageSiteMedia, HeritageSiteTag, HeritageSiteReferenceLink } from "../types"
 import Breadcrumb from "./breadcrumb"
 import { BookmarkButton } from "./bookmark-button"
+import { ReviewsSection } from "@/features/reviews/components"
+import { StarDisplay } from "@/features/reviews/components"
 
 interface HeritageDetailClientProps {
   site: HeritageSite
@@ -153,6 +155,14 @@ export default function HeritageDetailClient({
                 <MapPin className="h-4 w-4" />
                 {locationParts.join(", ")}
               </p>
+            )}
+            {site.reviewCount > 0 && (
+              <div className="mt-2 flex items-center gap-1.5">
+                <StarDisplay rating={site.averageRating} size="sm" />
+                <span className="text-sm text-white/80">
+                  {site.averageRating.toFixed(1)} &middot; {site.reviewCount} {site.reviewCount === 1 ? "review" : "reviews"}
+                </span>
+              </div>
             )}
           </div>
         </div>
@@ -412,17 +422,10 @@ export default function HeritageDetailClient({
              */}
             <div id="nearby-attractions-slot" className="hidden" aria-hidden="true" />
 
-            {/* ── FEEDBACK & REVIEWS — INSERTION POINT ── */}
-            {/*
-             * ═══════════════════════════════════════════════════════
-             *   INSERTION POINT: CR-CHTS-011 — Feedback & Reviews
-             *   Build a reviews/feedback section showing user ratings,
-             *   review cards, and a review submission form.
-             *   Expected: RatingSummary + ReviewForm + ReviewsList
-             *   from features/reviews/components.
-             * ═══════════════════════════════════════════════════════
-             */}
-            <div id="feedback-reviews-slot" className="hidden" aria-hidden="true" />
+            {/* ── FEEDBACK & REVIEWS ── */}
+            <section aria-labelledby="reviews-heading">
+              <ReviewsSection siteId={site.id} />
+            </section>
           </div>
 
           {/* ── SIDEBAR ── */}

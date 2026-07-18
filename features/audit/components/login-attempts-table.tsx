@@ -36,9 +36,9 @@ export default function LoginAttemptsTable({ attempts }: LoginAttemptsTableProps
   if (attempts.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-12 text-center">
-        <LogIn className="mx-auto size-10 text-muted-foreground/40" />
+        <LogIn className="mx-auto size-10 text-muted-foreground" />
         <p className="mt-3 text-sm text-muted-foreground">No login attempts found</p>
-        <p className="text-xs text-muted-foreground/60">Login activity will appear here once the migration is applied</p>
+        <p className="text-xs text-muted-foreground">Login activity will appear here once the migration is applied</p>
       </div>
     )
   }

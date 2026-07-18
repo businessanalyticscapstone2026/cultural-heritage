@@ -96,7 +96,7 @@ export default function ProfileClient({
 
   return (
     <div className="min-h-screen bg-warm-white">
-      <div className="mx-auto max-w-3xl px-4 pt-20 pb-12 md:px-6 md:pt-24 md:pb-16">
+      <div className="mx-auto max-w-3xl px-4 pb-12 md:px-6 md:pb-16">
         {/* Back link */}
         <Link
           href="/home"

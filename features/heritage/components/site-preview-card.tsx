@@ -23,7 +23,7 @@ export default function SitePreviewCard({
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       <div className="aspect-video bg-muted flex items-center justify-center">
-        <Landmark className="size-12 text-muted-foreground/40" />
+        <Landmark className="size-12 text-muted-foreground/60" />
       </div>
       <div className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">

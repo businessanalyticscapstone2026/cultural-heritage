@@ -128,7 +128,7 @@ export default function ExploreClient({
 
   return (
     <>
-      <section className="bg-cream border-b border-ink/10 pt-20 md:pt-24">
+      <section className="bg-cream border-b border-ink/10 pt-0 md:pt-0">
         <div className="px-4 py-12 md:px-6 lg:px-10">
           <div className="mx-auto max-w-7xl">
             <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-accent">
@@ -290,7 +290,7 @@ export default function ExploreClient({
         {totalCount === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-ink/15 bg-parchment/30 px-8 py-20 text-center">
             <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
-              <Search size={20} className="text-muted-foreground/50" />
+              <Search size={20} className="text-muted-foreground/70" />
             </div>
             <p className="text-lg font-medium text-ink">No sites found</p>
             <p className="mt-1 max-w-sm mx-auto text-sm text-ink-soft">

@@ -32,9 +32,9 @@ export default function AuditLogsTable({ logs }: AuditLogsTableProps) {
   if (logs.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-12 text-center">
-        <ScrollText className="mx-auto size-10 text-muted-foreground/40" />
+        <ScrollText className="mx-auto size-10 text-muted-foreground" />
         <p className="mt-3 text-sm text-muted-foreground">No audit logs found</p>
-        <p className="text-xs text-muted-foreground/60">Audit events will appear here once the migration is applied</p>
+        <p className="text-xs text-muted-foreground">Audit events will appear here once the migration is applied</p>
       </div>
     )
   }

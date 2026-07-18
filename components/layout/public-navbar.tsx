@@ -55,7 +55,7 @@ export default function PublicNavbar() {
         description={authModal.description}
       />
 
-      <header className="fixed inset-x-0 top-0 z-50 hidden bg-cream/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.06)] md:block">
+      <header className="sticky inset-x-0 top-0 z-50 hidden bg-cream/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.06)] md:block">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <Link href="/" className="flex items-center gap-2.5 group">
             <span className="grid h-9 w-9 place-items-center rounded-full bg-ink text-cream transition-colors group-hover:bg-accent">

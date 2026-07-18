@@ -102,7 +102,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pt-24 pb-8 md:px-6 lg:px-10">
+    <div className="mx-auto max-w-7xl px-4 pb-8 md:px-6 lg:px-10">
       <div className="mb-8">
         <h1 className="font-heading text-3xl font-semibold text-heading">
           Explore Heritage Sites

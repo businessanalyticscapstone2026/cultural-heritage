@@ -71,7 +71,7 @@ export function ReviewCard({ review, currentUserId, siteId }: ReviewCardProps) {
                 }
                 setShowReport(true)
               }}
-              className="shrink-0 p-1 text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+              className="shrink-0 p-1 text-muted-foreground/60 transition-colors hover:text-muted-foreground"
               aria-label="Report this review"
             >
               <Flag className="h-3.5 w-3.5" />

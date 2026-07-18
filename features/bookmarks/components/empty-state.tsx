@@ -5,7 +5,7 @@ export function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="flex size-16 items-center justify-center rounded-full bg-muted">
-        <Bookmark className="size-8 text-muted-foreground/40" />
+        <Bookmark className="size-8 text-muted-foreground/60" />
       </div>
       <h2 className="mt-4 font-heading text-lg font-semibold text-heading">
         No saved sites yet

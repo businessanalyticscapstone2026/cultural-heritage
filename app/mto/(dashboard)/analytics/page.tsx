@@ -29,14 +29,19 @@ export default async function MTOAnalyticsPage({
 
   return (
     <div className="space-y-6">
-      <div id="header-banner" className="rounded-xl bg-primary p-6 text-primary-foreground print:bg-white print:text-black">
-        <h1 className="text-2xl font-bold">Municipal Tourism Analytics</h1>
-        <p className="mt-1 text-sm opacity-80">
+      <div>
+        <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
+          <span>Dashboard</span>
+          <span className="text-muted-foreground/60">/</span>
+          <span className="text-foreground font-medium">Analytics</span>
+        </nav>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Municipal Tourism Analytics</h1>
+        <p className="text-sm text-muted-foreground">
           Local tourism insights for your municipality
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_280px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_240px]">
         <div className="space-y-6">
           <div id="filter-settings">
             <FilterBar categories={categories ?? []} />

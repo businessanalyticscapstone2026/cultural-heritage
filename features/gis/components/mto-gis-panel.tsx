@@ -522,7 +522,7 @@ export default function MTOGISPanel({
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <Landmark className="size-14 text-muted-foreground/40" />
+                      <Landmark className="size-14 text-muted-foreground/60" />
                     )}
                   </div>
 

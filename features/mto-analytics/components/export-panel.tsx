@@ -103,7 +103,7 @@ export default function ExportPanel() {
           </Button>
         </div>
 
-        <p className="mt-3 text-xs text-muted-foreground/70">
+        <p className="mt-3 text-xs text-muted-foreground">
           Tip: Use your browser&apos;s &quot;Save as PDF&quot; option in the print dialog to export as PDF.
         </p>
       </CardContent>

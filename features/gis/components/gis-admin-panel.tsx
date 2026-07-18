@@ -450,7 +450,7 @@ export default function GisAdminPanel({
             </div>
 
             <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-center">
-              <Map className="mx-auto size-8 text-muted-foreground/50" />
+              <Map className="mx-auto size-8 text-muted-foreground/70" />
               <p className="mt-2 text-xs text-muted-foreground">
                 TODO: Upload GeoJSON or KML boundary files here once schema supports it.
               </p>

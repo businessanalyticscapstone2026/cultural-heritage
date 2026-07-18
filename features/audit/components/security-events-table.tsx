@@ -22,9 +22,9 @@ export default function SecurityEventsTable({ events }: SecurityEventsTableProps
   if (events.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-12 text-center">
-        <ShieldAlert className="mx-auto size-10 text-muted-foreground/40" />
+        <ShieldAlert className="mx-auto size-10 text-muted-foreground" />
         <p className="mt-3 text-sm text-muted-foreground">No security events found</p>
-        <p className="text-xs text-muted-foreground/60">Security events will appear here once the migration is applied</p>
+        <p className="text-xs text-muted-foreground">Security events will appear here once the migration is applied</p>
       </div>
     )
   }

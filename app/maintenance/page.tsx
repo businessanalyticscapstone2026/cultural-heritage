@@ -11,7 +11,7 @@ export default function MaintenancePage() {
         <p className="mt-3 text-sm text-muted-foreground">
           The system is currently undergoing scheduled maintenance. Please try again later or contact your administrator.
         </p>
-        <p className="mt-6 text-xs text-muted-foreground/60">
+        <p className="mt-6 text-xs text-muted-foreground">
           Tourism Cultural Decision Support System
         </p>
       </div>

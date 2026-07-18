@@ -174,7 +174,7 @@ export default function IntegrationsPanel({ integrations }: IntegrationsPanelPro
 
       {localIntegrations.length === 0 ? (
         <div className="rounded-xl border border-dashed p-8 text-center">
-          <Plug className="mx-auto size-8 text-muted-foreground/50" />
+          <Plug className="mx-auto size-8 text-muted-foreground/70" />
           <p className="mt-2 text-sm text-muted-foreground">No integrations configured yet.</p>
           <Button size="sm" variant="outline" className="mt-3" onClick={() => setAddDialogOpen(true)}>
             <Plus className="size-3.5" />

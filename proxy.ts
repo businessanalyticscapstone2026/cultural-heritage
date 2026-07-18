@@ -20,6 +20,7 @@ const publicRoutes = [
   "/nearby",
   "/saved",
   "/scan",
+  "/about",
   "/maintenance",
 ]
 const adminRoutes = ["/admin", "/ptcao"]
@@ -159,6 +160,11 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL("/onboarding", request.url))
     }
     return supabaseResponse
+  }
+
+  // Logged-in tourist on / → redirect to /home
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL("/home", request.url))
   }
 
   // Already-onboarded tourist visiting /onboarding

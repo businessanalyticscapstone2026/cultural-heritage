@@ -17,7 +17,7 @@ export default function VisitorStatisticsReport({ data }: VisitorStatisticsRepor
       <div className="report-section">
         <h2 className="mb-3 text-base font-bold text-[#0F2747]">Visitor Type Breakdown</h2>
         {data.visitorTypes.length === 0 ? (
-          <p className="py-4 text-center text-sm text-gray-400">No visitor data for the selected period.</p>
+          <p className="py-4 text-center text-sm text-gray-500">No visitor data for the selected period.</p>
         ) : (
           <div className="space-y-2">
             {data.visitorTypes.map((v) => (
@@ -43,7 +43,7 @@ export default function VisitorStatisticsReport({ data }: VisitorStatisticsRepor
       <div className="report-section">
         <h2 className="mb-3 text-base font-bold text-[#0F2747]">Top Visited Sites</h2>
         {data.topSites.length === 0 ? (
-          <p className="py-4 text-center text-sm text-gray-400">No site visit data.</p>
+          <p className="py-4 text-center text-sm text-gray-500">No site visit data.</p>
         ) : (
           <table className="w-full text-xs">
             <thead>
@@ -58,7 +58,7 @@ export default function VisitorStatisticsReport({ data }: VisitorStatisticsRepor
             <tbody>
               {data.topSites.map((site, index) => (
                 <tr key={site.siteId} className="border-b last:border-0">
-                  <td className="py-2 pr-3 tabular-nums text-gray-400">{index + 1}</td>
+                  <td className="py-2 pr-3 tabular-nums text-gray-500">{index + 1}</td>
                   <td className="py-2 pr-3 font-medium">{site.siteName}</td>
                   <td className="py-2 pr-3 text-gray-600">{site.categoryName}</td>
                   <td className="py-2 pr-3 text-right tabular-nums">
@@ -80,7 +80,7 @@ export default function VisitorStatisticsReport({ data }: VisitorStatisticsRepor
 function StatBox({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
       <p className="mt-1 text-xl font-bold text-[#0F2747]">{value}</p>
     </div>
   )

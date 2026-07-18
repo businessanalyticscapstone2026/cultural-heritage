@@ -145,7 +145,7 @@ export default function SavedSitesPageContent() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 pt-24 pb-12 md:px-6 lg:px-10">
+      <div className="mx-auto max-w-7xl px-4 pb-12 md:px-6 lg:px-10">
         <div className="space-y-2">
           <div className="h-8 w-48 animate-pulse rounded bg-parchment" />
           <div className="h-4 w-32 animate-pulse rounded bg-parchment" />

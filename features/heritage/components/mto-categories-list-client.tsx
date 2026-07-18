@@ -89,9 +89,9 @@ export default function MtoCategoriesListClient({
       <div>
         <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
           <span>Dashboard</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span>Heritage Information Management</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span className="text-foreground font-medium">Categories</span>
         </nav>
         <h1 className="text-2xl font-bold tracking-tight">Heritage Categories</h1>
@@ -257,7 +257,7 @@ export default function MtoCategoriesListClient({
               .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
               .map((p, idx, arr) => (
                 <span key={p} className="flex items-center gap-1">
-                  {idx > 0 && arr[idx - 1] !== p - 1 && <span className="text-muted-foreground/40">...</span>}
+                  {idx > 0 && arr[idx - 1] !== p - 1 && <span className="text-muted-foreground/60">...</span>}
                   <button
                     type="button"
                     onClick={() => setCurrentPage(p)}

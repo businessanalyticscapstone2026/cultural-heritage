@@ -43,7 +43,7 @@ export default function RecommendationsClient({ initialResults }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 pt-24 pb-8 lg:px-10">
+    <div className="mx-auto max-w-7xl px-6 pb-8 lg:px-10">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="font-heading text-3xl font-semibold text-heading">

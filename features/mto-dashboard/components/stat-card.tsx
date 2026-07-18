@@ -54,7 +54,7 @@ export default function StatCard({ stat }: { stat: DashboardStat }) {
           {stat.value.toLocaleString()}
         </p>
         <p className="text-xs text-muted-foreground">{stat.label}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground/70">{stat.description}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{stat.description}</p>
       </CardContent>
     </Card>
   )

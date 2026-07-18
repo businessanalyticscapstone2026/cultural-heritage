@@ -77,7 +77,7 @@ export default function MonitoringMetricCard({
           {metric.value.toLocaleString()}
         </p>
         <p className="text-xs text-muted-foreground">{metric.label}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground/70">{metric.description}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{metric.description}</p>
       </CardContent>
     </Card>
   )

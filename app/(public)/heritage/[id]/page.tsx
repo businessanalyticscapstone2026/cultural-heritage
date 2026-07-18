@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { getHeritageSiteById, isBookmarked } from "@/features/heritage/services"
+import { getNearbySites } from "@/features/heritage/services/nearby"
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import HeritageDetailClient from "@/features/heritage/components/heritage-detail-client"
@@ -55,5 +56,12 @@ export default async function HeritageDetailPage({ params, searchParams }: PageP
     // Not logged in or error — default to false
   }
 
-  return <HeritageDetailClient site={site} matchScore={matchScore} initialIsBookmarked={bookmarked} />
+  let nearbySites: Awaited<ReturnType<typeof getNearbySites>> = []
+  try {
+    nearbySites = await getNearbySites(id, 5)
+  } catch {
+    // site_distances may not have data for this site
+  }
+
+  return <HeritageDetailClient site={site} matchScore={matchScore} initialIsBookmarked={bookmarked} nearbySites={nearbySites} />
 }

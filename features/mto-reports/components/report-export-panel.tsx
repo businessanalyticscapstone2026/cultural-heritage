@@ -112,7 +112,7 @@ export default function ReportExportPanel({ sections }: ReportExportPanelProps) 
             Print / Save PDF
           </button>
 
-          <p className="mt-2 text-[10px] text-muted-foreground/70">
+          <p className="mt-2 text-[10px] text-muted-foreground">
             Use your browser&apos;s &quot;Save as PDF&quot; option in the print dialog.
           </p>
         </>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { getHeritageSitesAction } from "@/features/heritage/actions/heritage"
+import { getMtoSitesAction } from "@/features/heritage/actions/mto-sites"
 import {
   getMediaAction,
   getMediaSettingsAction,
@@ -29,7 +29,7 @@ export default function MediaPageClient() {
 
   useEffect(() => {
     Promise.all([
-      getHeritageSitesAction().catch(() => [] as HeritageSite[]),
+      getMtoSitesAction().catch(() => [] as HeritageSite[]),
       getMediaSettingsAction().catch(() => null),
     ]).then(([sitesResult, settingsResult]) => {
       setSites(sitesResult)

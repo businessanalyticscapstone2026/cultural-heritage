@@ -17,7 +17,7 @@ export default function TourismTrendReport({ data }: TourismTrendReportProps) {
       <div className="report-section">
         <h2 className="mb-3 text-base font-bold text-[#0F2747]">Visitor Trend</h2>
         {data.visitorTrend.length === 0 ? (
-          <p className="py-4 text-center text-sm text-gray-400">No visitor data for the selected period.</p>
+          <p className="py-4 text-center text-sm text-gray-500">No visitor data for the selected period.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -56,7 +56,7 @@ export default function TourismTrendReport({ data }: TourismTrendReportProps) {
       <div className="report-section">
         <h2 className="mb-3 text-base font-bold text-[#0F2747]">Visits by Attraction</h2>
         {data.visitsByAttraction.length === 0 ? (
-          <p className="py-4 text-center text-sm text-gray-400">No attraction data.</p>
+          <p className="py-4 text-center text-sm text-gray-500">No attraction data.</p>
         ) : (
           <table className="w-full text-xs">
             <thead>
@@ -83,7 +83,7 @@ export default function TourismTrendReport({ data }: TourismTrendReportProps) {
         <h2 className="mb-3 text-base font-bold text-[#0F2747]">Visitor Demographics</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <div>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Visitor Type
             </h3>
             <table className="w-full text-xs">
@@ -106,7 +106,7 @@ export default function TourismTrendReport({ data }: TourismTrendReportProps) {
             </table>
           </div>
           <div>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Age Group
             </h3>
             <table className="w-full text-xs">
@@ -137,7 +137,7 @@ export default function TourismTrendReport({ data }: TourismTrendReportProps) {
 function StatBox({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
       <p className="mt-1 text-xl font-bold text-[#0F2747]">{value}</p>
     </div>
   )

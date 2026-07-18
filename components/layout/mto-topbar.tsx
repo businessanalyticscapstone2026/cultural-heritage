@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, LogOut, MapPin, User, ChevronDown } from "lucide-react"
+import { Bell, LogOut, MapPin, ChevronDown } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { useRole } from "@/context/role-context"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -97,14 +97,6 @@ export default function MTOTopbar() {
 
           {dropdownOpen && (
             <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-md border bg-card py-1 shadow-md">
-              <button
-                type="button"
-                onClick={() => { setDropdownOpen(false); router.push("/mto/settings") }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted"
-              >
-                <User className="size-4 text-muted-foreground" />
-                Profile
-              </button>
               <button
                 type="button"
                 onClick={handleSignOut}

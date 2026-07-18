@@ -16,7 +16,7 @@
   --color-border: #e8e8e8;
   --color-heading: #222222;
   --color-body: #5a5a5a;
-  --color-muted: #9b9b9b;
+  --color-muted: #f1f5f9;
   --color-success: #34a853;
   --color-warning: #f4b400;
   --color-error: #ea4335;
@@ -77,8 +77,8 @@ body {
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --accent: #1d4fd6;
+  --accent-foreground: #ffffff;
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);

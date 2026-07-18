@@ -13,7 +13,7 @@ export default async function RoutesPage() {
   const routes = user ? await listRoutes(supabase, user.id) : []
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pt-24 pb-12 md:px-6 lg:px-10">
+    <div className="mx-auto max-w-7xl px-4 pb-12 md:px-6 lg:px-10">
       <div className="mb-8">
         <h1 className="text-display text-2xl text-ink">Routes</h1>
         <p className="mt-1 text-sm text-ink-soft">

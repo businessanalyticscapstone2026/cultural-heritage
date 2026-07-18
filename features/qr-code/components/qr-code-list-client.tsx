@@ -189,7 +189,7 @@ export default function QRCodeListClient({
       <div>
         <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
           <span>Dashboard</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground">/</span>
           <span>QR Code Management</span>
         </nav>
         <h1 className="text-2xl font-bold tracking-tight">QR Codes</h1>
@@ -307,7 +307,7 @@ export default function QRCodeListClient({
         <div className="xl:col-span-2">
           {paginated.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-muted-foreground">
-              <QrCodeIcon className="size-10 mb-2 text-muted-foreground/40" />
+              <QrCodeIcon className="size-10 mb-2 text-muted-foreground" />
               <p className="text-sm">No QR codes found</p>
               <Button
                 variant="outline"
@@ -344,7 +344,7 @@ export default function QRCodeListClient({
                             {qr.siteThumbnail ? (
                               <img src={qr.siteThumbnail} alt="" className="h-full w-full object-cover" />
                             ) : (
-                              <span className="text-muted-foreground/40 text-xs">No img</span>
+                              <span className="text-muted-foreground text-xs">No img</span>
                             )}
                           </div>
                           <div className="min-w-0">
@@ -443,7 +443,7 @@ export default function QRCodeListClient({
                     .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
                     .map((p, idx, arr) => (
                       <span key={p} className="flex items-center gap-1">
-                        {idx > 0 && arr[idx - 1] !== p - 1 && <span className="text-muted-foreground/40">...</span>}
+                        {idx > 0 && arr[idx - 1] !== p - 1 && <span className="text-muted-foreground">...</span>}
                         <button
                           type="button"
                           onClick={() => setCurrentPage(p)}
@@ -491,9 +491,9 @@ export default function QRCodeListClient({
           <div className="divide-y max-h-[500px] overflow-y-auto">
             {recentScans.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <SmartphoneIcon className="size-8 mb-2 text-muted-foreground/40" />
+                <SmartphoneIcon className="size-8 mb-2 text-muted-foreground" />
                 <p className="text-xs">No scans recorded yet</p>
-                <p className="text-[10px] text-muted-foreground/60 mt-1">
+                <p className="text-[10px] text-muted-foreground mt-1">
                   Scan logging is handled by the tourist app (CHTS-028)
                 </p>
               </div>

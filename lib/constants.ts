@@ -27,7 +27,6 @@ export const ROUTES = {
     DASHBOARD: "/mto/dashboard",
     SITES: "/mto/heritage-sites",
     CATEGORIES: "/mto/categories",
-    HISTORICAL_INFO: "/mto/historical-info",
     ARCHIVE: "/mto/archive",
     MEDIA: "/mto/media",
     GIS: "/mto/gis",
@@ -37,8 +36,6 @@ export const ROUTES = {
     ANALYTICS: "/mto/analytics",
     REPORTS: "/mto/reports",
     QR_CODES: "/mto/qr-codes",
-    USERS: "/mto/users",
-    SETTINGS: "/mto/settings",
   },
   TOURIST: {
     HOME: "/home",

@@ -53,8 +53,11 @@ export default function MtoHeritageFormClient({
       exactAddress: site?.exactAddress ?? null,
       shortDescription: site?.shortDescription ?? null,
       detailedDescription: site?.detailedDescription ?? null,
+      historicalPeriod: site?.historicalPeriod ?? null,
       yearEstablished: site?.yearEstablished ?? null,
+      architectBuilder: site?.architectBuilder ?? null,
       architecturalStyle: site?.architecturalStyle ?? null,
+      designation: site?.designation ?? null,
       historicalSignificance: site?.historicalSignificance ?? null,
       culturalSignificance: site?.culturalSignificance ?? null,
       latitude: site?.latitude ?? null,
@@ -104,11 +107,11 @@ export default function MtoHeritageFormClient({
       <div>
         <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
           <span>Dashboard</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span>Heritage Information Management</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <a href="/mto/heritage-sites" className="hover:text-foreground transition-colors">Heritage Sites</a>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span className="text-foreground font-medium">{site ? "Edit Site" : "Add New Site"}</span>
         </nav>
         <h1 className="text-2xl font-bold tracking-tight">{site ? "Edit Heritage Site" : "Add New Heritage Site"}</h1>
@@ -205,8 +208,31 @@ export default function MtoHeritageFormClient({
                   <Input id="yearEstablished" {...form.register("yearEstablished")} placeholder="e.g., 1856" />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="historicalPeriod">Historical Period</Label>
+                  <Input id="historicalPeriod" {...form.register("historicalPeriod")} placeholder="e.g., Spanish Colonial" />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="architecturalStyle">Architectural Style</Label>
                   <Input id="architecturalStyle" {...form.register("architecturalStyle")} placeholder="e.g., Baroque" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="architectBuilder">Architect / Builder</Label>
+                  <Input id="architectBuilder" {...form.register("architectBuilder")} placeholder="e.g., Fr. Domingo Salazar" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="designation">Designation</Label>
+                  <select
+                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    {...form.register("designation")}
+                  >
+                    <option value="">None</option>
+                    <option value="National Cultural Treasure">National Cultural Treasure</option>
+                    <option value="Important Cultural Property">Important Cultural Property</option>
+                    <option value="Local Cultural Treasure">Local Cultural Treasure</option>
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="historicalSignificance">Historical Significance</Label>

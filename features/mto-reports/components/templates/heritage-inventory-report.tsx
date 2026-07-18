@@ -42,7 +42,7 @@ export default function HeritageInventoryReport({ data }: HeritageInventoryRepor
       <div className="report-section">
         <h2 className="mb-3 text-base font-bold text-[#0F2747]">Heritage Sites</h2>
         {data.sites.length === 0 ? (
-          <p className="py-4 text-center text-sm text-gray-400">
+          <p className="py-4 text-center text-sm text-gray-500">
             No heritage sites found for this municipality.
           </p>
         ) : (
@@ -62,7 +62,7 @@ export default function HeritageInventoryReport({ data }: HeritageInventoryRepor
               <tbody>
                 {data.sites.map((site, index) => (
                   <tr key={site.id} className="border-b last:border-0">
-                    <td className="py-1.5 pr-3 tabular-nums text-gray-400">
+                    <td className="py-1.5 pr-3 tabular-nums text-gray-500">
                       {index + 1}
                     </td>
                     <td className="py-1.5 pr-3 font-medium">{site.siteName}</td>
@@ -77,7 +77,7 @@ export default function HeritageInventoryReport({ data }: HeritageInventoryRepor
                         className={
                           site.publicationStatus === "published"
                             ? "text-green-600"
-                            : "text-gray-400"
+                            : "text-gray-500"
                         }
                       >
                         {site.publicationStatus}
@@ -109,7 +109,7 @@ export default function HeritageInventoryReport({ data }: HeritageInventoryRepor
 function StatBox({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
       <p className="mt-1 text-xl font-bold text-[#0F2747]">{value}</p>
     </div>
   )

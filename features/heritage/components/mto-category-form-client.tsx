@@ -68,11 +68,11 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
       <div>
         <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
           <span>Dashboard</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span>Heritage Information Management</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <a href="/mto/categories" className="hover:text-foreground transition-colors">Categories</a>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span className="text-foreground font-medium">{category ? "Edit Category" : "Add New Category"}</span>
         </nav>
         <h1 className="text-2xl font-bold tracking-tight">

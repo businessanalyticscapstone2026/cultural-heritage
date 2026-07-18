@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Landmark,
   FolderTree,
-  BookOpen,
   Archive,
   Image,
   Map,
@@ -15,8 +14,6 @@ import {
   BarChart3,
   FileText,
   QrCode,
-  Users,
-  Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ROUTES } from "@/lib/constants"
@@ -44,7 +41,6 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Heritage Sites", href: ROUTES.MTO.SITES, icon: Landmark },
       { label: "Categories", href: ROUTES.MTO.CATEGORIES, icon: FolderTree },
-      { label: "Historical Information", href: ROUTES.MTO.HISTORICAL_INFO, icon: BookOpen },
       { label: "Archive", href: ROUTES.MTO.ARCHIVE, icon: Archive },
     ],
   },
@@ -79,13 +75,6 @@ const navGroups: NavGroup[] = [
       { label: "QR Codes", href: ROUTES.MTO.QR_CODES, icon: QrCode },
     ],
   },
-  {
-    label: "System",
-    items: [
-      { label: "Users", href: ROUTES.MTO.USERS, icon: Users },
-      { label: "Settings", href: ROUTES.MTO.SETTINGS, icon: Settings },
-    ],
-  },
 ]
 
 export default function MTOSidebar() {
@@ -102,23 +91,23 @@ export default function MTOSidebar() {
         </div>
         <div className="min-w-0">
           <p className="text-sm font-bold leading-tight tracking-tight text-sidebar-foreground">MTO PORTAL</p>
-          <p className="text-[10px] leading-tight text-sidebar-foreground/60">Municipal Tourism Office</p>
+          <p className="text-[10px] leading-tight text-sidebar-foreground/80">Municipal Tourism Office</p>
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto p-3">
         {navGroups.map((group) => (
-          <div key={group.label} className="mb-1">
+          <div key={group.label}>
             {group.label !== "Dashboard" && (
-              <p className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/70">
                 {group.label}
               </p>
             )}
-              {group.items.map((item) => (
+            {group.items.map((item) => (
               <Link
                 key={item.href + item.label}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   isActive(item.href) &&
                     "bg-primary text-primary-foreground font-medium"
                 )}

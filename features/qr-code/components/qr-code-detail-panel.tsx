@@ -127,7 +127,7 @@ export default function QRCodeDetailPanel({
                 />
               ) : (
                 <div className="size-48 flex items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/30">
-                  <QrCodeIcon className="size-12 text-muted-foreground/40" />
+                  <QrCodeIcon className="size-12 text-muted-foreground/60" />
                 </div>
               )}
             </div>
@@ -140,7 +140,7 @@ export default function QRCodeDetailPanel({
                     {qrCode.siteThumbnail ? (
                       <img src={qrCode.siteThumbnail} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <span className="text-muted-foreground/40 text-xs">No img</span>
+                      <span className="text-muted-foreground/60 text-xs">No img</span>
                     )}
                   </div>
                   <div className="min-w-0">

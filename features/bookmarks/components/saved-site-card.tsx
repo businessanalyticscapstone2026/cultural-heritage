@@ -25,7 +25,7 @@ export function SavedSiteCard({ site, onRemove }: SavedSiteCardProps) {
             />
           ) : (
             <div className="flex size-full items-center justify-center bg-muted">
-              <MapPin className="size-8 text-muted-foreground/40" />
+              <MapPin className="size-8 text-muted-foreground/60" />
             </div>
           )}
         </div>

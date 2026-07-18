@@ -116,8 +116,8 @@ export async function getMtoSites(municipalityId: string): Promise<SiteWithDetai
       geoAccuracy: row.geo_accuracy as string | null,
       accessibilityInfo: row.accessibility_info as string | null,
       operatingHours: row.operating_hours as string | null,
-      entranceFee: null as string | null,
-      designation: null as string | null,
+      entranceFee: row.entrance_fee as string | null,
+      designation: row.designation as string | null,
       publicationStatus: (row.publication_status ?? "draft") as HeritageSite["publicationStatus"],
       isFeatured: (row.is_featured ?? false) as boolean,
       visibility: (row.visibility ?? "public") as HeritageSite["visibility"],
@@ -209,8 +209,8 @@ export async function getMtoSiteById(siteId: string, municipalityId: string): Pr
     geoAccuracy: data.geo_accuracy as string | null,
     accessibilityInfo: data.accessibility_info as string | null,
     operatingHours: data.operating_hours as string | null,
-    entranceFee: null as string | null,
-    designation: null as string | null,
+    entranceFee: data.entrance_fee as string | null,
+    designation: data.designation as string | null,
     publicationStatus: (data.publication_status ?? "draft") as HeritageSite["publicationStatus"],
     isFeatured: (data.is_featured ?? false) as boolean,
     visibility: (data.visibility ?? "public") as HeritageSite["visibility"],
@@ -263,8 +263,11 @@ export async function createMtoSite(
     exactAddress?: string | null
     shortDescription?: string | null
     detailedDescription?: string | null
+    historicalPeriod?: string | null
     yearEstablished?: string | null
+    architectBuilder?: string | null
     architecturalStyle?: string | null
+    designation?: string | null
     historicalSignificance?: string | null
     culturalSignificance?: string | null
     latitude?: number | null
@@ -291,8 +294,11 @@ export async function createMtoSite(
       exact_address: data.exactAddress ?? null,
       short_description: data.shortDescription ?? null,
       detailed_description: data.detailedDescription ?? null,
+      historical_period: data.historicalPeriod ?? null,
       year_established: data.yearEstablished ?? null,
+      architect_builder: data.architectBuilder ?? null,
       architectural_style: data.architecturalStyle ?? null,
+      designation: data.designation ?? null,
       historical_significance: data.historicalSignificance ?? null,
       cultural_significance: data.culturalSignificance ?? null,
       latitude: data.latitude ?? null,
@@ -359,8 +365,11 @@ export async function updateMtoSite(
     exactAddress?: string | null
     shortDescription?: string | null
     detailedDescription?: string | null
+    historicalPeriod?: string | null
     yearEstablished?: string | null
+    architectBuilder?: string | null
     architecturalStyle?: string | null
+    designation?: string | null
     historicalSignificance?: string | null
     culturalSignificance?: string | null
     latitude?: number | null
@@ -385,8 +394,11 @@ export async function updateMtoSite(
   if (data.exactAddress !== undefined) updateData.exact_address = data.exactAddress
   if (data.shortDescription !== undefined) updateData.short_description = data.shortDescription
   if (data.detailedDescription !== undefined) updateData.detailed_description = data.detailedDescription
+  if (data.historicalPeriod !== undefined) updateData.historical_period = data.historicalPeriod
   if (data.yearEstablished !== undefined) updateData.year_established = data.yearEstablished
+  if (data.architectBuilder !== undefined) updateData.architect_builder = data.architectBuilder
   if (data.architecturalStyle !== undefined) updateData.architectural_style = data.architecturalStyle
+  if (data.designation !== undefined) updateData.designation = data.designation
   if (data.historicalSignificance !== undefined) updateData.historical_significance = data.historicalSignificance
   if (data.culturalSignificance !== undefined) updateData.cultural_significance = data.culturalSignificance
   if (data.latitude !== undefined) updateData.latitude = data.latitude

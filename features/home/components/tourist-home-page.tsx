@@ -6,7 +6,9 @@ import { motion, useScroll, useTransform, type Variants } from "motion/react"
 import {
   ArrowRight,
   ChevronRight,
+  Clock,
   Map as MapIcon,
+  MapPin,
   Sparkles,
   Star,
 } from "lucide-react"
@@ -88,6 +90,9 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
     recommendedResults,
     testimonials,
     heroImageUrl,
+    userName,
+    nearbySites,
+    recentlyViewedSites,
   } = data
 
   const recById = new Map(recommendedResults.map((r) => [r.site.id, r]))
@@ -132,14 +137,14 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
 
         <motion.div
           style={{ y: heroTextY }}
-          className="relative z-10 mx-auto flex min-h-[calc(100svh-6rem)] max-w-7xl flex-col justify-center px-6 pb-40 md:px-10"
+          className="relative z-10 mx-auto flex max-w-7xl flex-col px-6 pb-8 md:px-10"
         >
           <motion.div initial="hidden" animate="show" variants={fadeUp} className="max-w-4xl">
-            <div className="mb-6 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-ink/70">
+            <div className="mb-3 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-ink/70">
               <span className="h-px w-8 bg-ink/60" />
               First District of Batangas · Cultural Heritage Tourism
             </div>
-            <h1 className="text-display text-[clamp(3rem,9vw,7.5rem)] leading-[0.95] text-ink">
+            <h1 className="text-display text-[clamp(2.9rem,7.5vw,6.5rem)] leading-[0.95] text-ink">
               Walk through <em className="italic text-accent">history</em>,
               <br />
               one stone at a time.
@@ -166,6 +171,15 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
           </motion.div>
         </motion.div>
       </section>
+
+      {/* Personalized greeting */}
+      {userName && (
+        <section className="mx-auto max-w-7xl px-6 pt-8 pb-2 md:px-10">
+          <p className="text-sm text-ink-soft">
+            Welcome back, <span className="font-medium text-ink">{userName}</span>.
+          </p>
+        </section>
+      )}
 
       <section className="border-y border-ink/10 bg-parchment/60 py-5 grain" aria-hidden>
         <div className="flex items-center gap-12 overflow-hidden whitespace-nowrap text-xs uppercase tracking-[0.35em] text-ink-soft">
@@ -613,7 +627,148 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
         )}
       </section>
 
-      {/* 8. Testimonials */}
+      {/* 8. Nearby Destinations */}
+      {nearbySites.length > 0 && (
+        <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeUp}
+            className="mb-14 flex items-end justify-between gap-6"
+          >
+            <div>
+              <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-accent">
+                <span className="h-px w-8 bg-accent" /> Nearby Destinations
+              </div>
+              <h2 className="text-display text-5xl leading-[1] md:text-7xl">
+                Close to <em className="italic text-accent">you.</em>
+              </h2>
+              <p className="mt-4 max-w-md text-ink-soft">
+                Heritage sites near your home location, ready to explore.
+              </p>
+            </div>
+            <Link
+              href="/nearby"
+              className="group hidden items-center gap-1 text-sm text-ink-soft transition-colors hover:text-ink md:inline-flex"
+            >
+              View all{" "}
+              <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
+            </Link>
+          </motion.div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {nearbySites.map((site, i) => (
+              <motion.div
+                key={site.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: i * 0.1 }}
+              >
+                <Link
+                  href={`/heritage/${site.id}`}
+                  className="group flex items-center gap-5 rounded-2xl border border-ink/10 bg-card p-4 transition-all hover:border-ink/20 hover:shadow-lg"
+                >
+                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-parchment">
+                    <SiteImage
+                      src={site.imageUrl}
+                      alt={site.siteName}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {site.categoryName && (
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-accent">
+                        {site.categoryName}
+                      </span>
+                    )}
+                    <h3 className="mt-1 truncate text-sm font-medium text-ink transition-colors group-hover:text-accent">
+                      {site.siteName}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-ink-soft">
+                      {site.municipalityName ?? "Batangas"}
+                    </p>
+                  </div>
+                  <MapPin
+                    size={16}
+                    className="shrink-0 text-ink-soft transition-transform group-hover:translate-x-1 group-hover:text-accent"
+                  />
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 9. Recently Viewed */}
+      {recentlyViewedSites.length > 0 && (
+        <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeUp}
+            className="mb-14 flex items-end justify-between gap-6"
+          >
+            <div>
+              <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-accent">
+                <span className="h-px w-8 bg-accent" /> Recently Viewed
+              </div>
+              <h2 className="text-display text-5xl leading-[1] md:text-7xl">
+                Pick up where you <em className="italic text-accent">left off.</em>
+              </h2>
+              <p className="mt-4 max-w-md text-ink-soft">
+                Sites you recently explored — dive back in.
+              </p>
+            </div>
+          </motion.div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {recentlyViewedSites.map((site, i) => (
+              <motion.div
+                key={site.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: i * 0.1 }}
+              >
+                <Link
+                  href={`/heritage/${site.id}`}
+                  className="group flex items-center gap-5 rounded-2xl border border-ink/10 bg-card p-4 transition-all hover:border-ink/20 hover:shadow-lg"
+                >
+                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-parchment">
+                    <SiteImage
+                      src={site.imageUrl}
+                      alt={site.siteName}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {site.categoryName && (
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-accent">
+                        {site.categoryName}
+                      </span>
+                    )}
+                    <h3 className="mt-1 truncate text-sm font-medium text-ink transition-colors group-hover:text-accent">
+                      {site.siteName}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-ink-soft">
+                      {site.municipalityName ?? "Batangas"}
+                    </p>
+                  </div>
+                  <Clock
+                    size={16}
+                    className="shrink-0 text-ink-soft transition-transform group-hover:translate-x-1 group-hover:text-accent"
+                  />
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 10. Testimonials */}
       <section className="border-y border-ink/10 bg-parchment/50 grain">
         <div className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
           <motion.div

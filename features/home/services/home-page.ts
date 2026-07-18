@@ -344,7 +344,7 @@ async function getAtlasStats(supabase: SupabaseServer): Promise<HomeAtlasStats> 
 
 async function getRecommendedSites(
   supabase: SupabaseServer,
-): Promise<{ sites: HomeSiteCard[]; results: RecommendationResult[] }> {
+): Promise<{ sites: HomeSiteCard[]; results: RecommendationResult[]; userName?: string; homeLat?: number; homeLng?: number }> {
   const { data: { user } } = await supabase.auth.getUser()
 
   const preferences: import("@/types/recommendation").UserPreferences = {
@@ -355,10 +355,14 @@ async function getRecommendedSites(
     sessionId: user ? undefined : crypto.randomUUID(),
   }
 
+  let userName: string | undefined
+  let homeLat: number | undefined
+  let homeLng: number | undefined
+
   if (user) {
     const { data: profile } = await supabase
       .from("tourist_profiles")
-      .select("interests, preferred_category_ids, home_latitude, home_longitude")
+      .select("interests, preferred_category_ids, home_latitude, home_longitude, first_name")
       .eq("id", user.id)
       .maybeSingle()
 
@@ -367,6 +371,10 @@ async function getRecommendedSites(
       preferences.preferredCategoryIds = (profile.preferred_category_ids as string[]) ?? []
       if (profile.home_latitude) preferences.homeLatitude = Number(profile.home_latitude)
       if (profile.home_longitude) preferences.homeLongitude = Number(profile.home_longitude)
+      const firstName = (profile.first_name as string | null)?.trim()
+      if (firstName) userName = firstName
+      if (profile.home_latitude) homeLat = Number(profile.home_latitude)
+      if (profile.home_longitude) homeLng = Number(profile.home_longitude)
     }
   }
 
@@ -388,7 +396,7 @@ async function getRecommendedSites(
       ?? null,
   }))
 
-  return { sites, results }
+  return { sites, results, userName, homeLat, homeLng }
 }
 
 async function getTestimonials(supabase: SupabaseServer): Promise<HomeTestimonial[]> {
@@ -552,6 +560,73 @@ async function getEditorialHighlights(
     .map((x) => x.highlight)
 }
 
+const NEARBY_HOME_LIMIT = 4
+const NEARBY_HOME_RADIUS_KM = 20
+const RECENTLY_VIEWED_LIMIT = 4
+
+async function getNearbyForHome(
+  supabase: SupabaseServer,
+  homeLat?: number,
+  homeLng?: number,
+): Promise<HomeSiteCard[]> {
+  if (homeLat == null || homeLng == null) return []
+
+  const { getNearbySitesFromLocation } = await import("@/features/heritage/services/nearby")
+  const sites = await getNearbySitesFromLocation(homeLat, homeLng, NEARBY_HOME_RADIUS_KM, {
+    limit: NEARBY_HOME_LIMIT,
+  })
+
+  return sites.map<HomeSiteCard>((s) => ({
+    id: s.siteId,
+    siteName: s.siteName,
+    shortDescription: null,
+    yearEstablished: null,
+    averageRating: null,
+    reviewCount: null,
+    municipalityName: s.municipalityName,
+    categoryId: null,
+    categoryName: s.category,
+    categoryIcon: null,
+    categoryColor: null,
+    imageUrl: s.thumbnail,
+  }))
+}
+
+async function getRecentlyViewed(
+  supabase: SupabaseServer,
+): Promise<HomeSiteCard[]> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: clicks, error: clicksError } = await supabase
+    .from("recommendations")
+    .select("site_id")
+    .eq("tourist_id", user.id)
+    .eq("was_clicked", true)
+    .order("clicked_at", { ascending: false })
+    .limit(RECENTLY_VIEWED_LIMIT * 2)
+
+  if (clicksError || !clicks?.length) return []
+
+  const uniqueSiteIds = [...new Set(clicks.map((r) => r.site_id))].slice(0, RECENTLY_VIEWED_LIMIT)
+  if (uniqueSiteIds.length === 0) return []
+
+  const { data: sites, error: sitesError } = await supabase
+    .from("heritage_sites")
+    .select(SITE_CARD_SELECT)
+    .in("id", uniqueSiteIds)
+    .eq("publication_status", "published")
+    .eq("visibility", "public")
+
+  if (sitesError || !sites) return []
+
+  const byId = new Map(sites.map((row) => [row.id, mapSiteRow(row as SiteJoinRow)]))
+
+  return uniqueSiteIds
+    .map((id) => byId.get(id))
+    .filter((card): card is HomeSiteCard => card != null)
+}
+
 async function resolveHeroImageUrl(
   supabase: SupabaseServer,
   featured: HomeSiteCard[],
@@ -612,7 +687,11 @@ export async function getTouristHomePageData(): Promise<HomePagePayload> {
     getTestimonials(supabase),
   ])
 
-  const heroImageUrl = await resolveHeroImageUrl(supabase, featuredSites, recommended.sites)
+  const [heroImageUrl, nearbySites, recentlyViewedSites] = await Promise.all([
+    resolveHeroImageUrl(supabase, featuredSites, recommended.sites),
+    getNearbyForHome(supabase, recommended.homeLat, recommended.homeLng),
+    getRecentlyViewed(supabase),
+  ])
 
   return {
     featuredSites,
@@ -626,5 +705,8 @@ export async function getTouristHomePageData(): Promise<HomePagePayload> {
     recommendedResults: recommended.results,
     testimonials,
     heroImageUrl,
+    userName: recommended.userName,
+    nearbySites,
+    recentlyViewedSites,
   }
 }

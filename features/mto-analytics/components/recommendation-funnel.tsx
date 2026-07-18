@@ -78,7 +78,7 @@ export default function RecommendationFunnel({
                   </div>
                   {i < stages.length - 1 && (
                     <div className="flex justify-center py-0.5">
-                      <ArrowRight className="size-3 text-muted-foreground/50 rotate-90" />
+                      <ArrowRight className="size-3 text-muted-foreground/70 rotate-90" />
                     </div>
                   )}
                 </div>

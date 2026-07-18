@@ -21,13 +21,13 @@ export default function RecommendationQRReport({ data }: RecommendationQRReportP
         {data.funnel.generated > 0 && (
           <div className="mt-4 grid grid-cols-2 gap-4 text-xs">
             <div>
-              <span className="text-gray-400">Click Rate: </span>
+              <span className="text-gray-500">Click Rate: </span>
               <span className="font-medium tabular-nums">
                 {((data.funnel.clicked / data.funnel.generated) * 100).toFixed(1)}%
               </span>
             </div>
             <div>
-              <span className="text-gray-400">Conversion Rate: </span>
+              <span className="text-gray-500">Conversion Rate: </span>
               <span className="font-medium tabular-nums">
                 {((data.funnel.conversions / data.funnel.generated) * 100).toFixed(1)}%
               </span>
@@ -107,7 +107,7 @@ function FunnelRow({ label, value, max }: { label: string; value: number; max: n
 function StatBox({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
       <p className="mt-1 text-xl font-bold text-[#0F2747]">{value}</p>
     </div>
   )

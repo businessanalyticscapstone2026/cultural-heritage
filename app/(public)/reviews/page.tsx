@@ -63,7 +63,7 @@ const reviews = [
 export default function ReviewsPage() {
   return (
     <>
-      <section className="bg-cream border-b border-ink/10 pt-20 md:pt-24">
+      <section className="bg-cream border-b border-ink/10 pt-0 md:pt-0">
         <div className="mx-auto max-w-7xl px-6 md:px-10 py-16 md:py-24">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

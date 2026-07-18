@@ -90,6 +90,12 @@ export interface HomePagePayload {
   testimonials: HomeTestimonial[]
   /** Optional hero background from featured/published site media or district asset. */
   heroImageUrl: string | null
+  /** Personalized greeting name (first name from tourist_profiles). */
+  userName?: string
+  /** Nearby sites based on user's home coordinates. */
+  nearbySites: HomeSiteCard[]
+  /** Recently viewed sites from recommendation click history. */
+  recentlyViewedSites: HomeSiteCard[]
 }
 
 /** @deprecated Kept for older shared components; prefer HomePagePayload. */

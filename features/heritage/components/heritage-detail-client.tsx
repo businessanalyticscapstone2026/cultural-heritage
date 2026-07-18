@@ -24,22 +24,28 @@ import { motion, AnimatePresence } from "motion/react"
 import type { HeritageSite, HeritageSiteMedia, HeritageSiteTag, HeritageSiteReferenceLink } from "../types"
 import Breadcrumb from "./breadcrumb"
 import { BookmarkButton } from "./bookmark-button"
+import NearbySitesSidebar from "./nearby-sites-sidebar"
 import { ReviewsSection } from "@/features/reviews/components"
 import { StarDisplay } from "@/features/reviews/components"
+import type { NearbySite, TravelMode } from "@/types/heritage"
 
 interface HeritageDetailClientProps {
   site: HeritageSite
   matchScore?: number
   initialIsBookmarked?: boolean
+  nearbySites?: NearbySite[]
 }
 
 export default function HeritageDetailClient({
   site,
   matchScore,
   initialIsBookmarked = false,
+  nearbySites = [],
 }: HeritageDetailClientProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [copied, setCopied] = useState(false)
+  const [nearbyMode, setNearbyMode] = useState<TravelMode>("walking")
+  const [selectedNearbyId, setSelectedNearbyId] = useState<string | null>(null)
 
   const images = site.media.filter((m) => m.mediaType === "image")
   const hasCoordinates = site.latitude !== null && site.longitude !== null
@@ -125,7 +131,7 @@ export default function HeritageDetailClient({
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-muted">
               <div className="text-center">
-                <Camera className="mx-auto h-10 w-10 text-muted-foreground/50" />
+                <Camera className="mx-auto h-10 w-10 text-muted-foreground/70" />
                 <p className="mt-2 text-sm text-muted-foreground">No images available</p>
               </div>
             </div>
@@ -410,17 +416,16 @@ export default function HeritageDetailClient({
               </section>
             )}
 
-            {/* ── NEARBY ATTRACTIONS — INSERTION POINT ── */}
-            {/*
-             * ═══════════════════════════════════════════════════════
-             *   INSERTION POINT: CR-CHTS-008 — Nearby Attractions
-             *   Build a section showing nearby heritage sites within
-             *   walking/driving distance using site_distances table.
-             *   Expected: list of nearby sites with distance, travel
-             *   time, thumbnail, and category badge.
-             * ═══════════════════════════════════════════════════════
-             */}
-            <div id="nearby-attractions-slot" className="hidden" aria-hidden="true" />
+            {/* ── NEARBY ATTRACTIONS ── */}
+            {nearbySites.length > 0 && (
+              <NearbySitesSidebar
+                sites={nearbySites}
+                mode={nearbyMode}
+                onModeChange={setNearbyMode}
+                selectedSiteId={selectedNearbyId}
+                onSiteSelect={setSelectedNearbyId}
+              />
+            )}
 
             {/* ── FEEDBACK & REVIEWS ── */}
             <section aria-labelledby="reviews-heading">

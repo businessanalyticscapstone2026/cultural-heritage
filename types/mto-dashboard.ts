@@ -52,3 +52,14 @@ export interface RecentScan {
   scannedAt: string
   deviceType: string | null
 }
+
+export interface DashboardData {
+  stats: DashboardStat[]
+  visitsOverview: MonthlyVisitsPoint[]
+  visitsByCategory: CategoryBreakdownPoint[]
+  recentSites: RecentSite[]
+  recentActivity: TouristActivity[]
+  visitorStats: VisitorStats
+  recentScans: RecentScan[]
+  todayScanCount: number
+}

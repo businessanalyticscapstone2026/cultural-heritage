@@ -4,6 +4,7 @@ import "./globals.css"
 import { cn } from "@/lib/utils"
 import { AuthProvider } from "@/context/auth-context"
 import { RoleProvider } from "@/context/role-context"
+import { QueryProvider } from "@/components/providers/query-provider"
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" })
 
@@ -35,7 +36,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <AuthProvider>
-          <RoleProvider>{children}</RoleProvider>
+          <RoleProvider>
+            <QueryProvider>{children}</QueryProvider>
+          </RoleProvider>
         </AuthProvider>
       </body>
     </html>

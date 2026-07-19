@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import type { DashboardData } from "@/types/mto-dashboard"
 import {
   getMTODashboardStats,
   getMTOVisitsOverview,
@@ -71,4 +72,26 @@ export async function getRecentScansAction() {
 export async function getTodayScanCountAction() {
   const municipalityId = await resolveMunicipalityId()
   return getMTOTodayScanCount(municipalityId)
+}
+
+export async function getResolvedMunicipalityId(): Promise<string> {
+  return resolveMunicipalityId()
+}
+
+export async function getAllDashboardDataAction(
+  municipalityId: string
+): Promise<DashboardData> {
+  const [stats, visitsOverview, visitsByCategory, recentSites, recentActivity, visitorStats, recentScans, todayScanCount] =
+    await Promise.all([
+      getMTODashboardStats(municipalityId),
+      getMTOVisitsOverview(municipalityId),
+      getMTOVisitsByCategory(municipalityId),
+      getMTORecentSites(municipalityId),
+      getMTORecentActivity(municipalityId),
+      getMTOVisitorStats(municipalityId),
+      getMTORecentScans(municipalityId),
+      getMTOTodayScanCount(municipalityId),
+    ])
+
+  return { stats, visitsOverview, visitsByCategory, recentSites, recentActivity, visitorStats, recentScans, todayScanCount }
 }

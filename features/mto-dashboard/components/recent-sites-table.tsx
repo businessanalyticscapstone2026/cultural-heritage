@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
-import { getRecentSitesAction } from "../actions/dashboard"
+import { getAllDashboardDataAction } from "../actions/dashboard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -16,6 +16,8 @@ const statusStyles: Record<string, string> = {
   archived: "bg-gray-100 text-gray-800",
 }
 
+const selectData = (data: { recentSites: RecentSite[] }) => data.recentSites
+
 function formatRelativeDate(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const days = Math.floor(diff / 86_400_000)
@@ -26,29 +28,13 @@ function formatRelativeDate(dateStr: string): string {
   return `${Math.floor(days / 30)} months ago`
 }
 
-export default function RecentSitesTable() {
-  const [sites, setSites] = useState<RecentSite[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const load = () => {
-    setError(null)
-    setSites(null)
-    getRecentSitesAction()
-      .then(setSites)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    getRecentSitesAction()
-      .then((result) => {
-        if (!cancelled) setSites(result)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load")
-      })
-    return () => { cancelled = true }
-  }, [])
+export default function RecentSitesTable({ municipalityId }: { municipalityId: string }) {
+  const { data: sites, isPending, isError, error, refetch } = useQuery({
+    queryKey: ["mto-dashboard", municipalityId],
+    queryFn: () => getAllDashboardDataAction(municipalityId),
+    select: selectData,
+    staleTime: 60_000,
+  })
 
   return (
     <Card>
@@ -59,15 +45,15 @@ export default function RecentSitesTable() {
         </Link>
       </CardHeader>
       <CardContent>
-        {error && (
+        {isError && (
           <div className="text-sm text-destructive">
-            <p>{error}</p>
-            <button type="button" onClick={load} className="mt-1 text-xs text-primary hover:underline">
+            <p>{error instanceof Error ? error.message : "Failed to load"}</p>
+            <button type="button" onClick={() => refetch()} className="mt-1 text-xs text-primary hover:underline">
               Retry
             </button>
           </div>
         )}
-        {!sites && !error && (
+        {isPending && (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-12 w-full" />

@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
-import { getRecentScansAction } from "../actions/dashboard"
+import { getAllDashboardDataAction } from "../actions/dashboard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -10,29 +10,15 @@ import { QrCode } from "lucide-react"
 import type { RecentScan } from "@/types/mto-dashboard"
 import { formatDistanceToNow } from "@/lib/format-time"
 
-export default function RecentScansList() {
-  const [scans, setScans] = useState<RecentScan[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+const selectData = (data: { recentScans: RecentScan[] }) => data.recentScans
 
-  const load = () => {
-    setError(null)
-    setScans(null)
-    getRecentScansAction()
-      .then(setScans)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    getRecentScansAction()
-      .then((result) => {
-        if (!cancelled) setScans(result)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load")
-      })
-    return () => { cancelled = true }
-  }, [])
+export default function RecentScansList({ municipalityId }: { municipalityId: string }) {
+  const { data: scans, isPending, isError, error, refetch } = useQuery({
+    queryKey: ["mto-dashboard", municipalityId],
+    queryFn: () => getAllDashboardDataAction(municipalityId),
+    select: selectData,
+    staleTime: 60_000,
+  })
 
   return (
     <Card>
@@ -43,15 +29,15 @@ export default function RecentScansList() {
         </Link>
       </CardHeader>
       <CardContent>
-        {error && (
+        {isError && (
           <div className="text-sm text-destructive">
-            <p>{error}</p>
-            <button type="button" onClick={load} className="mt-1 text-xs text-primary hover:underline">
+            <p>{error instanceof Error ? error.message : "Failed to load"}</p>
+            <button type="button" onClick={() => refetch()} className="mt-1 text-xs text-primary hover:underline">
               Retry
             </button>
           </div>
         )}
-        {!scans && !error && (
+        {isPending && (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full" />

@@ -1,5 +1,6 @@
 export type {
   DashboardStat,
+  DashboardData,
   MonthlyVisitsPoint,
   CategoryBreakdownPoint,
   RecentSite,

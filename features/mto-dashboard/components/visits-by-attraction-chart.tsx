@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
-import { getVisitsByCategoryAction } from "../actions/dashboard"
+import { getAllDashboardDataAction } from "../actions/dashboard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -15,29 +15,15 @@ import {
 } from "recharts"
 import type { CategoryBreakdownPoint } from "@/types/mto-dashboard"
 
-export default function VisitsByAttractionChart() {
-  const [data, setData] = useState<CategoryBreakdownPoint[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+const selectData = (data: { visitsByCategory: CategoryBreakdownPoint[] }) => data.visitsByCategory
 
-  const load = () => {
-    setError(null)
-    setData(null)
-    getVisitsByCategoryAction()
-      .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    getVisitsByCategoryAction()
-      .then((result) => {
-        if (!cancelled) setData(result)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load")
-      })
-    return () => { cancelled = true }
-  }, [])
+export default function VisitsByAttractionChart({ municipalityId }: { municipalityId: string }) {
+  const { data, isPending, isError, error, refetch } = useQuery({
+    queryKey: ["mto-dashboard", municipalityId],
+    queryFn: () => getAllDashboardDataAction(municipalityId),
+    select: selectData,
+    staleTime: 60_000,
+  })
 
   return (
     <Card>
@@ -48,15 +34,15 @@ export default function VisitsByAttractionChart() {
         </Link>
       </CardHeader>
       <CardContent>
-        {error && (
+        {isError && (
           <div className="text-sm text-destructive">
-            <p>{error}</p>
-            <button type="button" onClick={load} className="mt-1 text-xs text-primary hover:underline">
+            <p>{error instanceof Error ? error.message : "Failed to load"}</p>
+            <button type="button" onClick={() => refetch()} className="mt-1 text-xs text-primary hover:underline">
               Retry
             </button>
           </div>
         )}
-        {!data && !error && <Skeleton className="h-[300px] w-full" />}
+        {isPending && <Skeleton className="h-[300px] w-full" />}
         {data && data.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">No visit data yet</p>
         )}

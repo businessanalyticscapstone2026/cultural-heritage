@@ -2,7 +2,8 @@
 
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
+import { CACHE_TAGS, CACHE_REVALIDATE_SECONDS } from "@/lib/cache-tags"
 import { z } from "zod"
 import type { GisConfig } from "./types"
 import { getMtoMapSites, getMtoSiteDetail, updateSiteLocation, buildSiteGeoJSON } from "./services"
@@ -136,6 +137,8 @@ export async function updateSiteCoordinatesAction(formData: FormData) {
   await updateSiteLocation(siteId, municipalityId, validated)
 
   revalidatePath("/mto/gis")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
 }
 
 /** Feed 3b (coordinate write via JSON): Update a site's coordinates from a click-on-map interaction */
@@ -156,4 +159,6 @@ export async function updateSiteCoordinatesJSON(json: string) {
   await updateSiteLocation(siteId, municipalityId, validated)
 
   revalidatePath("/mto/gis")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
 }

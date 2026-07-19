@@ -1,7 +1,8 @@
-import { createClient } from "@/utils/supabase/server"
-import { cookies } from "next/headers"
+import { unstable_cache } from "next/cache"
+import type { SupabaseClient } from "@supabase/supabase-js"
+import { createTokenClient, resolveAccessToken } from "@/utils/supabase/cached"
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
 import { FIRST_DISTRICT_MUNICIPALITIES } from "@/lib/constants"
-import { mapRoleNameToUserRole } from "@/features/auth/services"
 import { MUNICIPALITY_COLORS, computeChange } from "../utils"
 import type {
   ProvinceMetric,
@@ -16,34 +17,10 @@ import type {
   AnalyticsFilters,
 } from "../types"
 
-export async function resolvePtcaoAdmin(): Promise<void> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) throw new Error("Unauthorized")
-
-  const { data: profile } = await supabase
-    .from("staff_profiles")
-    .select("role_id")
-    .eq("id", user.id)
-    .maybeSingle()
-
-  if (!profile?.role_id) throw new Error("Unauthorized")
-
-  const { data: role } = await supabase
-    .from("roles")
-    .select("name")
-    .eq("id", profile.role_id)
-    .maybeSingle()
-
-  if (mapRoleNameToUserRole(role?.name) !== "ptcao_admin") throw new Error("Unauthorized")
-}
+type AnalyticsClient = SupabaseClient
 
 async function getSiteIdsForFilters(
-  supabase: ReturnType<typeof createClient>,
+  supabase: AnalyticsClient,
   filters: AnalyticsFilters
 ): Promise<string[]> {
   let query = supabase.from("heritage_sites").select("id")
@@ -68,12 +45,10 @@ async function getSiteIdsForFilters(
   return data?.map((r) => r.id as string) ?? []
 }
 
-export async function getProvinceSummary(
+async function fetchProvinceSummary(
+  supabase: AnalyticsClient,
   filters: AnalyticsFilters
 ): Promise<ProvinceMetric[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
   const siteIds = await getSiteIdsForFilters(supabase, filters)
   if (siteIds.length === 0) {
     return [
@@ -129,13 +104,20 @@ export async function getProvinceSummary(
   ]
 }
 
-export async function getVisitorTrend(
+const getCachedProvinceSummary = unstable_cache(
+  async (accessToken: string, filtersJson: string) => {
+    const supabase = createTokenClient(accessToken)
+    return fetchProvinceSummary(supabase, JSON.parse(filtersJson))
+  },
+  ["analytics-province-summary"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.analytics] },
+)
+
+async function fetchVisitorTrend(
+  supabase: AnalyticsClient,
   filters: AnalyticsFilters,
   granularity: TrendGranularity
 ): Promise<VisitorTrendPoint[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
   const siteIds = await getSiteIdsForFilters(supabase, filters)
   if (siteIds.length === 0) return []
 
@@ -177,12 +159,19 @@ export async function getVisitorTrend(
   }))
 }
 
-export async function getVisitsByMunicipality(
+const getCachedVisitorTrend = unstable_cache(
+  async (accessToken: string, filtersJson: string, granularity: string) => {
+    const supabase = createTokenClient(accessToken)
+    return fetchVisitorTrend(supabase, JSON.parse(filtersJson), granularity as TrendGranularity)
+  },
+  ["analytics-visitor-trend"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.analytics] },
+)
+
+async function fetchVisitsByMunicipality(
+  supabase: AnalyticsClient,
   filters: AnalyticsFilters
 ): Promise<MunicipalityVisit[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
   const { data: municipalities } = await supabase
     .from("municipalities")
     .select("id, name")
@@ -190,56 +179,80 @@ export async function getVisitsByMunicipality(
 
   if (!municipalities || municipalities.length === 0) return []
 
-  const results: MunicipalityVisit[] = []
+  const muniIds = municipalities.map((m) => m.id as string)
 
-  for (let i = 0; i < municipalities.length; i++) {
-    const muni = municipalities[i]
-    const { data: sites } = await supabase
+  const { data: sites } = await supabase
+    .from("heritage_sites")
+    .select("id, municipality_id")
+    .in("municipality_id", muniIds)
+
+  if (!sites || sites.length === 0) {
+    return municipalities.map((m, i) => ({
+      municipalityId: m.id as string,
+      municipalityName: m.name as string,
+      visits: 0,
+      percentage: 0,
+      color: MUNICIPALITY_COLORS[i % MUNICIPALITY_COLORS.length],
+    }))
+  }
+
+  const siteIdToMuni = new Map<string, string>()
+  for (const site of sites) {
+    siteIdToMuni.set(site.id as string, site.municipality_id as string)
+  }
+
+  const allSiteIds = sites.map((s) => s.id as string)
+
+  let visitQuery = supabase
+    .from("tourist_visits")
+    .select("site_id")
+    .in("site_id", allSiteIds)
+    .gte("visit_date", filters.dateFrom)
+    .lte("visit_date", filters.dateTo)
+
+  if (filters.categoryId) {
+    const { data: catSites } = await supabase
       .from("heritage_sites")
       .select("id")
-      .eq("municipality_id", muni.id)
-
-    const siteIds = sites?.map((s) => s.id as string) ?? []
-    if (siteIds.length === 0) {
-      results.push({
-        municipalityId: muni.id as string,
-        municipalityName: muni.name as string,
+      .in("municipality_id", muniIds)
+      .eq("category_id", filters.categoryId)
+    const catSiteIds = catSites?.map((s) => s.id as string) ?? []
+    if (catSiteIds.length === 0) {
+      return municipalities.map((m, i) => ({
+        municipalityId: m.id as string,
+        municipalityName: m.name as string,
         visits: 0,
         percentage: 0,
         color: MUNICIPALITY_COLORS[i % MUNICIPALITY_COLORS.length],
-      })
-      continue
+      }))
     }
-
-    let query = supabase
-      .from("tourist_visits")
-      .select("id", { count: "exact", head: true })
-      .in("site_id", siteIds)
-      .gte("visit_date", filters.dateFrom)
-      .lte("visit_date", filters.dateTo)
-
-    if (filters.categoryId) {
-      const { data: catSites } = await supabase
-        .from("heritage_sites")
-        .select("id")
-        .eq("municipality_id", muni.id)
-        .eq("category_id", filters.categoryId)
-      const catSiteIds = catSites?.map((s) => s.id as string) ?? []
-      query = query.in("site_id", catSiteIds.length > 0 ? catSiteIds : ["00000000-0000-0000-0000-000000000000"])
-    }
-
-    const { count } = await query
-
-    results.push({
-      municipalityId: muni.id as string,
-      municipalityName: muni.name as string,
-      visits: count ?? 0,
-      percentage: 0,
-      color: MUNICIPALITY_COLORS[i % MUNICIPALITY_COLORS.length],
-    })
+    visitQuery = visitQuery.in("site_id", catSiteIds)
   }
 
-  const totalVisits = results.reduce((sum, r) => sum + r.visits, 0)
+  const { data: visits } = await visitQuery
+
+  const muniVisitCount = new Map<string, number>()
+  for (const m of municipalities) {
+    muniVisitCount.set(m.id as string, 0)
+  }
+
+  for (const v of visits ?? []) {
+    const muniId = siteIdToMuni.get(v.site_id as string)
+    if (muniId) {
+      muniVisitCount.set(muniId, (muniVisitCount.get(muniId) ?? 0) + 1)
+    }
+  }
+
+  const totalVisits = Array.from(muniVisitCount.values()).reduce((sum, c) => sum + c, 0)
+
+  const results: MunicipalityVisit[] = municipalities.map((m, i) => ({
+    municipalityId: m.id as string,
+    municipalityName: m.name as string,
+    visits: muniVisitCount.get(m.id as string) ?? 0,
+    percentage: 0,
+    color: MUNICIPALITY_COLORS[i % MUNICIPALITY_COLORS.length],
+  }))
+
   for (const r of results) {
     r.percentage = totalVisits > 0 ? Math.round((r.visits / totalVisits) * 100) : 0
   }
@@ -247,12 +260,19 @@ export async function getVisitsByMunicipality(
   return results.sort((a, b) => b.visits - a.visits)
 }
 
-export async function getDemographics(
+const getCachedVisitsByMunicipality = unstable_cache(
+  async (accessToken: string, filtersJson: string) => {
+    const supabase = createTokenClient(accessToken)
+    return fetchVisitsByMunicipality(supabase, JSON.parse(filtersJson))
+  },
+  ["analytics-visits-by-municipality"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.analytics] },
+)
+
+async function fetchDemographics(
+  supabase: AnalyticsClient,
   filters: AnalyticsFilters
 ): Promise<{ ageGroups: AgeGroupBreakdown[]; visitorTypes: VisitorTypeBreakdown[] }> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
   const siteIds = await getSiteIdsForFilters(supabase, filters)
   if (siteIds.length === 0) {
     return { ageGroups: [], visitorTypes: [] }
@@ -306,12 +326,19 @@ export async function getDemographics(
   return { ageGroups, visitorTypes }
 }
 
-export async function getTopCategories(
+const getCachedDemographics = unstable_cache(
+  async (accessToken: string, filtersJson: string) => {
+    const supabase = createTokenClient(accessToken)
+    return fetchDemographics(supabase, JSON.parse(filtersJson))
+  },
+  ["analytics-demographics"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.analytics] },
+)
+
+async function fetchTopCategories(
+  supabase: AnalyticsClient,
   filters: AnalyticsFilters
 ): Promise<CategoryVisit[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
   const siteIds = await getSiteIdsForFilters(supabase, filters)
   if (siteIds.length === 0) return []
 
@@ -365,13 +392,20 @@ export async function getTopCategories(
     .sort((a, b) => b.visits - a.visits)
 }
 
-export async function getTopSites(
-  filters: AnalyticsFilters,
-  limit = 10
-): Promise<TopVisitedSite[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+const getCachedTopCategories = unstable_cache(
+  async (accessToken: string, filtersJson: string) => {
+    const supabase = createTokenClient(accessToken)
+    return fetchTopCategories(supabase, JSON.parse(filtersJson))
+  },
+  ["analytics-top-categories"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.analytics] },
+)
 
+async function fetchTopSites(
+  supabase: AnalyticsClient,
+  filters: AnalyticsFilters,
+  limit: number
+): Promise<TopVisitedSite[]> {
   const siteIds = await getSiteIdsForFilters(supabase, filters)
   if (siteIds.length === 0) return []
 
@@ -429,12 +463,19 @@ export async function getTopSites(
   })
 }
 
-export async function getRecommendationPerformance(
+const getCachedTopSites = unstable_cache(
+  async (accessToken: string, filtersJson: string, limit: number) => {
+    const supabase = createTokenClient(accessToken)
+    return fetchTopSites(supabase, JSON.parse(filtersJson), limit)
+  },
+  ["analytics-top-sites"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.analytics] },
+)
+
+async function fetchRecommendationPerformance(
+  supabase: AnalyticsClient,
   filters: AnalyticsFilters
 ): Promise<RecommendationFunnel> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
   const siteIds = await getSiteIdsForFilters(supabase, filters)
   if (siteIds.length === 0) {
     return { generated: 0, clicked: 0, routePlans: 0, conversions: 0 }
@@ -469,6 +510,50 @@ export async function getRecommendationPerformance(
     routePlans: routePlans.count ?? 0,
     conversions: routePlans.count ?? 0,
   }
+}
+
+const getCachedRecommendationPerformance = unstable_cache(
+  async (accessToken: string, filtersJson: string) => {
+    const supabase = createTokenClient(accessToken)
+    return fetchRecommendationPerformance(supabase, JSON.parse(filtersJson))
+  },
+  ["analytics-recommendation-performance"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.analytics] },
+)
+
+export async function getProvinceSummary(filters: AnalyticsFilters): Promise<ProvinceMetric[]> {
+  const accessToken = await resolveAccessToken()
+  return getCachedProvinceSummary(accessToken, JSON.stringify(filters))
+}
+
+export async function getVisitorTrend(filters: AnalyticsFilters, granularity: TrendGranularity): Promise<VisitorTrendPoint[]> {
+  const accessToken = await resolveAccessToken()
+  return getCachedVisitorTrend(accessToken, JSON.stringify(filters), granularity)
+}
+
+export async function getVisitsByMunicipality(filters: AnalyticsFilters): Promise<MunicipalityVisit[]> {
+  const accessToken = await resolveAccessToken()
+  return getCachedVisitsByMunicipality(accessToken, JSON.stringify(filters))
+}
+
+export async function getDemographics(filters: AnalyticsFilters): Promise<{ ageGroups: AgeGroupBreakdown[]; visitorTypes: VisitorTypeBreakdown[] }> {
+  const accessToken = await resolveAccessToken()
+  return getCachedDemographics(accessToken, JSON.stringify(filters))
+}
+
+export async function getTopCategories(filters: AnalyticsFilters): Promise<CategoryVisit[]> {
+  const accessToken = await resolveAccessToken()
+  return getCachedTopCategories(accessToken, JSON.stringify(filters))
+}
+
+export async function getTopSites(filters: AnalyticsFilters, limit = 10): Promise<TopVisitedSite[]> {
+  const accessToken = await resolveAccessToken()
+  return getCachedTopSites(accessToken, JSON.stringify(filters), limit)
+}
+
+export async function getRecommendationPerformance(filters: AnalyticsFilters): Promise<RecommendationFunnel> {
+  const accessToken = await resolveAccessToken()
+  return getCachedRecommendationPerformance(accessToken, JSON.stringify(filters))
 }
 
 function getPriorPeriodStart(dateFrom: string, dateTo: string): string {

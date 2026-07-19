@@ -1,5 +1,7 @@
 "use server"
 
+import { revalidateTag } from "next/cache"
+import { CACHE_TAGS, CACHE_REVALIDATE_SECONDS } from "@/lib/cache-tags"
 import {
   resolveMunicipalityId,
   logRecommendationEvent,
@@ -16,20 +18,26 @@ export async function logRecommendationEventAction(
   payload: LogRecommendationEventPayload
 ) {
   const municipalityId = await resolveMunicipalityId()
-  return logRecommendationEvent(municipalityId, payload)
+  const result = await logRecommendationEvent(municipalityId, payload)
+  revalidateTag(CACHE_TAGS.dashboardRecommendations, { expire: CACHE_REVALIDATE_SECONDS })
+  return result
 }
 
 export async function markRecommendationClickedAction(
   recommendationId: string
 ) {
-  return markRecommendationClicked(recommendationId)
+  const result = await markRecommendationClicked(recommendationId)
+  revalidateTag(CACHE_TAGS.dashboardRecommendations, { expire: CACHE_REVALIDATE_SECONDS })
+  return result
 }
 
 export async function markRecommendationConvertedAction(
   recommendationId: string,
   type: "route" | "bookmark"
 ) {
-  return markRecommendationConverted(recommendationId, type)
+  const result = await markRecommendationConverted(recommendationId, type)
+  revalidateTag(CACHE_TAGS.dashboardRecommendations, { expire: CACHE_REVALIDATE_SECONDS })
+  return result
 }
 
 export async function getRecommendationFunnelAction(

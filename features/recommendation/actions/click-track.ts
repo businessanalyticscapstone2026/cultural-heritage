@@ -1,7 +1,9 @@
 "use server"
 
+import { revalidateTag } from "next/cache"
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
+import { CACHE_TAGS, CACHE_REVALIDATE_SECONDS } from "@/lib/cache-tags"
 
 export async function trackRecommendationClickAction(recommendationId: string) {
   const cookieStore = await cookies()
@@ -15,4 +17,6 @@ export async function trackRecommendationClickAction(recommendationId: string) {
   if (error) {
     console.error("Failed to mark recommendation clicked:", error.message)
   }
+
+  revalidateTag(CACHE_TAGS.dashboardRecommendations, { expire: CACHE_REVALIDATE_SECONDS })
 }

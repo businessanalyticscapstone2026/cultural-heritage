@@ -1,6 +1,7 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
+import { CACHE_TAGS, CACHE_REVALIDATE_SECONDS } from "@/lib/cache-tags"
 import {
   submitForReview,
   getGovernanceQueue,
@@ -16,6 +17,8 @@ export async function submitForReviewAction(heritageSiteId: string, heritageSite
   const review = await submitForReview(heritageSiteId, heritageSiteVersionId)
   revalidatePath("/admin/data-governance")
   revalidatePath("/mto/heritage-sites")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
   return review
 }
 
@@ -35,6 +38,8 @@ export async function approveSubmissionAction(reviewId: string, comment?: string
   revalidatePath("/admin/data-governance")
   revalidatePath("/admin/heritage-repository")
   revalidatePath("/mto/heritage-sites")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
   return review
 }
 
@@ -42,6 +47,8 @@ export async function rejectSubmissionAction(reviewId: string, comment: string) 
   const review = await rejectSubmission(reviewId, comment)
   revalidatePath("/admin/data-governance")
   revalidatePath("/mto/heritage-sites")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
   return review
 }
 
@@ -50,6 +57,8 @@ export async function archiveRecordAction(heritageSiteId: string, comment: strin
   revalidatePath("/admin/data-governance")
   revalidatePath("/admin/heritage-repository")
   revalidatePath("/mto/heritage-sites")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
   return review
 }
 

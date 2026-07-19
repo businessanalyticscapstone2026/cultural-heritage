@@ -1,5 +1,5 @@
-import { createClient } from "@/utils/supabase/server"
-import { cookies } from "next/headers"
+import { unstable_cache } from "next/cache"
+import { createTokenClient, resolveAccessToken } from "@/utils/supabase/cached"
 import { parseFiltersFromSearchParams } from "@/features/analytics"
 import FilterBar from "@/features/analytics/components/filter-bar"
 import SummaryMetricsRow from "@/features/analytics/components/summary-metrics-row"
@@ -10,6 +10,20 @@ import TopCategoriesChart from "@/features/analytics/components/top-categories-c
 import TopSitesTable from "@/features/analytics/components/top-sites-table"
 import RecommendationFunnel from "@/features/analytics/components/recommendation-funnel"
 import ExportPanel from "@/features/analytics/components/export-panel"
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
+
+const getCachedCategories = unstable_cache(
+  async (accessToken: string) => {
+    const supabase = createTokenClient(accessToken)
+    const { data } = await supabase
+      .from("heritage_categories")
+      .select("id, name")
+      .order("name")
+    return data ?? []
+  },
+  ["analytics-categories"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.heritageCategories] },
+)
 
 export default async function AnalyticsPage({
   searchParams,
@@ -19,12 +33,8 @@ export default async function AnalyticsPage({
   const params = await searchParams
   const filters = parseFiltersFromSearchParams(params)
 
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-  const { data: categories } = await supabase
-    .from("heritage_categories")
-    .select("id, name")
-    .order("name")
+  const accessToken = await resolveAccessToken()
+  const categories = await getCachedCategories(accessToken)
 
   const filterKey = JSON.stringify(params)
 

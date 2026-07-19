@@ -1,6 +1,7 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
+import { CACHE_TAGS, CACHE_REVALIDATE_SECONDS } from "@/lib/cache-tags"
 import {
   getAllCategories,
   getCategoriesWithSiteCount,
@@ -22,6 +23,8 @@ export async function createCategoryAction(data: { name: string; description?: s
   const category = await createCategory(data)
   revalidatePath("/mto/categories")
   revalidatePath("/admin/heritage-repository")
+  revalidateTag(CACHE_TAGS.heritageCategories, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardCategories, { expire: CACHE_REVALIDATE_SECONDS })
   return category
 }
 
@@ -29,6 +32,8 @@ export async function updateCategoryAction(id: string, updates: Partial<Heritage
   const category = await updateCategory(id, updates)
   revalidatePath("/mto/categories")
   revalidatePath("/admin/heritage-repository")
+  revalidateTag(CACHE_TAGS.heritageCategories, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardCategories, { expire: CACHE_REVALIDATE_SECONDS })
   return category
 }
 
@@ -36,4 +41,6 @@ export async function deleteCategoryAction(id: string) {
   await deleteCategory(id)
   revalidatePath("/mto/categories")
   revalidatePath("/admin/heritage-repository")
+  revalidateTag(CACHE_TAGS.heritageCategories, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardCategories, { expire: CACHE_REVALIDATE_SECONDS })
 }

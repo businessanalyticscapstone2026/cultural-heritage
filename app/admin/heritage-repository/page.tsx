@@ -1,13 +1,8 @@
-import { getAllHeritageSites, getAllCategories } from "@/features/heritage/services"
-import { getMunicipalities } from "@/features/users/services"
+import { getRepositoryData } from "@/features/heritage/services/heritage-repository"
 import { AdminHeritageClient } from "@/features/heritage/components"
 
 export default async function HeritageRepositoryPage() {
-  const [sites, categories, municipalities] = await Promise.all([
-    getAllHeritageSites(),
-    getAllCategories(),
-    getMunicipalities(),
-  ])
+  const { sites, categories, municipalities } = await getRepositoryData()
 
   return (
     <AdminHeritageClient

@@ -1,7 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
+import { CACHE_TAGS, CACHE_REVALIDATE_SECONDS } from "@/lib/cache-tags"
 import { cookies } from "next/headers"
 import {
   getMtoSiteKpiCounts,
@@ -108,6 +109,8 @@ export async function createMtoSiteAction(formData: FormData) {
   )
 
   revalidatePath("/mto/heritage-sites")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
   return site
 }
 
@@ -163,6 +166,8 @@ export async function updateMtoSiteAction(siteId: string, formData: FormData) {
   } as Parameters<typeof updateMtoSite>[2])
 
   revalidatePath("/mto/heritage-sites")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
   return site
 }
 
@@ -200,6 +205,8 @@ export async function archiveMtoSiteAction(siteId: string) {
   const { municipalityId } = await getAuthContext()
   await archiveMtoSite(siteId, municipalityId)
   revalidatePath("/mto/heritage-sites")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
 }
 
 /** Restore an archived site back to draft */
@@ -207,6 +214,8 @@ export async function restoreMtoSiteAction(siteId: string) {
   const { municipalityId } = await getAuthContext()
   await restoreMtoSite(siteId, municipalityId)
   revalidatePath("/mto/heritage-sites")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
 }
 
 /** Get the current staff profile */

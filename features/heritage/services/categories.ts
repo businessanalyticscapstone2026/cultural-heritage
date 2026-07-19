@@ -140,20 +140,16 @@ export async function getCategoriesWithSiteCount(): Promise<(HeritageCategory & 
 
   const { data: categories, error: catError } = await supabase
     .from("heritage_categories")
-    .select("*")
+    .select("*, heritage_sites(count)")
     .order("display_order", { ascending: true })
 
   if (catError) throw catError
 
-  const results: (HeritageCategory & { siteCount: number })[] = []
+  return (categories ?? []).map((cat) => {
+    const sitesCount = cat.heritage_sites as { count: number }[] | null
+    const count = Array.isArray(sitesCount) ? (sitesCount[0]?.count ?? 0) : 0
 
-  for (const cat of categories ?? []) {
-    const { count } = await supabase
-      .from("heritage_sites")
-      .select("id", { count: "exact", head: true })
-      .eq("category_id", cat.id)
-
-    results.push({
+    return {
       id: cat.id as string,
       name: cat.name as string,
       description: (cat.description ?? null) as string | null,
@@ -161,9 +157,7 @@ export async function getCategoriesWithSiteCount(): Promise<(HeritageCategory & 
       color: (cat.color ?? null) as string | null,
       displayOrder: (cat.display_order ?? null) as number | null,
       status: (cat.status ?? "active") as HeritageCategory["status"],
-      siteCount: count ?? 0,
-    })
-  }
-
-  return results
+      siteCount: count,
+    }
+  })
 }

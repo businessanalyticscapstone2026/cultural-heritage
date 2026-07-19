@@ -1,5 +1,7 @@
-import { createClient } from "@/utils/supabase/server"
-import { cookies } from "next/headers"
+import { unstable_cache } from "next/cache"
+import type { SupabaseClient } from "@supabase/supabase-js"
+import { createTokenClient, resolveAccessToken } from "@/utils/supabase/cached"
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
 import type {
   KpiData,
   CategoryBreakdown,
@@ -11,10 +13,13 @@ import type {
   DashboardData,
 } from "../types"
 
-async function getKpiData(): Promise<KpiData> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+type SupabaseServer = SupabaseClient
 
+// ---------------------------------------------------------------------------
+// Uncached fetchers — accept a shared client (no createClient inside)
+// ---------------------------------------------------------------------------
+
+async function fetchKpiData(supabase: SupabaseServer): Promise<KpiData> {
   const { count: totalHeritageSites, error: errSites } = await supabase
     .from("heritage_sites")
     .select("*", { count: "exact", head: true })
@@ -63,41 +68,38 @@ async function getKpiData(): Promise<KpiData> {
   }
 }
 
-async function getCategoryBreakdown(): Promise<CategoryBreakdown[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
+/**
+ * Single grouped query via PostgREST embedded count
+ * (heritage_categories → heritage_sites(count)) instead of N+1 per-category COUNTs.
+ */
+async function fetchCategoryBreakdown(supabase: SupabaseServer): Promise<CategoryBreakdown[]> {
   const { data, error } = await supabase
     .from("heritage_categories")
-    .select("id, name, color")
+    .select("id, name, color, heritage_sites(count)")
 
   if (error) throw new Error(`Failed to fetch heritage_categories: ${error.message}`)
 
-  const breakdown: CategoryBreakdown[] = []
-
-  for (const cat of data ?? []) {
-    const { count, error: countErr } = await supabase
-      .from("heritage_sites")
-      .select("*", { count: "exact", head: true })
-      .eq("category_id", cat.id)
-
-    if (countErr) throw new Error(`Failed to count sites for category ${cat.id}: ${countErr.message}`)
-
-    breakdown.push({
-      id: cat.id,
-      name: cat.name,
-      color: cat.color ?? "#6366f1",
-      count: count ?? 0,
-    })
-  }
-
-  return breakdown
+  return (data ?? []).map((cat) => {
+    const sitesCount = cat.heritage_sites as { count: number }[] | null
+    const count = Array.isArray(sitesCount) ? (sitesCount[0]?.count ?? 0) : 0
+    return {
+      id: cat.id as string,
+      name: cat.name as string,
+      color: (cat.color as string | null) ?? "#6366f1",
+      count,
+    }
+  })
 }
 
-async function getRecentSites(): Promise<RecentHeritageSite[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+function extractName(
+  val: { name: string }[] | { name: string } | null,
+): string {
+  if (!val) return "—"
+  if (Array.isArray(val)) return val[0]?.name ?? "—"
+  return val.name ?? "—"
+}
 
+async function fetchRecentSites(supabase: SupabaseServer): Promise<RecentHeritageSite[]> {
   const { data, error } = await supabase
     .from("heritage_sites")
     .select(`
@@ -112,30 +114,19 @@ async function getRecentSites(): Promise<RecentHeritageSite[]> {
 
   if (error) throw new Error(`Failed to fetch recent heritage_sites: ${error.message}`)
 
-  function extractName(
-    val: { name: string }[] | { name: string } | null,
-  ): string {
-    if (!val) return "—"
-    if (Array.isArray(val)) return val[0]?.name ?? "—"
-    return val.name ?? "—"
-  }
-
   return (data ?? []).map((site) => {
     const siteRecord = site as Record<string, unknown>
     return {
-      id: site.id,
-      siteName: site.site_name,
+      id: site.id as string,
+      siteName: site.site_name as string,
       municipalityName: extractName(siteRecord.municipality as { name: string }[] | { name: string } | null),
       categoryName: extractName(siteRecord.category as { name: string }[] | { name: string } | null),
-      createdAt: site.created_at,
+      createdAt: site.created_at as string,
     }
   })
 }
 
-async function getVisitOverview(): Promise<VisitOverview[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
+async function fetchVisitOverview(supabase: SupabaseServer): Promise<VisitOverview[]> {
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
@@ -150,7 +141,7 @@ async function getVisitOverview(): Promise<VisitOverview[]> {
 
   const grouped = new Map<string, number>()
   for (const row of data ?? []) {
-    const key = row.visit_date
+    const key = row.visit_date as string
     grouped.set(key, (grouped.get(key) ?? 0) + 1)
   }
 
@@ -159,10 +150,15 @@ async function getVisitOverview(): Promise<VisitOverview[]> {
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
-async function getMapMarkers(): Promise<HeritageSiteMapMarker[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+function extractCategory(
+  val: { name: string; color: string }[] | { name: string; color: string } | null,
+): { name: string; color: string } {
+  if (!val) return { name: "—", color: "#6366f1" }
+  if (Array.isArray(val)) return val[0] ?? { name: "—", color: "#6366f1" }
+  return val
+}
 
+async function fetchMapMarkers(supabase: SupabaseServer): Promise<HeritageSiteMapMarker[]> {
   const { data, error } = await supabase
     .from("heritage_sites")
     .select(`
@@ -172,26 +168,20 @@ async function getMapMarkers(): Promise<HeritageSiteMapMarker[]> {
       longitude,
       category:category_id (name, color)
     `)
-    .eq("publication_status", "Published")
+    .eq("publication_status", "published")
 
   if (error) throw new Error(`Failed to fetch heritage_sites for map: ${error.message}`)
-
-  function extractCategory(
-    val: { name: string; color: string }[] | { name: string; color: string } | null,
-  ): { name: string; color: string } {
-    if (!val) return { name: "—", color: "#6366f1" }
-    if (Array.isArray(val)) return val[0] ?? { name: "—", color: "#6366f1" }
-    return val
-  }
 
   return (data ?? [])
     .filter((site) => site.latitude != null && site.longitude != null)
     .map((site) => {
       const siteRecord = site as Record<string, unknown>
-      const cat = extractCategory(siteRecord.category as { name: string; color: string }[] | { name: string; color: string } | null)
+      const cat = extractCategory(
+        siteRecord.category as { name: string; color: string }[] | { name: string; color: string } | null,
+      )
       return {
-        id: site.id,
-        siteName: site.site_name,
+        id: site.id as string,
+        siteName: site.site_name as string,
         latitude: Number(site.latitude),
         longitude: Number(site.longitude),
         categoryName: cat.name,
@@ -200,10 +190,9 @@ async function getMapMarkers(): Promise<HeritageSiteMapMarker[]> {
     })
 }
 
-async function getRecommendationPerformance(): Promise<RecommendationPerformance> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
+async function fetchRecommendationPerformance(
+  supabase: SupabaseServer,
+): Promise<RecommendationPerformance> {
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
@@ -241,10 +230,7 @@ async function getRecommendationPerformance(): Promise<RecommendationPerformance
   }
 }
 
-async function getSystemHealth(): Promise<SystemHealth> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
+async function fetchSystemHealth(supabase: SupabaseServer): Promise<SystemHealth> {
   const { data: latestBackup, error: errBackup } = await supabase
     .from("backups")
     .select("created_at, status, type")
@@ -270,32 +256,114 @@ async function getSystemHealth(): Promise<SystemHealth> {
   }
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
-  const [
-    kpis,
-    categoryBreakdown,
-    recentSites,
-    visitOverview,
-    mapMarkers,
-    recommendationPerformance,
-    systemHealth,
-  ] = await Promise.all([
-    getKpiData(),
-    getCategoryBreakdown(),
-    getRecentSites(),
-    getVisitOverview(),
-    getMapMarkers(),
-    getRecommendationPerformance(),
-    getSystemHealth(),
-  ])
+// ---------------------------------------------------------------------------
+// Cached getX wrappers (~60s, tagged for on-demand revalidation)
+// Access token is a serializable cache key; client is created inside the scope.
+// ---------------------------------------------------------------------------
 
-  return {
-    kpis,
-    categoryBreakdown,
-    recentSites,
-    visitOverview,
-    mapMarkers,
-    recommendationPerformance,
-    systemHealth,
-  }
+export const getKpiData = unstable_cache(
+  async (accessToken: string) => fetchKpiData(createTokenClient(accessToken)),
+  ["dashboard-kpis"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.dashboardKpis] },
+)
+
+export const getCategoryBreakdown = unstable_cache(
+  async (accessToken: string) => fetchCategoryBreakdown(createTokenClient(accessToken)),
+  ["dashboard-categories"],
+  {
+    revalidate: CACHE_REVALIDATE_SECONDS,
+    tags: [CACHE_TAGS.dashboardCategories, CACHE_TAGS.dashboardSites],
+  },
+)
+
+export const getRecentSites = unstable_cache(
+  async (accessToken: string) => fetchRecentSites(createTokenClient(accessToken)),
+  ["dashboard-recent-sites"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.dashboardSites] },
+)
+
+export const getVisitOverview = unstable_cache(
+  async (accessToken: string) => fetchVisitOverview(createTokenClient(accessToken)),
+  ["dashboard-visits"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.dashboardVisits] },
+)
+
+export const getMapMarkers = unstable_cache(
+  async (accessToken: string) => fetchMapMarkers(createTokenClient(accessToken)),
+  ["dashboard-map-markers"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.dashboardSites] },
+)
+
+export const getRecommendationPerformance = unstable_cache(
+  async (accessToken: string) => fetchRecommendationPerformance(createTokenClient(accessToken)),
+  ["dashboard-recommendations"],
+  {
+    revalidate: CACHE_REVALIDATE_SECONDS,
+    tags: [CACHE_TAGS.dashboardRecommendations],
+  },
+)
+
+export const getSystemHealth = unstable_cache(
+  async (accessToken: string) => fetchSystemHealth(createTokenClient(accessToken)),
+  ["dashboard-health"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.dashboardHealth] },
+)
+
+/**
+ * Full dashboard payload. Creates the cookie-bound client once to resolve the
+ * session token, then runs all section fetchers through a single shared
+ * token-client on cache miss (via the bundle cache below).
+ */
+const getCachedDashboardBundle = unstable_cache(
+  async (accessToken: string): Promise<DashboardData> => {
+    // One client for the whole bundle on cache miss
+    const supabase = createTokenClient(accessToken)
+
+    const [
+      kpis,
+      categoryBreakdown,
+      recentSites,
+      visitOverview,
+      mapMarkers,
+      recommendationPerformance,
+      systemHealth,
+    ] = await Promise.all([
+      fetchKpiData(supabase),
+      fetchCategoryBreakdown(supabase),
+      fetchRecentSites(supabase),
+      fetchVisitOverview(supabase),
+      fetchMapMarkers(supabase),
+      fetchRecommendationPerformance(supabase),
+      fetchSystemHealth(supabase),
+    ])
+
+    return {
+      kpis,
+      categoryBreakdown,
+      recentSites,
+      visitOverview,
+      mapMarkers,
+      recommendationPerformance,
+      systemHealth,
+    }
+  },
+  ["dashboard-data"],
+  {
+    revalidate: CACHE_REVALIDATE_SECONDS,
+    tags: [
+      CACHE_TAGS.dashboardKpis,
+      CACHE_TAGS.dashboardSites,
+      CACHE_TAGS.dashboardCategories,
+      CACHE_TAGS.dashboardVisits,
+      CACHE_TAGS.dashboardRecommendations,
+      CACHE_TAGS.dashboardHealth,
+    ],
+  },
+)
+
+export async function getDashboardData(): Promise<DashboardData> {
+  // Cookie client created once here for session resolution only
+  // (cookies() cannot run inside unstable_cache).
+  const accessToken = await resolveAccessToken()
+  return getCachedDashboardBundle(accessToken)
 }

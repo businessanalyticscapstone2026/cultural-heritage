@@ -116,7 +116,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
       <section
         ref={heroRef}
         id="top"
-        className="relative min-h-[100svh] w-full overflow-hidden pt-24 md:pt-20"
+        className="relative flex min-h-[100svh] w-full flex-col overflow-hidden pt-24 md:pt-20"
       >
         <motion.div style={{ y: heroY, opacity: heroOpacity }} className="absolute inset-0">
           {heroImageUrl ? (
@@ -137,7 +137,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
 
         <motion.div
           style={{ y: heroTextY }}
-          className="relative z-10 mx-auto flex max-w-7xl flex-col px-6 pb-8 md:px-10"
+          className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-6 pb-8 md:px-10"
         >
           <motion.div initial="hidden" animate="show" variants={fadeUp} className="max-w-4xl">
             <div className="mb-3 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-ink/70">

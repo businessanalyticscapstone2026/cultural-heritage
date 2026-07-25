@@ -17,7 +17,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
+import { X, Minus, Plus, Locate, Maximize, Loader2, MapPinOff } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -206,6 +206,25 @@ function DefaultLoader() {
   );
 }
 
+function MapUnavailable() {
+  return (
+    <div
+      role="alert"
+      className="bg-muted/50 absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 p-4 text-center"
+    >
+      <MapPinOff
+        className="text-muted-foreground size-6"
+        strokeWidth={1.5}
+        aria-hidden="true"
+      />
+      <p className="text-muted-foreground max-w-xs text-sm">
+        Map couldn&apos;t load in this browser. Try a different browser or
+        enable hardware acceleration.
+      </p>
+    </div>
+  );
+}
+
 function getViewport(map: MapLibreGL.Map): MapViewport {
   const center = map.getCenter();
   return {
@@ -235,6 +254,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   const [mapInstance, setMapInstance] = useState<MapLibreGL.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const currentStyleRef = useRef<MapStyleOption | null>(null);
   const styleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const internalUpdateRef = useRef(false);
@@ -278,16 +298,26 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       resolvedTheme === "dark" ? mapStyles.dark : mapStyles.light;
     currentStyleRef.current = initialStyle;
 
-    const map = new MapLibreGL.Map({
-      container: containerRef.current,
-      style: initialStyle,
-      renderWorldCopies: false,
-      attributionControl: {
-        compact: true,
-      },
-      ...props,
-      ...viewport,
-    });
+    let map: MapLibreGL.Map;
+    try {
+      map = new MapLibreGL.Map({
+        container: containerRef.current,
+        style: initialStyle,
+        renderWorldCopies: false,
+        attributionControl: {
+          compact: true,
+        },
+        ...props,
+        ...viewport,
+      });
+    } catch (error) {
+      // MapLibre throws synchronously when it can't create a WebGL context
+      // (e.g. GPU disabled/sandboxed, no hardware acceleration). Fall back
+      // to an inline message instead of crashing the page.
+      console.error("Failed to initialize map:", error);
+      setHasError(true);
+      return;
+    }
 
     const styleDataHandler = () => {
       clearStyleTimeout();
@@ -392,9 +422,15 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
         ref={containerRef}
         className={cn("relative h-full w-full", className)}
       >
-        {(!isLoaded || loading) && <DefaultLoader />}
-        {/* SSR-safe: children render only when map is loaded on client */}
-        {mapInstance && children}
+        {hasError ? (
+          <MapUnavailable />
+        ) : (
+          <>
+            {(!isLoaded || loading) && <DefaultLoader />}
+            {/* SSR-safe: children render only when map is loaded on client */}
+            {mapInstance && children}
+          </>
+        )}
       </div>
     </MapContext.Provider>
   );

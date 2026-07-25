@@ -161,6 +161,11 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
               <span className="h-px w-8 bg-ink/60" />
               First District of Batangas · Cultural Heritage Tourism
             </div>
+            {userName && (
+              <p className="text-display text-[clamp(3.1rem,5vw,3.6rem)] leading-snug text-ink/70">
+                Welcome back, <em className="italic text-accent">{userName}</em>.
+              </p>
+            )}
             <h1 className="text-display text-[clamp(2.9rem,7.5vw,6.5rem)] leading-[0.95] text-ink">
               Walk through <em className="italic text-accent">history</em>,
               <br />
@@ -185,6 +190,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
                 Open GIS Map
               </Link>
             </div>
+
           </motion.div>
         </motion.div>
       </section>

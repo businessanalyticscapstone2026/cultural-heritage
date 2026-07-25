@@ -162,7 +162,7 @@ export default function QRScannerOverlay({ open, onClose }: QRScannerOverlayProp
       >
         {phase !== "manual" && (
           <div className="relative flex-1">
-            <CameraFeed videoRef={camera.videoRef} />
+            <CameraFeed videoRef={camera.videoRef} stream={camera.stream} />
 
             {phase === "camera" && !manualMode && (
               <ScanTargetOverlay isScanning={scannerState === "scanning" || scannerState === "detected"} />

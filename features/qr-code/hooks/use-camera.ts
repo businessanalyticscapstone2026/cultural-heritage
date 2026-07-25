@@ -42,9 +42,13 @@ export function useCamera(): UseCameraReturn {
         videoRef.current.srcObject = mediaStream
       }
 
-      const track = mediaStream.getVideoTracks()[0]
-      const capabilities = track.getCapabilities() as { torch?: boolean }
-      setIsTorchSupported(!!capabilities.torch)
+      try {
+        const track = mediaStream.getVideoTracks()[0]
+        const capabilities = track.getCapabilities() as { torch?: boolean }
+        setIsTorchSupported(!!capabilities.torch)
+      } catch {
+        setIsTorchSupported(false)
+      }
     } catch (err) {
       if (err instanceof DOMException && err.name === "NotAllowedError") {
         setPermissionState("denied")
@@ -77,6 +81,28 @@ export function useCamera(): UseCameraReturn {
     }
     await startStream(newFacing)
   }, [facingMode, stream, startStream])
+
+  // Auto-detect permission state on mount and start camera if already granted
+  useEffect(() => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setPermissionState("unavailable")
+      return
+    }
+
+    // Check Permissions API if available
+    if (navigator.permissions?.query) {
+      navigator.permissions.query({ name: "camera" as PermissionName }).then((result) => {
+        if (result.state === "granted") {
+          startStream(facingMode)
+        } else if (result.state === "denied") {
+          setPermissionState("denied")
+        }
+        // "prompt" stays as default — PermissionGate will show the enable button
+      }).catch(() => {
+        // Permissions API not supported — stay in "prompt" state
+      })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     return () => {

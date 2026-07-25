@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Home, Compass, Map, Info, User, Shield, Search, Star } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 const navLinks = [
   { href: "/home", label: "Home", icon: Home },
@@ -17,6 +17,14 @@ export function HomeNavbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const mobileSearchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (mobileSearchOpen && mobileSearchRef.current) {
+      mobileSearchRef.current.focus()
+    }
+  }, [mobileSearchOpen])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,8 +34,68 @@ export function HomeNavbar() {
     }
   }
 
+  const handleMobileSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const q = searchQuery.trim()
+    if (q) {
+      router.push(`/explore?q=${encodeURIComponent(q)}`)
+      setSearchQuery("")
+      setMobileSearchOpen(false)
+    }
+  }
+
   return (
     <>
+      {/* Mobile top bar */}
+      <header className="fixed inset-x-0 top-0 z-50 bg-cream/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.06)] md:hidden">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <Link href="/home" className="flex items-center gap-2 group">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-ink text-cream transition-colors group-hover:bg-accent">
+              <Shield size={14} strokeWidth={1.5} />
+            </span>
+            <span className="text-display text-base tracking-tight">Batangas Heritage</span>
+          </Link>
+
+          <div className="flex items-center gap-1.5">
+            {mobileSearchOpen ? (
+              <form onSubmit={handleMobileSearchSubmit} className="flex items-center gap-1.5">
+                <input
+                  ref={mobileSearchRef}
+                  type="text"
+                  placeholder="Search sites..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onBlur={() => {
+                    if (!searchQuery.trim()) setMobileSearchOpen(false)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setSearchQuery("")
+                      setMobileSearchOpen(false)
+                    }
+                  }}
+                  className="w-40 rounded-full border border-ink/10 bg-background py-1.5 pl-3 pr-2 text-xs text-ink outline-none placeholder:text-ink-soft/60 focus:border-accent/40"
+                />
+              </form>
+            ) : (
+              <button
+                onClick={() => setMobileSearchOpen(true)}
+                className="grid h-9 w-9 place-items-center rounded-full border border-ink/10 bg-parchment/40 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+              >
+                <Search size={16} strokeWidth={1.5} />
+              </button>
+            )}
+            <Link
+              href="/profile"
+              className="grid h-9 w-9 place-items-center rounded-full border border-ink/10 bg-parchment/40 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+            >
+              <User size={16} strokeWidth={1.5} />
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Desktop header */}
       <header className="fixed inset-x-0 top-0 z-50 hidden bg-cream/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.06)] md:block">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <Link href="/home" className="flex items-center gap-2.5 group">
@@ -81,6 +149,7 @@ export function HomeNavbar() {
         </div>
       </header>
 
+      {/* Mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-ink/8 bg-cream/95 backdrop-blur-xl md:hidden">
         <div className="flex items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {navLinks.map((tab) => {

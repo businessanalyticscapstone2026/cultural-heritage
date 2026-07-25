@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { HomeNavbar } from "@/components/layout/home-navbar"
 import { createClient } from "@/utils/supabase/server"
+import QRScannerFAB from "@/features/qr-code/components/qr-scanner-fab"
 
 export default async function HomeLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -10,7 +11,8 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
   return (
     <>
       <HomeNavbar />
-      <main className="min-h-screen bg-background text-ink overflow-x-hidden">{children}</main>
+      <main className="min-h-screen bg-background text-ink overflow-x-hidden pt-14 md:pt-0">{children}</main>
+      <QRScannerFAB />
       <HomeSiteFooter isAuthenticated={!!user} />
     </>
   )

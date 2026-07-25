@@ -552,6 +552,7 @@ export default function TouristGISPanel({
           center={mapCenter}
           zoom={hasUserMarker ? 11 : 10}
           onViewportChange={handleViewportChange}
+          theme="light"
         >
           {/* User location marker */}
           {hasUserMarker && (

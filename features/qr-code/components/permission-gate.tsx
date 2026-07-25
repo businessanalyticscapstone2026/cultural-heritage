@@ -22,7 +22,7 @@ export function PermissionGate({
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-background text-center">
       {permissionState === "denied" ? (
         <>
           <div className="flex size-16 items-center justify-center rounded-full bg-destructive/10">

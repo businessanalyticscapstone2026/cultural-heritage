@@ -526,7 +526,8 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
           className="object-cover"
           sizes="100vw"
         />
-        <div className="absolute inset-0 opacity-20 bg-gradient-to-b from-ink via-ink/90 to-ink" />
+        <div className="absolute inset-0 bg-gradient-to-br from-ink via-ink/85 to-ink/70" />
+
         <div className="relative mx-auto max-w-7xl px-6 py-28 md:px-10 md:py-40">
           <div className="grid gap-12 lg:grid-cols-[1fr_1.6fr] lg:items-start">
             <motion.div initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}>
@@ -904,8 +905,16 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 1 }}
-          className="relative overflow-hidden rounded-3xl bg-ink px-8 py-20 text-center text-primary-foreground md:px-16 md:py-32"
+          className="relative overflow-hidden rounded-3xl bg-ink bg-[url('/images/home/atlas-map-illustration.jpg')] bg-cover bg-center px-8 py-20 text-center text-primary-foreground md:px-16 md:py-32"
         >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-3xl"
+            style={{
+              background:
+                "radial-gradient(ellipse 80% 70% at 50% 50%, rgba(15,39,71,0.96) 0%, rgba(15,39,71,0.90) 45%, rgba(15,39,71,0.75) 100%)",
+            }}
+          />
           <div className="relative">
             <div className="mx-auto mb-6 flex w-fit items-center gap-3 text-xs uppercase tracking-[0.3em] text-cream/70">
               <span className="h-px w-8 bg-cream/60" /> Start Your Journey

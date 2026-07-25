@@ -113,11 +113,11 @@ export function useQRScanner({ videoRef, onDetect, enabled = true }: UseQRScanne
   }, [])
 
   useEffect(() => {
-    if (enabled && state === "idle") {
+    if (enabled) {
       start()
     }
     return () => stop()
-  }, [enabled, state, start, stop])
+  }, [enabled, start, stop])
 
   return { state, start, stop }
 }

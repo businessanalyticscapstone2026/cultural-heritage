@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Compass, Map, Info, User, Shield, Search, Star, Bookmark } from "lucide-react"
-import { useState, useEffect } from "react"
+import { Home, Compass, Map, Info, User, Shield, Search, Star } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
 import { createClient } from "@/utils/supabase/client"
 import AuthPromptModal from "@/components/auth/auth-prompt-modal"
 
@@ -11,7 +11,6 @@ const navLinks = [
   { href: "/", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/map", label: "Map", icon: Map },
-  { href: "/saved", label: "Saved", icon: Bookmark },
   { href: "/reviews", label: "Reviews", icon: Star },
   { href: "/about", label: "About", icon: Info },
 ]
@@ -20,6 +19,8 @@ export default function PublicNavbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const mobileSearchRef = useRef<HTMLInputElement>(null)
   const [user, setUser] = useState<object | null>(null)
   const [authModal, setAuthModal] = useState<{ open: boolean; title: string; description: string }>({
     open: false, title: "", description: "",
@@ -32,6 +33,12 @@ export default function PublicNavbar() {
     })
   }, [])
 
+  useEffect(() => {
+    if (mobileSearchOpen && mobileSearchRef.current) {
+      mobileSearchRef.current.focus()
+    }
+  }, [mobileSearchOpen])
+
   const showAuthPrompt = (title: string, description: string) => {
     setAuthModal({ open: true, title, description })
   }
@@ -41,6 +48,17 @@ export default function PublicNavbar() {
     if (searchQuery.trim()) {
       router.push(`/explore?q=${encodeURIComponent(searchQuery.trim())}`)
       setSearchQuery("")
+      setMobileSearchOpen(false)
+    }
+  }
+
+  const handleMobileSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const q = searchQuery.trim()
+    if (q) {
+      router.push(`/explore?q=${encodeURIComponent(q)}`)
+      setSearchQuery("")
+      setMobileSearchOpen(false)
     }
   }
 
@@ -55,6 +73,70 @@ export default function PublicNavbar() {
         description={authModal.description}
       />
 
+      {/* Mobile top bar */}
+      <header className="fixed inset-x-0 top-0 z-50 bg-cream/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.06)] md:hidden">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <Link href="/" className="flex items-center gap-2 group">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-ink text-cream transition-colors group-hover:bg-accent">
+              <Shield size={14} strokeWidth={1.5} />
+            </span>
+            <span className="text-display text-base tracking-tight">Batangas Heritage</span>
+          </Link>
+
+          <div className="flex items-center gap-1.5">
+            {mobileSearchOpen ? (
+              <form onSubmit={handleMobileSearchSubmit} className="flex items-center gap-1.5">
+                <input
+                  ref={mobileSearchRef}
+                  type="text"
+                  placeholder="Search sites..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onBlur={() => {
+                    if (!searchQuery.trim()) setMobileSearchOpen(false)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setSearchQuery("")
+                      setMobileSearchOpen(false)
+                    }
+                  }}
+                  className="w-40 rounded-full border border-ink/10 bg-background py-1.5 pl-3 pr-2 text-xs text-ink outline-none placeholder:text-ink-soft/60 focus:border-accent/40"
+                />
+              </form>
+            ) : (
+              <button
+                onClick={() => setMobileSearchOpen(true)}
+                className="grid h-9 w-9 place-items-center rounded-full border border-ink/10 bg-parchment/40 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+              >
+                <Search size={16} strokeWidth={1.5} />
+              </button>
+            )}
+            {user ? (
+              <Link
+                href="/profile"
+                className="grid h-9 w-9 place-items-center rounded-full border border-ink/10 bg-parchment/40 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+              >
+                <User size={16} strokeWidth={1.5} />
+              </Link>
+            ) : (
+              <button
+                onClick={() =>
+                  showAuthPrompt(
+                    "Sign in to view your profile",
+                    "Create a free account to save destinations, write reviews, and track your heritage journeys.",
+                  )
+                }
+                className="grid h-9 w-9 place-items-center rounded-full border border-ink/10 bg-parchment/40 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+              >
+                <User size={16} strokeWidth={1.5} />
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Desktop header */}
       <header className="sticky inset-x-0 top-0 z-50 hidden bg-cream/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.06)] md:block">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <Link href="/" className="flex items-center gap-2.5 group">
@@ -70,22 +152,10 @@ export default function PublicNavbar() {
                 link.href === "/"
                   ? pathname === "/"
                   : pathname.startsWith(link.href)
-              const needsAuth = link.href === "/saved" && !user
               return (
                 <Link
                   key={link.label}
                   href={link.href}
-                  onClick={
-                    needsAuth
-                      ? (e) => {
-                          e.preventDefault()
-                          showAuthPrompt(
-                            "Sign in to view saved sites",
-                            "Create a free account to bookmark and track heritage destinations.",
-                          )
-                        }
-                      : undefined
-                  }
                   className={
                     active
                       ? "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium text-accent transition-all"
@@ -134,6 +204,7 @@ export default function PublicNavbar() {
         </div>
       </header>
 
+      {/* Mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-ink/8 bg-cream/95 backdrop-blur-xl md:hidden">
         <div className="flex items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {visibleLinks.map((tab) => {
@@ -141,22 +212,10 @@ export default function PublicNavbar() {
               tab.href === "/"
                 ? pathname === "/"
                 : pathname.startsWith(tab.href)
-            const needsAuth = tab.href === "/saved" && !user
             return (
               <Link
                 key={tab.label}
                 href={tab.href}
-                onClick={
-                  needsAuth
-                    ? (e) => {
-                        e.preventDefault()
-                        showAuthPrompt(
-                          "Sign in to view saved sites",
-                          "Create a free account to bookmark and track heritage destinations.",
-                        )
-                      }
-                    : undefined
-                }
                 className="flex flex-1 flex-col items-center gap-0.5 py-1"
               >
                 <span className={`grid h-10 w-10 place-items-center rounded-xl transition-all ${active ? "bg-ink text-cream" : "text-ink-soft"}`}>

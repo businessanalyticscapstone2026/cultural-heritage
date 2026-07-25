@@ -80,7 +80,7 @@ async function getSiteMediaMap(siteIds: string[]): Promise<Map<string, { fileUrl
     .select("site_id, file_url")
     .in("site_id", siteIds)
     .eq("media_type", "image")
-    .order("created_at", { ascending: true })
+    .order("sort_order", { ascending: true })
 
   const map = new Map<string, { fileUrl: string }>()
   const seen = new Set<string>()

@@ -20,6 +20,7 @@ async function fetchAllHeritageSites(supabase: SupabaseClient): Promise<Heritage
     .from("heritage_sites")
     .select(SITE_SELECT)
     .order("created_at", { ascending: false })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
 
   if (error) throw error
   return (data ?? []).map((row) => mapDbRowToSite(row, row))

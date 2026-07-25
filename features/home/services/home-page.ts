@@ -66,6 +66,14 @@ function pickPrimaryImage(media: MediaRow[] | null | undefined): string | null {
   return (primary ?? images[0]).file_url
 }
 
+function pickHeroImage(media: MediaRow[] | null | undefined): string | null {
+  if (!media?.length) return null
+  const images = media.filter((m) => m.media_type === "image")
+  if (images.length === 0) return null
+  const primary = images.find((m) => m.is_primary)
+  return primary?.file_url ?? null
+}
+
 function mapSiteRow(row: SiteJoinRow): HomeSiteCard {
   const mun = unwrapOne(row.municipality)
   const cat = unwrapOne(row.category)
@@ -100,6 +108,7 @@ async function getFeaturedSites(supabase: SupabaseServer): Promise<HomeSiteCard[
     .eq("publication_status", "published")
     .eq("visibility", "public")
     .order("updated_at", { ascending: false })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
     .limit(FEATURED_LIMIT)
 
   if (error) throw new Error(`Featured sites: ${error.message}`)
@@ -483,6 +492,7 @@ async function getEditorialHighlights(
     )
     .order("is_featured", { ascending: false })
     .order("updated_at", { ascending: false })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
     .limit(40)
 
   if (error) throw new Error(`Editorial highlights: ${error.message}`)
@@ -632,6 +642,24 @@ async function resolveHeroImageUrl(
   featured: HomeSiteCard[],
   recommended: HomeSiteCard[],
 ): Promise<string | null> {
+  const { data: heroSetting } = await supabase
+    .from("system_settings")
+    .select("value")
+    .eq("key", "home_hero_image_url")
+    .maybeSingle()
+
+  if (heroSetting) {
+    const val = heroSetting.value
+    let url: string | null = null
+    if (typeof val === "string") {
+      try { url = JSON.parse(val) as string } catch { /* ignore */ }
+    } else if (typeof val === "object" && val !== null) {
+      const inner = (val as Record<string, unknown>).value
+      if (typeof inner === "string") url = inner
+    }
+    if (url) return url
+  }
+
   const fromFeatured = featured.find((s) => s.imageUrl)?.imageUrl
   if (fromFeatured) return fromFeatured
 
@@ -649,7 +677,7 @@ async function resolveHeroImageUrl(
     .limit(5)
 
   for (const row of data ?? []) {
-    const url = pickPrimaryImage(row.media as MediaRow[] | null)
+    const url = pickHeroImage(row.media as MediaRow[] | null)
     if (url) return url
   }
 

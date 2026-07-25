@@ -113,6 +113,7 @@ export async function getMtoMapSites(municipalityId: string): Promise<MapSite[]>
     `)
     .eq("municipality_id", municipalityId)
     .order("site_name", { ascending: true })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
 
   if (error) throw new Error(`Failed to fetch map sites: ${error.message}`)
 

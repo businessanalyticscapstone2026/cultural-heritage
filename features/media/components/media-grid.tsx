@@ -1,3 +1,5 @@
+"use client"
+
 import { FolderOpen } from "lucide-react"
 import MediaCard from "./media-card"
 import type { HeritageSiteMedia } from "@/types/heritage"
@@ -7,6 +9,7 @@ interface MediaGridProps {
   onSetPrimary: (mediaId: string) => void
   onDelete: (media: HeritageSiteMedia) => void
   onReplace: (media: HeritageSiteMedia) => void
+  onReorder: (mediaId: string, direction: "up" | "down") => void
 }
 
 export default function MediaGrid({
@@ -14,6 +17,7 @@ export default function MediaGrid({
   onSetPrimary,
   onDelete,
   onReplace,
+  onReorder,
 }: MediaGridProps) {
   if (media.length === 0) {
     return (
@@ -26,13 +30,16 @@ export default function MediaGrid({
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {media.map((item) => (
+      {media.map((item, idx) => (
         <MediaCard
           key={item.id}
           media={item}
+          isFirst={idx === 0}
+          isLast={idx === media.length - 1}
           onSetPrimary={onSetPrimary}
           onDelete={onDelete}
           onReplace={onReplace}
+          onReorder={onReorder}
         />
       ))}
     </div>

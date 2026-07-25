@@ -29,6 +29,7 @@ export function mapDbRowToSite(row: Record<string, unknown>, joined: Record<stri
     fileSizeBytes: (m.file_size_bytes as number) ?? null,
     mimeType: (m.mime_type as string) ?? null,
     isPrimary: (m.is_primary as boolean) ?? false,
+    sortOrder: (m.sort_order as number) ?? 0,
     caption: (m.caption as string) ?? null,
     uploadedBy: (m.uploaded_by as string) ?? null,
     createdAt: m.created_at as string,
@@ -103,6 +104,7 @@ export async function getHeritageSites(): Promise<HeritageSite[]> {
     .eq("publication_status", "published")
     .eq("visibility", "public")
     .order("created_at", { ascending: false })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
 
   if (error) throw error
   return (data ?? []).map((row) => mapDbRowToSite(row, row))
@@ -118,6 +120,7 @@ export async function getHeritageSiteById(id: string): Promise<HeritageSite | nu
     .eq("id", id)
     .eq("publication_status", "published")
     .eq("visibility", "public")
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
     .maybeSingle()
 
   if (error) throw error
@@ -133,6 +136,7 @@ export async function getHeritageSiteByIdAdmin(id: string): Promise<HeritageSite
     .from("heritage_sites")
     .select(SITE_SELECT)
     .eq("id", id)
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
     .maybeSingle()
 
   if (error) throw error
@@ -148,6 +152,7 @@ export async function getAllHeritageSites(): Promise<HeritageSite[]> {
     .from("heritage_sites")
     .select(SITE_SELECT)
     .order("created_at", { ascending: false })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
 
   if (error) throw error
   return (data ?? []).map((row) => mapDbRowToSite(row, row))
@@ -162,6 +167,7 @@ export async function getHeritageSitesByMunicipality(municipalityId: string): Pr
     .select(SITE_SELECT)
     .eq("municipality_id", municipalityId)
     .order("created_at", { ascending: false })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
 
   if (error) throw error
   return (data ?? []).map((row) => mapDbRowToSite(row, row))

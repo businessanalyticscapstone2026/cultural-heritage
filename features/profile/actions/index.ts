@@ -97,6 +97,7 @@ export async function getRecommendationHistoryAction(userId: string): Promise<Re
     `)
     .eq("tourist_id", userId)
     .order("generated_at", { ascending: false })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
     .limit(50)
 
   if (error) throw new Error(error.message)

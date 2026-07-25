@@ -1,6 +1,6 @@
 "use client"
 
-import { Star, Trash2, Replace, FileText, Video } from "lucide-react"
+import { Star, Trash2, Replace, FileText, Video, ChevronUp, ChevronDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatFileSize } from "../constants"
@@ -8,16 +8,22 @@ import type { HeritageSiteMedia } from "@/types/heritage"
 
 interface MediaCardProps {
   media: HeritageSiteMedia
+  isFirst: boolean
+  isLast: boolean
   onSetPrimary: (mediaId: string) => void
   onDelete: (media: HeritageSiteMedia) => void
   onReplace: (media: HeritageSiteMedia) => void
+  onReorder: (mediaId: string, direction: "up" | "down") => void
 }
 
 export default function MediaCard({
   media,
+  isFirst,
+  isLast,
   onSetPrimary,
   onDelete,
   onReplace,
+  onReorder,
 }: MediaCardProps) {
   const isImage = media.mediaType === "image"
 
@@ -52,7 +58,27 @@ export default function MediaCard({
         </div>
       )}
 
-      <div className="absolute left-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="absolute left-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {!isFirst && (
+          <Button
+            variant="secondary"
+            size="icon-sm"
+            onClick={() => onReorder(media.id, "up")}
+            aria-label="Move earlier"
+          >
+            <ChevronUp className="size-3" />
+          </Button>
+        )}
+        {!isLast && (
+          <Button
+            variant="secondary"
+            size="icon-sm"
+            onClick={() => onReorder(media.id, "down")}
+            aria-label="Move later"
+          >
+            <ChevronDown className="size-3" />
+          </Button>
+        )}
         {!media.isPrimary && isImage && (
           <Button
             variant="secondary"

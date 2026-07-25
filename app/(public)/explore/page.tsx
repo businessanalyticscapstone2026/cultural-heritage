@@ -50,7 +50,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   const { data: { user } } = await supabase.auth.getUser()
 
   let recommendedSiteIds: string[] = []
-  let recommendedRecIdMap: Record<string, string> = {}
+  const recommendedRecIdMap: Record<string, string> = {}
   let bookmarkedSiteIds: string[] = []
 
   const sessionId = cookieStore.get("session_id")?.value
@@ -102,7 +102,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-8 md:px-6 lg:px-10">
+    <div className="mx-auto max-w-7xl px-4 pt-10 pb-8 md:px-6 lg:px-10">
       <div className="mb-8">
         <h1 className="font-heading text-3xl font-semibold text-heading">
           Explore Heritage Sites

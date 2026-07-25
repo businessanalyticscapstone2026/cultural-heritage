@@ -7,6 +7,7 @@ import {
   getMediaSettingsAction,
   setPrimaryImageAction,
   deleteMediaAction,
+  reorderMediaAction,
 } from "@/features/media/actions/media"
 import UploadOrchestrator from "@/features/media/components/upload-orchestrator"
 import MediaLibraryTabs from "@/features/media/components/media-library-tabs"
@@ -101,6 +102,20 @@ export default function MediaPageClient() {
     }
   }, [deleteTarget, selectedSiteId])
 
+  const handleReorder = useCallback(
+    async (mediaId: string, direction: "up" | "down") => {
+      if (!selectedSiteId) return
+      try {
+        await reorderMediaAction(selectedSiteId, mediaId, direction)
+        const refreshed = await getMediaAction(selectedSiteId)
+        setMedia(refreshed)
+      } catch {
+        // keep current state
+      }
+    },
+    [selectedSiteId]
+  )
+
   const filteredMedia = media.filter((m) => m.mediaType === activeTab)
 
   const counts: Record<MediaTabType, number> = {
@@ -108,6 +123,10 @@ export default function MediaPageClient() {
     document: media.filter((m) => m.mediaType === "document").length,
     video: media.filter((m) => m.mediaType === "video").length,
   }
+
+  const limitSummary = settings
+    ? `${counts.image}/${settings.maxImagesPerSite} images, ${counts.document}/${settings.maxDocumentsPerSite} docs, ${counts.video}/${settings.maxVideosPerSite} videos`
+    : null
 
   if (loading) {
     return (
@@ -126,6 +145,11 @@ export default function MediaPageClient() {
         <p className="text-sm text-muted-foreground">
           Upload and manage images, documents, and videos for your heritage sites.
         </p>
+        {limitSummary && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Per-site limits: {limitSummary}
+          </p>
+        )}
       </div>
 
       <div>
@@ -151,6 +175,7 @@ export default function MediaPageClient() {
         <UploadOrchestrator
           siteId={selectedSiteId}
           settings={settings}
+          currentCounts={counts}
           onUploadComplete={handleUploadComplete}
         />
       )}
@@ -174,6 +199,7 @@ export default function MediaPageClient() {
             onSetPrimary={handleSetPrimary}
             onDelete={setDeleteTarget}
             onReplace={() => {}}
+            onReorder={handleReorder}
           />
         )}
       </div>

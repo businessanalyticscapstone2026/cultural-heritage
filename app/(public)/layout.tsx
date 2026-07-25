@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-html-link-for-pages */
 import { cookies } from "next/headers"
 import PublicNavbar from "@/components/layout/public-navbar"
 import { createClient } from "@/utils/supabase/server"

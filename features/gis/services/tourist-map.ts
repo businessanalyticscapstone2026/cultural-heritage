@@ -53,6 +53,7 @@ export async function getTouristMapSites(): Promise<TouristMapSite[]> {
     .not("latitude", "is", null)
     .not("longitude", "is", null)
     .order("site_name", { ascending: true })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
 
   if (error) throw new Error(`Failed to fetch map sites: ${error.message}`)
 

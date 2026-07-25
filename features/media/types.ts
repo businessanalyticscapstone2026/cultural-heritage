@@ -18,6 +18,9 @@ export interface MediaSettings {
   maxImageBytes: number
   maxDocumentBytes: number
   maxVideoBytes: number
+  maxImagesPerSite: number
+  maxDocumentsPerSite: number
+  maxVideosPerSite: number
 }
 
 export interface SignedUploadUrlResponse {

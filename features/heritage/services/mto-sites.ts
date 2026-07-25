@@ -85,6 +85,7 @@ export async function getMtoSites(municipalityId: string): Promise<SiteWithDetai
     `)
     .eq("municipality_id", municipalityId)
     .order("created_at", { ascending: false })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
 
   if (error) throw error
 
@@ -148,6 +149,7 @@ export async function getMtoSites(municipalityId: string): Promise<SiteWithDetai
         fileSizeBytes: (m.file_size_bytes as number) ?? null,
         mimeType: (m.mime_type as string) ?? null,
         isPrimary: (m.is_primary as boolean) ?? false,
+        sortOrder: (m.sort_order as number) ?? 0,
         caption: (m.caption as string) ?? null,
         uploadedBy: (m.uploaded_by as string) ?? null,
         createdAt: m.created_at as string,
@@ -176,6 +178,7 @@ export async function getMtoSiteById(siteId: string, municipalityId: string): Pr
     `)
     .eq("id", siteId)
     .eq("municipality_id", municipalityId)
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
     .maybeSingle()
 
   if (error) throw error
@@ -241,6 +244,7 @@ export async function getMtoSiteById(siteId: string, municipalityId: string): Pr
       fileSizeBytes: (m.file_size_bytes as number) ?? null,
       mimeType: (m.mime_type as string) ?? null,
       isPrimary: (m.is_primary as boolean) ?? false,
+      sortOrder: (m.sort_order as number) ?? 0,
       caption: (m.caption as string) ?? null,
       uploadedBy: (m.uploaded_by as string) ?? null,
       createdAt: m.created_at as string,

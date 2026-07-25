@@ -9,6 +9,7 @@ import {
   FolderTree,
   Archive,
   Image,
+  ImagePlus,
   Map,
   Activity,
   BarChart3,
@@ -47,7 +48,8 @@ const navGroups: NavGroup[] = [
   {
     label: "Media Management",
     items: [
-      { label: "Media", href: ROUTES.MTO.MEDIA, icon: Image },
+      { label: "Media Library", href: ROUTES.MTO.MEDIA, icon: Image },
+      { label: "Hero Image", href: `${ROUTES.MTO.MEDIA}/hero`, icon: ImagePlus },
     ],
   },
   {

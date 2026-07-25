@@ -18,6 +18,7 @@ function mapDbMedia(row: Record<string, unknown>): HeritageSiteMedia {
     fileSizeBytes: (row.file_size_bytes as number) ?? null,
     mimeType: (row.mime_type as string) ?? null,
     isPrimary: (row.is_primary as boolean) ?? false,
+    sortOrder: (row.sort_order as number) ?? 0,
     caption: (row.caption as string) ?? null,
     uploadedBy: (row.uploaded_by as string) ?? null,
     createdAt: row.created_at as string,
@@ -61,18 +62,14 @@ export async function completeUpload(
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { error: uploadError } = await supabase.storage
-    .from(MEDIA_STORAGE_BUCKET)
-    .upload(filePath, new Blob(), {
-      contentType: metadata.mimeType,
-      upsert: false,
-    })
-
-  if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
-
   const { data: urlData } = supabase.storage
     .from(MEDIA_STORAGE_BUCKET)
     .getPublicUrl(filePath)
+
+  const { count } = await supabase
+    .from("heritage_site_media")
+    .select("id", { count: "exact", head: true })
+    .eq("site_id", siteId)
 
   const { data: dbRow, error: dbError } = await supabase
     .from("heritage_site_media")
@@ -86,6 +83,7 @@ export async function completeUpload(
       caption: metadata.caption ?? null,
       uploaded_by: user?.id ?? null,
       is_primary: false,
+      sort_order: count ?? 0,
     })
     .select()
     .single()
@@ -104,6 +102,7 @@ export async function getMediaBySiteId(siteId: string): Promise<HeritageSiteMedi
     .select("*")
     .eq("site_id", siteId)
     .order("is_primary", { ascending: false })
+    .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false })
 
   if (error) throw error
@@ -239,6 +238,9 @@ export async function getMediaSettings(): Promise<MediaSettings> {
       "media_max_image_bytes",
       "media_max_document_bytes",
       "media_max_video_bytes",
+      "max_media_images_per_site",
+      "max_media_documents_per_site",
+      "max_media_videos_per_site",
     ])
 
   const settings: Record<string, unknown> = {}
@@ -257,5 +259,93 @@ export async function getMediaSettings(): Promise<MediaSettings> {
     maxImageBytes: (settings.media_max_image_bytes as number) ?? 10_485_760,
     maxDocumentBytes: (settings.media_max_document_bytes as number) ?? 10_485_760,
     maxVideoBytes: (settings.media_max_video_bytes as number) ?? 104_857_600,
+    maxImagesPerSite: (settings.max_media_images_per_site as number) ?? 20,
+    maxDocumentsPerSite: (settings.max_media_documents_per_site as number) ?? 5,
+    maxVideosPerSite: (settings.max_media_videos_per_site as number) ?? 3,
   }
+}
+
+export async function getMediaCount(siteId: string): Promise<Record<string, number>> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data } = await supabase
+    .from("heritage_site_media")
+    .select("media_type")
+    .eq("site_id", siteId)
+
+  const counts: Record<string, number> = { image: 0, document: 0, video: 0 }
+  for (const row of data ?? []) {
+    const t = row.media_type as string
+    if (t in counts) counts[t]++
+  }
+  return counts
+}
+
+export async function reorderMedia(siteId: string, mediaId: string, direction: "up" | "down"): Promise<void> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data: current, error: fetchErr } = await supabase
+    .from("heritage_site_media")
+    .select("id, sort_order")
+    .eq("site_id", siteId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true })
+
+  if (fetchErr) throw fetchErr
+
+  const items = (current ?? []) as { id: string; sort_order: number }[]
+  const idx = items.findIndex((r) => r.id === mediaId)
+  if (idx === -1) throw new Error("Media not found")
+
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1
+  if (swapIdx < 0 || swapIdx >= items.length) return
+
+  const a = items[idx]
+  const b = items[swapIdx]
+
+  await supabase
+    .from("heritage_site_media")
+    .update({ sort_order: b.sort_order })
+    .eq("id", a.id)
+
+  await supabase
+    .from("heritage_site_media")
+    .update({ sort_order: a.sort_order })
+    .eq("id", b.id)
+}
+
+export async function getHeroImage(): Promise<string | null> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data } = await supabase
+    .from("system_settings")
+    .select("value")
+    .eq("key", "home_hero_image_url")
+    .maybeSingle()
+
+  if (!data) return null
+  const val = data.value
+  if (typeof val === "string") {
+    const parsed = JSON.parse(val) as string
+    return parsed || null
+  }
+  if (typeof val === "object" && val !== null) {
+    const inner = (val as Record<string, unknown>).value
+    if (typeof inner === "string") return inner || null
+  }
+  return null
+}
+
+export async function setHeroImage(url: string): Promise<void> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { error } = await supabase
+    .from("system_settings")
+    .upsert({ key: "home_hero_image_url", value: JSON.stringify(url) }, { onConflict: "key" })
+
+  if (error) throw error
 }

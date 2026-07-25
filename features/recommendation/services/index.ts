@@ -54,7 +54,7 @@ interface RawSite {
   category: { id: string; name: string; description: string | null; icon: string | null; color: string | null; display_order: number | null; status: string } | null
   municipality: { name: string } | null
   tags: HeritageSiteTag[]
-  media: { id: string; site_id: string; media_type: string; file_url: string; file_name: string | null; file_size_bytes: number | null; mime_type: string | null; is_primary: boolean; caption: string | null; uploaded_by: string | null; created_at: string }[]
+  media: { id: string; site_id: string; media_type: string; file_url: string; file_name: string | null; file_size_bytes: number | null; mime_type: string | null; is_primary: boolean; sort_order: number | null; caption: string | null; uploaded_by: string | null; created_at: string }[]
 }
 
 function toHeritageSite(raw: RawSite): HeritageSite {
@@ -110,6 +110,7 @@ function toHeritageSite(raw: RawSite): HeritageSite {
       fileSizeBytes: m.file_size_bytes,
       mimeType: m.mime_type,
       isPrimary: m.is_primary,
+      sortOrder: m.sort_order ?? 0,
       caption: m.caption,
       uploadedBy: m.uploaded_by,
       createdAt: m.created_at,

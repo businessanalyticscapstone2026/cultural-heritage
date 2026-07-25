@@ -38,6 +38,7 @@ export async function getNearbySites(siteId: string, limit = 5): Promise<NearbyS
     `)
     .or(`site_a_id.eq.${siteId},site_b_id.eq.${siteId}`)
     .order("distance_km", { ascending: true })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
     .limit(limit)
 
   if (error) throw error

@@ -37,6 +37,7 @@ function mapDbRow(row: Record<string, unknown>): HeritageSite {
     fileSizeBytes: (m.file_size_bytes as number) ?? null,
     mimeType: (m.mime_type as string) ?? null,
     isPrimary: (m.is_primary as boolean) ?? false,
+    sortOrder: (m.sort_order as number) ?? 0,
     caption: (m.caption as string) ?? null,
     uploadedBy: (m.uploaded_by as string) ?? null,
     createdAt: m.created_at as string,
@@ -147,6 +148,7 @@ export async function getPublishedSites(options: {
 
   const { data, error, count } = await query
     .order("created_at", { ascending: false })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
     .range(from, to)
 
   if (error) throw error

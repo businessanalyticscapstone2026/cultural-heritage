@@ -15,6 +15,7 @@ import type { HeritageSiteMedia } from "@/types/heritage"
 interface UploadOrchestratorProps {
   siteId: string
   settings: MediaSettings
+  currentCounts: Record<string, number>
   onUploadComplete: (media: HeritageSiteMedia) => void
 }
 
@@ -59,6 +60,7 @@ function uid() {
 export default function UploadOrchestrator({
   siteId,
   settings,
+  currentCounts,
   onUploadComplete,
 }: UploadOrchestratorProps) {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([])
@@ -138,13 +140,31 @@ export default function UploadOrchestrator({
       const errors: ValidationError[] = []
       const valid: File[] = []
 
+      const runningCounts = { ...currentCounts }
+
       for (const file of files) {
         const error = validateFile(file, settings)
         if (error) {
           errors.push({ fileName: file.name, message: error })
-        } else {
-          valid.push(file)
+          continue
         }
+
+        const mediaType = getMediaTypeFromMime(file.type)
+        const limit =
+          mediaType === "image"
+            ? settings.maxImagesPerSite
+            : mediaType === "video"
+              ? settings.maxVideosPerSite
+              : settings.maxDocumentsPerSite
+
+        if (runningCounts[mediaType] >= limit) {
+          const label = mediaType === "image" ? "images" : mediaType === "video" ? "videos" : "documents"
+          errors.push({ fileName: file.name, message: `Per-site limit reached: max ${limit} ${label}` })
+          continue
+        }
+
+        runningCounts[mediaType]++
+        valid.push(file)
       }
 
       setValidationErrors((prev) => [...prev, ...errors])
@@ -165,7 +185,7 @@ export default function UploadOrchestrator({
         }
       }
     },
-    [settings, uploadFile]
+    [settings, currentCounts, uploadFile]
   )
 
   const handleCancel = useCallback((id: string) => {

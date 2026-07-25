@@ -65,6 +65,7 @@ export interface HeritageSiteMedia {
   fileSizeBytes: number | null
   mimeType: string | null
   isPrimary: boolean
+  sortOrder: number
   caption: string | null
   uploadedBy: string | null
   createdAt: string

@@ -1,10 +1,11 @@
 "use client"
 
-import { useRef, useCallback } from "react"
+import { useRef, useCallback, useState } from "react"
 import Link from "next/link"
 import { motion, useScroll, useTransform, type Variants } from "motion/react"
 import {
   ArrowRight,
+  ChevronLeft,
   ChevronRight,
   Clock,
   Map as MapIcon,
@@ -12,6 +13,7 @@ import {
   Sparkles,
   Star,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
 import { AtlasMapPreview } from "@/features/home/components/atlas-map-preview"
 import { getCategoryIcon } from "@/features/home/components/category-icon"
@@ -19,6 +21,8 @@ import { TourismHighlightsSection } from "@/features/home/components/tourism-hig
 import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
 import type { HomePagePayload, TrendingSource } from "@/features/home/types"
 import type { RecommendationResult } from "@/types/recommendation"
+
+const CATEGORIES_PER_PAGE = 4
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 32 },
@@ -100,6 +104,13 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
   const handleRecClick = useCallback((recId: string) => {
     trackRecommendationClickAction(recId)
   }, [])
+
+  const [categoryPage, setCategoryPage] = useState(0)
+  const categoryTotalPages = Math.ceil(categories.length / CATEGORIES_PER_PAGE)
+  const visibleCategories = categories.slice(
+    categoryPage * CATEGORIES_PER_PAGE,
+    categoryPage * CATEGORIES_PER_PAGE + CATEGORIES_PER_PAGE
+  )
 
   const heroRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
@@ -292,18 +303,49 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
           whileInView="show"
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeUp}
-          className="mb-14"
+          className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between"
         >
-          <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-accent">
-            <span className="h-px w-8 bg-accent" /> Categories
+          <div>
+            <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-accent">
+              <span className="h-px w-8 bg-accent" /> Categories
+            </div>
+            <h2 className="text-display text-5xl leading-[1] md:text-7xl">
+              Explore by <em className="italic text-accent">type.</em>
+            </h2>
+            <p className="mt-4 max-w-lg text-ink-soft">
+              Find the heritage experience that matches your interests — from sacred spaces to
+              wild landscapes.
+            </p>
           </div>
-          <h2 className="text-display text-5xl leading-[1] md:text-7xl">
-            Explore by <em className="italic text-accent">type.</em>
-          </h2>
-          <p className="mt-4 max-w-lg text-ink-soft">
-            Find the heritage experience that matches your interests — from sacred spaces to
-            wild landscapes.
-          </p>
+
+          {categoryTotalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="rounded-full"
+                aria-label="Previous categories"
+                disabled={categoryPage === 0}
+                onClick={() => setCategoryPage((p) => Math.max(0, p - 1))}
+              >
+                <ChevronLeft size={18} />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="rounded-full"
+                aria-label="Next categories"
+                disabled={categoryPage === categoryTotalPages - 1}
+                onClick={() =>
+                  setCategoryPage((p) => Math.min(categoryTotalPages - 1, p + 1))
+                }
+              >
+                <ChevronRight size={18} />
+              </Button>
+            </div>
+          )}
         </motion.div>
 
         {categories.length === 0 ? (
@@ -314,8 +356,8 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
             actionLabel="Browse sites"
           />
         ) : (
-          <div className="-mx-6 flex gap-4 overflow-x-auto px-6 pb-4 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-4 snap-x snap-mandatory">
-            {categories.map((cat, i) => {
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {visibleCategories.map((cat, i) => {
               const Icon = getCategoryIcon(cat.icon)
               const tint = cat.color ?? "#2E5BFF"
               return (
@@ -325,7 +367,6 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: i * 0.05 }}
-                  className="min-w-[240px] snap-start md:min-w-0"
                 >
                   <Link
                     href={`/explore?category=${cat.id}`}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useCallback, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { motion, useScroll, useTransform, type Variants } from "motion/react"
 import {
@@ -512,6 +513,13 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
 
       {/* 6. Interactive heritage atlas preview */}
       <section className="relative overflow-hidden bg-ink text-primary-foreground">
+        <Image
+          src="/images/home/atlas-map-illustration.jpg"
+          alt=""
+          fill
+          className="object-cover"
+          sizes="100vw"
+        />
         <div className="absolute inset-0 opacity-20 bg-gradient-to-b from-ink via-ink/90 to-ink" />
         <div className="relative mx-auto max-w-7xl px-6 py-28 md:px-10 md:py-40">
           <div className="grid gap-12 lg:grid-cols-[1fr_1.6fr] lg:items-start">

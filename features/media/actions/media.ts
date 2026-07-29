@@ -12,8 +12,6 @@ import {
   getMediaSettings,
   getMediaCount,
   reorderMedia,
-  getHeroImage,
-  setHeroImage,
 } from "../services"
 import type { MediaUploadMetadata } from "../types"
 import type { HeritageSiteMedia } from "@/types/heritage"
@@ -102,16 +100,4 @@ export async function getMediaCountAction(siteId: string): Promise<Record<string
 export async function reorderMediaAction(siteId: string, mediaId: string, direction: "up" | "down"): Promise<void> {
   await verifyMtoOwnership(siteId)
   return reorderMedia(siteId, mediaId, direction)
-}
-
-export async function getHeroImageAction() {
-  return getHeroImage()
-}
-
-export async function setHeroImageAction(url: string) {
-  return setHeroImage(url)
-}
-
-export async function requestHeroUploadUrlAction(fileName: string, contentType: string) {
-  return getSignedUploadUrl("hero", fileName, contentType)
 }

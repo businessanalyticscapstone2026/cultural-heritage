@@ -68,7 +68,6 @@ export async function getBookmarkedSites(touristId: string): Promise<SavedSite[]
     `)
     .eq("tourist_id", touristId)
     .order("created_at", { ascending: false })
-    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
 
   if (error) throw error
 

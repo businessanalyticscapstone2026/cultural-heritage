@@ -315,37 +315,3 @@ export async function reorderMedia(siteId: string, mediaId: string, direction: "
     .update({ sort_order: a.sort_order })
     .eq("id", b.id)
 }
-
-export async function getHeroImage(): Promise<string | null> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
-  const { data } = await supabase
-    .from("system_settings")
-    .select("value")
-    .eq("key", "home_hero_image_url")
-    .maybeSingle()
-
-  if (!data) return null
-  const val = data.value
-  if (typeof val === "string") {
-    const parsed = JSON.parse(val) as string
-    return parsed || null
-  }
-  if (typeof val === "object" && val !== null) {
-    const inner = (val as Record<string, unknown>).value
-    if (typeof inner === "string") return inner || null
-  }
-  return null
-}
-
-export async function setHeroImage(url: string): Promise<void> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
-  const { error } = await supabase
-    .from("system_settings")
-    .upsert({ key: "home_hero_image_url", value: JSON.stringify(url) }, { onConflict: "key" })
-
-  if (error) throw error
-}

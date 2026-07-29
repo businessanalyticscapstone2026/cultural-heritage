@@ -1,6 +1,5 @@
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
-import { getMunicipalityImage } from "@/utils/images"
 import { generateRecommendations } from "@/features/recommendation/services"
 import type {
   HomeAtlasStats,
@@ -64,14 +63,6 @@ function pickPrimaryImage(media: MediaRow[] | null | undefined): string | null {
   if (images.length === 0) return null
   const primary = images.find((m) => m.is_primary)
   return (primary ?? images[0]).file_url
-}
-
-function pickHeroImage(media: MediaRow[] | null | undefined): string | null {
-  if (!media?.length) return null
-  const images = media.filter((m) => m.media_type === "image")
-  if (images.length === 0) return null
-  const primary = images.find((m) => m.is_primary)
-  return primary?.file_url ?? null
 }
 
 function mapSiteRow(row: SiteJoinRow): HomeSiteCard {
@@ -637,58 +628,8 @@ async function getRecentlyViewed(
     .filter((card): card is HomeSiteCard => card != null)
 }
 
-async function resolveHeroImageUrl(
-  supabase: SupabaseServer,
-  featured: HomeSiteCard[],
-  recommended: HomeSiteCard[],
-): Promise<string | null> {
-  const { data: heroSetting } = await supabase
-    .from("system_settings")
-    .select("value")
-    .eq("key", "home_hero_image_url")
-    .maybeSingle()
-
-  if (heroSetting) {
-    const val = heroSetting.value
-    let url: string | null = null
-    if (typeof val === "string") {
-      try { url = JSON.parse(val) as string } catch { /* ignore */ }
-    } else if (typeof val === "object" && val !== null) {
-      const inner = (val as Record<string, unknown>).value
-      if (typeof inner === "string") url = inner
-    }
-    if (url) return url
-  }
-
-  const fromFeatured = featured.find((s) => s.imageUrl)?.imageUrl
-  if (fromFeatured) return fromFeatured
-
-  const fromRecommended = recommended.find((s) => s.imageUrl)?.imageUrl
-  if (fromRecommended) return fromRecommended
-
-  const { data } = await supabase
-    .from("heritage_sites")
-    .select(`
-      media:heritage_site_media(file_url, is_primary, media_type),
-      municipality:municipalities(name)
-    `)
-    .eq("publication_status", "published")
-    .eq("visibility", "public")
-    .limit(5)
-
-  for (const row of data ?? []) {
-    const url = pickHeroImage(row.media as MediaRow[] | null)
-    if (url) return url
-  }
-
-  // District asset fallback (project static images, not mock site content)
-  const muniNames = ["Balayan", "Taal", "Calatagan", "Nasugbu", "Lian"]
-  for (const name of muniNames) {
-    const img = await getMunicipalityImage(name)
-    if (img) return img
-  }
-
-  return null
+async function resolveHeroImageUrl(): Promise<string> {
+  return "/images/municipalities/taal/Log%20in%20to%20Foursquare.jfif"
 }
 
 export async function getTouristHomePageData(): Promise<HomePagePayload> {
@@ -716,7 +657,7 @@ export async function getTouristHomePageData(): Promise<HomePagePayload> {
   ])
 
   const [heroImageUrl, nearbySites, recentlyViewedSites] = await Promise.all([
-    resolveHeroImageUrl(supabase, featuredSites, recommended.sites),
+    resolveHeroImageUrl(),
     getNearbyForHome(supabase, recommended.homeLat, recommended.homeLng),
     getRecentlyViewed(supabase),
   ])

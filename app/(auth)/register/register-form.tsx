@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Eye, EyeOff, Mail, Lock, User, Compass, Route, Star, Heart, X, ArrowLeft } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
+import { BrandLogo } from "@/components/brand/brand-logo"
 
 const currentYear = new Date().getFullYear()
 
@@ -140,9 +141,7 @@ export default function RegisterForm() {
 
           <div className="relative z-10 flex flex-col h-full p-10 text-white">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full bg-white/15 flex items-center justify-center">
-                <Compass className="w-5 h-5" />
-              </div>
+              <BrandLogo variant="dark" className="size-11" />
               <div className="text-white leading-tight">
                 <p className="text-xs uppercase tracking-wide text-white/70">Batangas Heritage</p>
                 <p className="font-semibold text-sm">Tourism DSS</p>

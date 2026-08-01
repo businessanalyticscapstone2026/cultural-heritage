@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  Shield,
   LayoutDashboard,
   Landmark,
   FolderTree,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ROUTES } from "@/lib/constants"
+import { BrandLogo } from "@/components/brand/brand-logo"
 
 interface NavItem {
   label: string
@@ -86,9 +86,7 @@ export default function MTOSidebar() {
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar">
       <div className="flex items-center gap-2.5 border-b px-4 py-4">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-          <Shield className="size-4 text-primary" />
-        </div>
+        <BrandLogo variant="light" className="size-8" />
         <div className="min-w-0">
           <p className="text-sm font-bold leading-tight tracking-tight text-sidebar-foreground">MTO PORTAL</p>
           <p className="text-[10px] leading-tight text-sidebar-foreground/80">Municipal Tourism Office</p>

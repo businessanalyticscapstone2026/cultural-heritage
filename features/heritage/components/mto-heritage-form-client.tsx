@@ -4,12 +4,21 @@ import { useState, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
-import { SaveIcon, FileTextIcon, Loader2Icon } from "lucide-react"
+import { toast } from "sonner"
+import { SaveIcon, FileTextIcon, Loader2Icon, AlertCircleIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { mtoHeritageSiteSchema } from "../schemas/mto-heritage-site"
 import type { HeritageCategory, HeritageSite } from "@/types/heritage"
 import TagInput from "./tag-input"
@@ -38,6 +47,8 @@ export default function MtoHeritageFormClient({
 }: MtoHeritageFormClientProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [pendingStatus, setPendingStatus] = useState<"draft" | "published" | null>(null)
   const [tags, setTags] = useState<{ tag: string }[]>(initialTags ?? [])
   const [referenceLinks, setReferenceLinks] = useState<{ url: string; label?: string | null }[]>(
     initialLinks ?? [],
@@ -72,34 +83,60 @@ export default function MtoHeritageFormClient({
   const watchAll = form.watch()
   const selectedCategory = categories.find((c) => c.id === form.watch("categoryId")) ?? null
 
-  const handleSubmit = useCallback(
+  const requestSubmit = useCallback(
     async (status: "draft" | "published") => {
+      setSubmitError(null)
       form.setValue("publicationStatus", status)
       const valid = await form.trigger()
-      if (!valid) return
-
-      setIsSubmitting(true)
-      try {
-        const values = form.getValues()
-        const payload = JSON.stringify({
-          ...values,
-          ...(site?.id ? { id: site.id } : {}),
-          tags,
-          referenceLinks,
-        })
-
-        const { saveMtoSiteAction } = await import("../actions/mto-sites")
-        await saveMtoSiteAction(payload)
-        router.push("/mto/heritage-sites")
-        router.refresh()
-      } catch (err) {
-        console.error("Failed to save site:", err)
-      } finally {
-        setIsSubmitting(false)
+      if (!valid) {
+        const message = "Please fix the highlighted fields before saving."
+        setSubmitError(message)
+        toast.warning(message)
+        return
       }
+
+      const { checkDuplicateSiteNameAction } = await import("../actions/mto-sites")
+      const duplicate = await checkDuplicateSiteNameAction(form.getValues("siteName"), site?.id)
+      if (duplicate) {
+        const message = `A heritage site named "${duplicate.siteName}" already exists in ${duplicate.municipalityName ?? "this municipality"}. Please use a different name.`
+        setSubmitError(message)
+        toast.warning(message)
+        return
+      }
+
+      setPendingStatus(status)
     },
-    [form, tags, referenceLinks, site?.id, router],
+    [form, site],
   )
+
+  const confirmSubmit = useCallback(async () => {
+    if (!pendingStatus) return
+
+    setIsSubmitting(true)
+    try {
+      const values = form.getValues()
+      const payload = JSON.stringify({
+        ...values,
+        ...(site?.id ? { id: site.id } : {}),
+        tags,
+        referenceLinks,
+      })
+
+      const { saveMtoSiteAction } = await import("../actions/mto-sites")
+      await saveMtoSiteAction(payload)
+      toast.success(site ? "Heritage site updated." : "Heritage site added successfully.")
+      router.push("/mto/heritage-sites/")
+      router.refresh()
+    } catch (err) {
+      console.error("Failed to save site:", err)
+      const message = err instanceof Error ? err.message : "Failed to save site. Please try again."
+      setSubmitError(message)
+      toast.error(message)
+    } finally {
+      setIsSubmitting(false)
+      setPendingStatus(null)
+    }
+  }, [pendingStatus, form, tags, referenceLinks, site, router])
 
   return (
     <div className="space-y-6">
@@ -145,6 +182,9 @@ export default function MtoHeritageFormClient({
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
+                {form.formState.errors.categoryId && (
+                  <p className="text-xs text-destructive">{form.formState.errors.categoryId.message}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -355,6 +395,14 @@ export default function MtoHeritageFormClient({
             </CardContent>
           </Card>
 
+          {/* Submit Error */}
+          {submitError && (
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertCircleIcon className="size-4 shrink-0" />
+              <span>{submitError}</span>
+            </div>
+          )}
+
           {/* Form Actions */}
           <div className="flex items-center justify-end gap-2">
             <Button variant="outline" onClick={() => router.push("/mto/heritage-sites")}>
@@ -362,7 +410,7 @@ export default function MtoHeritageFormClient({
             </Button>
             <Button
               variant="outline"
-              onClick={() => handleSubmit("draft")}
+              onClick={() => requestSubmit("draft")}
               disabled={isSubmitting}
             >
               {isSubmitting ? (
@@ -372,7 +420,7 @@ export default function MtoHeritageFormClient({
               )}
               Save as Draft
             </Button>
-            <Button onClick={() => handleSubmit("published")} disabled={isSubmitting}>
+            <Button onClick={() => requestSubmit("published")} disabled={isSubmitting}>
               {isSubmitting ? (
                 <Loader2Icon className="size-4 mr-1 animate-spin" />
               ) : (
@@ -404,6 +452,32 @@ export default function MtoHeritageFormClient({
           </div>
         </div>
       </div>
+
+      <Dialog open={pendingStatus !== null} onOpenChange={(open) => !open && setPendingStatus(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{site ? "Save changes?" : "Add this heritage site?"}</DialogTitle>
+            <DialogDescription>
+              {pendingStatus === "published"
+                ? `"${watchAll.siteName}" will be saved and published.`
+                : `"${watchAll.siteName}" will be saved as a draft.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingStatus(null)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={confirmSubmit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <Loader2Icon className="size-4 mr-1 animate-spin" />
+              ) : (
+                <SaveIcon className="size-4 mr-1" />
+              )}
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

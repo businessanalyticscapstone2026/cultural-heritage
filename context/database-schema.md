@@ -65,6 +65,9 @@ last_login timestamp with time zone,
 created_at timestamp with time zone NOT NULL DEFAULT now(),
 updated_at timestamp with time zone NOT NULL DEFAULT now(),
 onboarding_completed_at timestamp with time zone,
+travel_style text,
+group_type text,
+accessibility_needs ARRAY,
 CONSTRAINT tourist_profiles_pkey PRIMARY KEY (id),
 CONSTRAINT tourist_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
@@ -128,6 +131,7 @@ file_name text,
 file_size_bytes integer,
 mime_type text,
 is_primary boolean NOT NULL DEFAULT false,
+sort_order integer NOT NULL DEFAULT 0,
 CONSTRAINT heritage_site_media_pkey PRIMARY KEY (id),
 CONSTRAINT heritage_site_media_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id),
 CONSTRAINT heritage_site_media_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.staff_profiles(id)
@@ -207,6 +211,7 @@ total_distance_km numeric,
 total_duration_minutes integer,
 status text NOT NULL DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'completed'::text])),
 created_at timestamp with time zone NOT NULL DEFAULT now(),
+is_curated boolean NOT NULL DEFAULT false,
 CONSTRAINT routes_pkey PRIMARY KEY (id),
 CONSTRAINT routes_tourist_id_fkey FOREIGN KEY (tourist_id) REFERENCES public.tourist_profiles(id)
 );
@@ -387,4 +392,16 @@ user_agent text,
 created_at timestamp with time zone NOT NULL DEFAULT now(),
 CONSTRAINT security_events_pkey PRIMARY KEY (id),
 CONSTRAINT security_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.generated_reports (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+user_id uuid NOT NULL,
+municipality_id uuid NOT NULL,
+report_type text NOT NULL,
+report_title text NOT NULL,
+filters jsonb NOT NULL DEFAULT '{}'::jsonb,
+generated_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT generated_reports_pkey PRIMARY KEY (id),
+CONSTRAINT generated_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+CONSTRAINT generated_reports_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id)
 );

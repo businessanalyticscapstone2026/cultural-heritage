@@ -17,6 +17,8 @@ import {
 } from "../services/mto-sites"
 import type { SiteWithDetails } from "../services/mto-sites"
 import { mtoHeritageSiteSchema } from "../schemas/mto-heritage-site"
+import { findDuplicateHeritageSiteByName } from "../services/sites"
+import type { DuplicateSiteMatch } from "../services/sites"
 
 async function getAuthContext() {
   const cookieStore = await cookies()
@@ -232,4 +234,15 @@ export async function deleteMtoSiteAction(siteId: string) {
 /** Get the current staff profile */
 export async function getMtoStaffProfileAction() {
   return getCurrentStaffProfile()
+}
+
+/** Pre-submit check for an existing site with the same name in the MTO's municipality */
+export async function checkDuplicateSiteNameAction(
+  siteName: string,
+  excludeId?: string,
+): Promise<DuplicateSiteMatch | null> {
+  const { municipalityId } = await getAuthContext()
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  return findDuplicateHeritageSiteByName(supabase, siteName, municipalityId, excludeId)
 }

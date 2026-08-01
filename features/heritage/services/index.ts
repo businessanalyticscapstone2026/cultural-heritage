@@ -1,4 +1,4 @@
-export { mapDbRowToSite, getHeritageSites, getHeritageSiteById, getHeritageSiteByIdAdmin, getAllHeritageSites, getHeritageSitesByMunicipality, getArchivedSites, getArchivedSitesByMunicipality, createHeritageSite, updateHeritageSite, deleteHeritageSite } from "./sites"
+export { mapDbRowToSite, getHeritageSites, getHeritageSiteById, getHeritageSiteByIdAdmin, getAllHeritageSites, getHeritageSitesByMunicipality, getArchivedSites, getArchivedSitesByMunicipality, createHeritageSite, updateHeritageSite, deleteHeritageSite, deleteSiteDependencies } from "./sites"
 export { getNearbySites, getNearbySitesFromLocation } from "./nearby"
 export { isBookmarked, toggleBookmark, getBookmarkedSiteIds, getBookmarkedSites } from "./bookmarks"
 export { getCategories, getAllCategories, createCategory, updateCategory, deleteCategory, getCategoriesWithSiteCount } from "./categories"

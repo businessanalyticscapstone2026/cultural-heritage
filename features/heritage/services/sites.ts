@@ -316,12 +316,46 @@ export async function updateHeritageSite(id: string, updates: Partial<HeritageSi
   return site
 }
 
-export async function deleteHeritageSite(id: string): Promise<void> {
+export async function deleteSiteDependencies(siteId: string): Promise<void> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  await supabase.from("heritage_site_tags").delete().eq("site_id", id)
-  await supabase.from("heritage_site_reference_links").delete().eq("site_id", id)
+  const { error: reviewsError } = await supabase
+    .from("governance_reviews")
+    .delete()
+    .eq("heritage_site_id", siteId)
+  if (reviewsError) throw new Error(`Failed to delete governance reviews: ${reviewsError.message}`)
+
+  const { error: versionsError } = await supabase
+    .from("heritage_site_versions")
+    .delete()
+    .eq("heritage_site_id", siteId)
+  if (versionsError) throw new Error(`Failed to delete site versions: ${versionsError.message}`)
+
+  const { error: mediaError } = await supabase
+    .from("heritage_site_media")
+    .delete()
+    .eq("site_id", siteId)
+  if (mediaError) throw new Error(`Failed to delete site media: ${mediaError.message}`)
+
+  const { error: tagsError } = await supabase
+    .from("heritage_site_tags")
+    .delete()
+    .eq("site_id", siteId)
+  if (tagsError) throw new Error(`Failed to delete site tags: ${tagsError.message}`)
+
+  const { error: linksError } = await supabase
+    .from("heritage_site_reference_links")
+    .delete()
+    .eq("site_id", siteId)
+  if (linksError) throw new Error(`Failed to delete site reference links: ${linksError.message}`)
+}
+
+export async function deleteHeritageSite(id: string): Promise<void> {
+  await deleteSiteDependencies(id)
+
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
 
   const { error } = await supabase
     .from("heritage_sites")

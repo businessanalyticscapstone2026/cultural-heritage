@@ -9,7 +9,6 @@ import {
   EditIcon,
   MoreHorizontalIcon,
   ArchiveIcon,
-  RotateCcwIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react"
@@ -41,15 +40,13 @@ export default function MtoHeritageListClient({
   const [panelOpen, setPanelOpen] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [archivingId, setArchivingId] = useState<string | null>(null)
-  const [restoringId, setRestoringId] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
 
   const statusCounts = useMemo(() => {
     const total = sites.length
     const published = sites.filter((s) => s.publicationStatus === "published").length
     const draft = sites.filter((s) => s.publicationStatus === "draft").length
-    const archived = sites.filter((s) => s.publicationStatus === "archived").length
-    return { total, published, draft, archived }
+    return { total, published, draft }
   }, [sites])
 
   const filtered = useMemo(() => {
@@ -71,13 +68,9 @@ export default function MtoHeritageListClient({
     setArchivingId(site.id)
     setOpenMenuId(null)
 
-    // Optimistic update
+    // Optimistic update: remove the site from the list
     startTransition(() => {
-      setSites((prev) =>
-        prev.map((s) =>
-          s.id === site.id ? { ...s, publicationStatus: "archived" as const } : s,
-        ),
-      )
+      setSites((prev) => prev.filter((s) => s.id !== site.id))
     })
 
     try {
@@ -86,38 +79,12 @@ export default function MtoHeritageListClient({
     } catch {
       // Revert on error
       setSites((prev) =>
-        prev.map((s) =>
-          s.id === site.id ? { ...s, publicationStatus: site.publicationStatus } : s,
-        ),
+        prev.some((s) => s.id === site.id)
+          ? prev
+          : [site, ...prev],
       )
     } finally {
       setArchivingId(null)
-    }
-  }, [])
-
-  const handleRestore = useCallback(async (site: SiteWithDetails) => {
-    setRestoringId(site.id)
-    setOpenMenuId(null)
-
-    startTransition(() => {
-      setSites((prev) =>
-        prev.map((s) =>
-          s.id === site.id ? { ...s, publicationStatus: "draft" as const } : s,
-        ),
-      )
-    })
-
-    try {
-      const { restoreMtoSiteAction } = await import("../actions/mto-sites")
-      await restoreMtoSiteAction(site.id)
-    } catch {
-      setSites((prev) =>
-        prev.map((s) =>
-          s.id === site.id ? { ...s, publicationStatus: site.publicationStatus } : s,
-        ),
-      )
-    } finally {
-      setRestoringId(null)
     }
   }, [])
 
@@ -190,7 +157,7 @@ export default function MtoHeritageListClient({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="rounded-xl border bg-card p-4">
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Heritage Sites</p>
           <p className="mt-1 text-3xl font-bold">{statusCounts.total}</p>
@@ -202,10 +169,6 @@ export default function MtoHeritageListClient({
         <div className="rounded-xl border bg-card p-4">
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Draft Sites</p>
           <p className="mt-1 text-3xl font-bold text-yellow-600">{statusCounts.draft}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Archived Sites</p>
-          <p className="mt-1 text-3xl font-bold text-gray-500">{statusCounts.archived}</p>
         </div>
       </div>
 
@@ -248,7 +211,6 @@ export default function MtoHeritageListClient({
             <option value="">All Statuses</option>
             <option value="published">Published</option>
             <option value="draft">Draft</option>
-            <option value="archived">Archived</option>
           </select>
           <select
             className="h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -337,23 +299,13 @@ export default function MtoHeritageListClient({
                           >
                             <EditIcon className="size-3.5" /> Edit
                           </button>
-                          {site.publicationStatus !== "archived" ? (
-                            <button
-                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
-                              onClick={() => handleArchive(site)}
-                              disabled={archivingId === site.id}
-                            >
-                              <ArchiveIcon className="size-3.5" /> Archive
-                            </button>
-                          ) : (
-                            <button
-                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
-                              onClick={() => handleRestore(site)}
-                              disabled={restoringId === site.id}
-                            >
-                              <RotateCcwIcon className="size-3.5" /> Restore
-                            </button>
-                          )}
+                          <button
+                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
+                            onClick={() => handleArchive(site)}
+                            disabled={archivingId === site.id}
+                          >
+                            <ArchiveIcon className="size-3.5" /> Archive
+                          </button>
                         </div>
                       )}
                     </div>

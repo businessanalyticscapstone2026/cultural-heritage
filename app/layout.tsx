@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Playfair_Display, Inter, Geist } from "next/font/google"
 import "./globals.css"
 import { cn } from "@/lib/utils"
+import { Toaster } from "sonner"
 import { AuthProvider } from "@/context/auth-context"
 import { RoleProvider } from "@/context/role-context"
 import { QueryProvider } from "@/components/providers/query-provider"
@@ -40,6 +41,7 @@ export default function RootLayout({
             <QueryProvider>{children}</QueryProvider>
           </RoleProvider>
         </AuthProvider>
+        <Toaster richColors closeButton position="top-right" />
       </body>
     </html>
   )

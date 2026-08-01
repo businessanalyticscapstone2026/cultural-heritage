@@ -3,7 +3,10 @@ import { z } from "zod"
 export const mtoHeritageSiteSchema = z.object({
   siteName: z.string().min(1, "Site name is required").max(255),
   alternativeName: z.string().max(255).nullable().optional(),
-  categoryId: z.string().uuid("Invalid category").nullable().optional(),
+  categoryId: z.preprocess(
+    (val) => (val === "" ? null : val),
+    z.string().uuid("Invalid category").nullable(),
+  ).refine((val) => val !== null, { message: "Category is required" }),
   barangay: z.string().max(255).nullable().optional(),
   exactAddress: z.string().max(500).nullable().optional(),
   shortDescription: z.string().max(500).nullable().optional(),

@@ -62,6 +62,7 @@ export default function QRCodeListClient({
   const [showGenerateDialog, setShowGenerateDialog] = useState(false)
   const [generateSiteId, setGenerateSiteId] = useState("")
   const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     return qrCodes.filter((qr) => {
@@ -149,6 +150,7 @@ export default function QRCodeListClient({
   const handleGenerate = useCallback(async () => {
     if (!generateSiteId || generating) return
     setGenerating(true)
+    setGenerateError(null)
 
     try {
       const { generateQrCodeAction } = await import("../actions/qr-management")
@@ -156,8 +158,8 @@ export default function QRCodeListClient({
       setQrCodes((prev) => [newQrCode, ...prev])
       setShowGenerateDialog(false)
       setGenerateSiteId("")
-    } catch {
-      // Generation failed (uniqueness or DB error) — no optimistic update
+    } catch (error) {
+      setGenerateError(error instanceof Error ? error.message : "Failed to generate QR code")
     } finally {
       setGenerating(false)
     }
@@ -237,7 +239,7 @@ export default function QRCodeListClient({
             Filter
           </Button>
         </div>
-        <Button size="sm" onClick={() => setShowGenerateDialog(true)}>
+        <Button size="sm" onClick={() => { setShowGenerateDialog(true); setGenerateError(null) }}>
           <PlusIcon className="size-4 mr-1" />
           Generate QR Code
         </Button>
@@ -280,10 +282,15 @@ export default function QRCodeListClient({
                 </select>
               </div>
               <div className="flex justify-end gap-2 pt-2">
+                {generateError && (
+                  <p className="mr-auto text-xs text-destructive rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2">
+                    {generateError}
+                  </p>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => { setShowGenerateDialog(false); setGenerateSiteId("") }}
+                  onClick={() => { setShowGenerateDialog(false); setGenerateSiteId(""); setGenerateError(null) }}
                   disabled={generating}
                 >
                   Cancel
@@ -313,12 +320,11 @@ export default function QRCodeListClient({
                 variant="outline"
                 size="sm"
                 className="mt-3"
-                onClick={() => setShowGenerateDialog(true)}
+                onClick={() => { setShowGenerateDialog(true); setGenerateError(null) }}
               >
                 <PlusIcon className="size-3.5 mr-1" />
                 Generate your first QR code
-              </Button>
-            </div>
+              </Button>            </div>
           ) : (
             <div className="rounded-xl border overflow-hidden">
               <table className="w-full text-sm">

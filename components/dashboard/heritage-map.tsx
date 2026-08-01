@@ -33,6 +33,7 @@ export function HeritageMap({ markers }: HeritageMapProps) {
   return (
     <Map
       className="h-full w-full rounded-md"
+      theme="light"
       viewport={{ center: [centerLng, centerLat], zoom: 10, bearing: 0, pitch: 0 }}
     >
       <MapControls position="bottom-right" showZoom />

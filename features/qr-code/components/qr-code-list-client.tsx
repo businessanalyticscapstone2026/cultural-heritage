@@ -5,15 +5,13 @@ import {
   SearchIcon,
   FilterIcon,
   PlusIcon,
-  EyeIcon,
   MoreHorizontalIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  BanIcon,
-  CheckCircleIcon,
   QrCodeIcon,
   ClockIcon,
   SmartphoneIcon,
+  View,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -53,11 +51,9 @@ export default function QRCodeListClient({
   const [statusFilter, setStatusFilter] = useState<string>("")
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(PAGE_SIZE)
-  const [selectedQrCode, setSelectedQrCode] = useState<QRCodeWithSite | null>(null)
+  const [selectedQrId, setSelectedQrId] = useState<string | null>(null)
   const [selectedQrSvg, setSelectedQrSvg] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const [togglingId, setTogglingId] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [showGenerateDialog, setShowGenerateDialog] = useState(false)
   const [generateSiteId, setGenerateSiteId] = useState("")
@@ -81,6 +77,12 @@ export default function QRCodeListClient({
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
+  // Derived so the detail panel always reflects the latest status/code
+  const selectedQrCode = useMemo(
+    () => qrCodes.find((q) => q.id === selectedQrId) ?? null,
+    [qrCodes, selectedQrId],
+  )
+
   // Refresh KPI counts from server row count (approximate)
   const computedKpiCounts = useMemo(() => {
     const total = qrCodes.length
@@ -90,14 +92,13 @@ export default function QRCodeListClient({
   }, [qrCodes, kpiCounts.scansThisMonth])
 
   const openDetailPanel = useCallback(async (qrCode: QRCodeWithSite) => {
-    setSelectedQrCode(qrCode)
+    setSelectedQrId(qrCode.id)
     setSelectedQrSvg(null)
     setPanelOpen(true)
-    setOpenMenuId(null)
 
     try {
       const { generateQrCodePreviewAction } = await import("../actions/qr-management")
-      const svgUrl = await generateQrCodePreviewAction(qrCode.siteId)
+      const svgUrl = await generateQrCodePreviewAction(qrCode.codeValue)
       setSelectedQrSvg(svgUrl)
     } catch {
       // QR preview unavailable — fallback to placeholder
@@ -106,13 +107,11 @@ export default function QRCodeListClient({
 
   const closeDetailPanel = useCallback(() => {
     setPanelOpen(false)
-    setSelectedQrCode(null)
+    setSelectedQrId(null)
     setSelectedQrSvg(null)
   }, [])
 
   const handleStatusChange = useCallback(async (qrCodeId: string, newStatus: QRCodeStatus) => {
-    setTogglingId(qrCodeId)
-
     startTransition(() => {
       setQrCodes((prev) =>
         prev.map((q) =>
@@ -124,8 +123,8 @@ export default function QRCodeListClient({
     try {
       const { updateQrCodeStatusAction } = await import("../actions/qr-management")
       await updateQrCodeStatusAction(qrCodeId, newStatus)
-    } catch {
-      // Revert — the optimistic update is rolled back by re-fetching
+    } catch (error) {
+      // Roll back the optimistic update, then surface the error to the panel
       try {
         const { getMtoQrCodesAction } = await import("../actions/qr-management")
         const fresh = await getMtoQrCodesAction()
@@ -133,19 +132,9 @@ export default function QRCodeListClient({
       } catch {
         // Silent fail — user can refresh
       }
-    } finally {
-      setTogglingId(null)
+      throw error
     }
   }, [])
-
-  const handleToggleFromMenu = useCallback(async (qrCode: QRCodeWithSite) => {
-    setOpenMenuId(null)
-    const nextStatus: QRCodeStatus =
-      qrCode.status === "active" ? "inactive"
-      : qrCode.status === "inactive" ? "active"
-      : "active"
-    await handleStatusChange(qrCode.id, nextStatus)
-  }, [handleStatusChange])
 
   const handleGenerate = useCallback(async () => {
     if (!generateSiteId || generating) return
@@ -166,12 +155,17 @@ export default function QRCodeListClient({
   }, [generateSiteId, generating])
 
   const handleRegenerate = useCallback(async (qrCode: QRCodeWithSite) => {
-    setPanelOpen(false)
-
     try {
-      const { generateQrCodeAction } = await import("../actions/qr-management")
-      const newQrCode = await generateQrCodeAction(qrCode.siteId)
-      setQrCodes((prev) => [newQrCode, ...prev])
+      const { regenerateQrCodeAction, generateQrCodePreviewAction } = await import(
+        "../actions/qr-management"
+      )
+      const updatedQrCode = await regenerateQrCodeAction(qrCode.id)
+      setQrCodes((prev) =>
+        prev.map((q) => (q.id === updatedQrCode.id ? updatedQrCode : q)),
+      )
+      setSelectedQrSvg(null)
+      const svgUrl = await generateQrCodePreviewAction(updatedQrCode.codeValue)
+      setSelectedQrSvg(svgUrl)
     } catch {
       // Regeneration failed
     }
@@ -334,7 +328,7 @@ export default function QRCodeListClient({
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Code Value</th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Created Date</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
+                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">View</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -378,47 +372,12 @@ export default function QRCodeListClient({
                             size="icon-xs"
                             onClick={(e) => {
                               e.stopPropagation()
-                              setOpenMenuId(openMenuId === qr.id ? null : qr.id)
+                              openDetailPanel(qr)
                             }}
+                            aria-label={`View QR code details for ${qr.siteName}`}
                           >
                             <MoreHorizontalIcon className="size-4" />
                           </Button>
-                          {openMenuId === qr.id && (
-                            <div className="absolute right-0 top-8 z-10 w-44 rounded-lg border bg-popover shadow-md py-1">
-                              <button
-                                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
-                                onClick={() => { openDetailPanel(qr) }}
-                              >
-                                <EyeIcon className="size-3.5" /> View
-                              </button>
-                              <button
-                                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
-                                onClick={() => {
-                                  setOpenMenuId(null)
-                                  openDetailPanel(qr)
-                                }}
-                              >
-                                <QrCodeIcon className="size-3.5" /> Show QR
-                              </button>
-                              {qr.status === "active" ? (
-                                <button
-                                  className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
-                                  onClick={() => handleToggleFromMenu(qr)}
-                                  disabled={togglingId === qr.id}
-                                >
-                                  <BanIcon className="size-3.5" /> Deactivate
-                                </button>
-                              ) : (
-                                <button
-                                  className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
-                                  onClick={() => handleToggleFromMenu(qr)}
-                                  disabled={togglingId === qr.id}
-                                >
-                                  <CheckCircleIcon className="size-3.5" /> Reactivate
-                                </button>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </td>
                     </tr>

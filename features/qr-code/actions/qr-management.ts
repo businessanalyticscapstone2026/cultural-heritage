@@ -10,8 +10,8 @@ import {
   getMtoRecentScanLogs,
   getMtoSitesForQrGeneration,
   generateQrCode,
+  regenerateQrCode,
   updateQrCodeStatus,
-  getQrCodeTargetUrl,
   generateQrSvgDataUrl,
 } from "../services/qr-management"
 import type { QRCodeWithSite, QRKpiCounts, QRScanLogEntry, QRCodeStatus, SiteOption } from "../types"
@@ -85,7 +85,31 @@ export async function generateQrCodeAction(siteId: string): Promise<QRCodeWithSi
 
   if (!site) throw new Error("Site not found in your municipality")
 
+  const { data: existing } = await supabase
+    .from("qr_codes")
+    .select("id")
+    .eq("site_id", siteId)
+    .maybeSingle()
+
+  if (existing) {
+    throw new Error(
+      "This heritage site already has a QR code. Open its QR details to regenerate or reactivate it.",
+    )
+  }
+
   const qrCode = await generateQrCode(siteId, staffProfileId)
+
+  revalidatePath("/mto/qr-codes")
+  return qrCode
+}
+
+/**
+ * Regenerate a QR code by replacing the existing row's code_value.
+ * Keeps one QR code per heritage site.
+ */
+export async function regenerateQrCodeAction(qrCodeId: string): Promise<QRCodeWithSite> {
+  const { municipalityId, staffProfileId } = await getAuthContext()
+  const qrCode = await regenerateQrCode(qrCodeId, staffProfileId, municipalityId)
 
   revalidatePath("/mto/qr-codes")
   return qrCode
@@ -105,7 +129,6 @@ export async function updateQrCodeStatusAction(
 }
 
 /** Generate a QR code SVG data URL for display in the detail panel */
-export async function generateQrCodePreviewAction(siteId: string): Promise<string> {
-  const url = getQrCodeTargetUrl(siteId)
-  return generateQrSvgDataUrl(url)
+export async function generateQrCodePreviewAction(codeValue: string): Promise<string> {
+  return generateQrSvgDataUrl(codeValue)
 }

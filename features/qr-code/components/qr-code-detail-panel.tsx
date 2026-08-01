@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useCallback, useState, startTransition } from "react"
+import { useEffect, useCallback, useState } from "react"
 import { XIcon, QrCodeIcon, RefreshCwIcon, DownloadIcon, BanIcon, CheckCircleIcon, ExternalLinkIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -35,6 +35,7 @@ export default function QRCodeDetailPanel({
   onStatusChange,
 }: QRCodeDetailPanelProps) {
   const [togglingStatus, setTogglingStatus] = useState(false)
+  const [toggleError, setToggleError] = useState<string | null>(null)
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -57,21 +58,17 @@ export default function QRCodeDetailPanel({
   const handleToggleStatus = useCallback(async () => {
     if (!qrCode || togglingStatus) return
     setTogglingStatus(true)
+    setToggleError(null)
 
     const nextStatus: QRCodeStatus =
       qrCode.status === "active" ? "inactive"
       : qrCode.status === "inactive" ? "active"
       : "active"
 
-    startTransition(() => {
-      onStatusChange(qrCode.id, nextStatus)
-    })
-
     try {
-      const { updateQrCodeStatusAction } = await import("../actions/qr-management")
-      await updateQrCodeStatusAction(qrCode.id, nextStatus)
+      await onStatusChange(qrCode.id, nextStatus)
     } catch {
-      // Revert — optimistic state is already reflected by parent
+      setToggleError("Failed to update QR code status. Please try again.")
     } finally {
       setTogglingStatus(false)
     }
@@ -222,7 +219,7 @@ export default function QRCodeDetailPanel({
                     disabled={togglingStatus}
                   >
                     <CheckCircleIcon className="size-3.5 mr-1.5" />
-                    {qrCode.status === "inactive" ? "Reactivate" : "Reactivate"}
+                    Reactivate
                   </Button>
                 )}
                 <Button
@@ -234,6 +231,11 @@ export default function QRCodeDetailPanel({
                   View Site
                 </Button>
               </div>
+              {toggleError && (
+                <p className="mt-2 text-xs text-destructive rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2">
+                  {toggleError}
+                </p>
+              )}
             </div>
 
             {/* Usage Info */}

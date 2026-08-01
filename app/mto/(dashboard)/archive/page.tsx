@@ -28,7 +28,7 @@ export default async function ArchivePage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Archive</h1>
         <p className="text-sm text-muted-foreground">
-          View and restore archived heritage site records
+          View, restore, or permanently delete archived heritage site records
         </p>
       </div>
 

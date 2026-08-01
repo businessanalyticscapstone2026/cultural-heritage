@@ -12,6 +12,7 @@ import {
   updateMtoSite,
   archiveMtoSite,
   restoreMtoSite,
+  deleteMtoSite,
   getCurrentStaffProfile,
 } from "../services/mto-sites"
 import type { SiteWithDetails } from "../services/mto-sites"
@@ -213,6 +214,16 @@ export async function archiveMtoSiteAction(siteId: string) {
 export async function restoreMtoSiteAction(siteId: string) {
   const { municipalityId } = await getAuthContext()
   await restoreMtoSite(siteId, municipalityId)
+  revalidatePath("/mto/heritage-sites")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+}
+
+/** Permanently delete an archived site */
+export async function deleteMtoSiteAction(siteId: string) {
+  const { municipalityId } = await getAuthContext()
+  await deleteMtoSite(siteId, municipalityId)
+  revalidatePath("/mto/archive")
   revalidatePath("/mto/heritage-sites")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })

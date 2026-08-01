@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import type { HeritageSite, HeritageCategory, HeritageSiteTag } from "@/types/heritage"
-import { createHeritageSiteVersion } from "./index"
+import { createHeritageSiteVersion, deleteSiteDependencies } from "./index"
 
 export type SiteWithDetails = HeritageSite & {
   creatorName?: string | null
@@ -84,6 +84,7 @@ export async function getMtoSites(municipalityId: string): Promise<SiteWithDetai
       creator:staff_profiles!heritage_sites_created_by_fkey(first_name, last_name)
     `)
     .eq("municipality_id", municipalityId)
+    .neq("publication_status", "archived")
     .order("created_at", { ascending: false })
     .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
 
@@ -534,6 +535,31 @@ export async function restoreMtoSite(siteId: string, municipalityId: string): Pr
     .eq("municipality_id", municipalityId)
 
   if (error) throw new Error(`Failed to restore site: ${error.message}`)
+}
+
+/** Permanently delete an archived site — scoped to the MTO's municipality */
+export async function deleteMtoSite(siteId: string, municipalityId: string): Promise<void> {
+  const supabase = await getSupabase()
+
+  const { data: site } = await supabase
+    .from("heritage_sites")
+    .select("id")
+    .eq("id", siteId)
+    .eq("municipality_id", municipalityId)
+    .eq("publication_status", "archived")
+    .maybeSingle()
+
+  if (!site) throw new Error("Site not found or cannot be deleted")
+
+  await deleteSiteDependencies(siteId)
+
+  const { error } = await supabase
+    .from("heritage_sites")
+    .delete()
+    .eq("id", siteId)
+    .eq("municipality_id", municipalityId)
+
+  if (error) throw new Error(`Failed to delete site: ${error.message}`)
 }
 
 /** Fetch barangays for the MTO's municipality */

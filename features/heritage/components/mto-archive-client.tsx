@@ -2,6 +2,7 @@
 
 import { useCallback } from "react"
 import { updateHeritageSiteAction, getArchivedSitesByMunicipalityAction } from "../actions/heritage"
+import { deleteMtoSiteAction } from "../actions/mto-sites"
 import { useHeritageSites } from "../hooks"
 import ArchiveList from "./archive-list"
 import type { HeritageSite } from "../types"
@@ -19,11 +20,16 @@ export default function MtoArchiveClient({
     return getArchivedSitesByMunicipalityAction(municipalityId)
   }, [municipalityId])
 
-  const { sites, refetch } = useHeritageSites(fetchSites)
-  const displaySites = sites.length > 0 ? sites : initialSites
+  const { sites, loading, refetch } = useHeritageSites(fetchSites)
+  const displaySites = loading && sites.length === 0 ? initialSites : sites
 
   const handleRestore = useCallback(async (id: string) => {
     await updateHeritageSiteAction(id, { publicationStatus: "draft" })
+    refetch()
+  }, [refetch])
+
+  const handleDelete = useCallback(async (id: string) => {
+    await deleteMtoSiteAction(id)
     refetch()
   }, [refetch])
 
@@ -31,6 +37,7 @@ export default function MtoArchiveClient({
     <ArchiveList
       sites={displaySites}
       onRestore={handleRestore}
+      onDelete={handleDelete}
     />
   )
 }

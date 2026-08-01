@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import PublicNavbar from "@/components/layout/public-navbar"
 import { createClient } from "@/utils/supabase/server"
 import { QRScannerFAB } from "@/features/qr-code/components"
+import { BrandLogo } from "@/components/brand/brand-logo"
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -30,11 +31,7 @@ function PublicFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
         <div className="grid grid-cols-1 gap-12 md:grid-cols-4 md:gap-8">
           <div className="col-span-1 md:col-span-2">
             <a href="/" className="flex items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-full border border-ink/20 text-ink">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M12 2 4 7v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7z" />
-                </svg>
-              </span>
+              <BrandLogo variant="light" className="size-9" />
               <span className="text-display text-lg tracking-tight">Batangas Heritage</span>
             </a>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-soft">

@@ -2,10 +2,11 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Compass, Map, Info, User, Shield, Search, Star } from "lucide-react"
+import { Home, Compass, Map, Info, User, Search, Star } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { createClient } from "@/utils/supabase/client"
 import AuthPromptModal from "@/components/auth/auth-prompt-modal"
+import { BrandLogo } from "@/components/brand/brand-logo"
 
 const navLinks = [
   { href: "/", label: "Home", icon: Home },
@@ -76,10 +77,8 @@ export default function PublicNavbar() {
       {/* Mobile top bar */}
       <header className="fixed inset-x-0 top-0 z-50 bg-cream/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.06)] md:hidden">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <Link href="/" className="flex items-center gap-2 group">
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-ink text-cream transition-colors group-hover:bg-accent">
-              <Shield size={14} strokeWidth={1.5} />
-            </span>
+          <Link href="/" className="flex items-center gap-2">
+            <BrandLogo variant="light" className="size-8" />
             <span className="text-display text-base tracking-tight">Batangas Heritage</span>
           </Link>
 
@@ -139,10 +138,8 @@ export default function PublicNavbar() {
       {/* Desktop header */}
       <header className="sticky inset-x-0 top-0 z-50 hidden bg-cream/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.06)] md:block">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-ink text-cream transition-colors group-hover:bg-accent">
-              <Shield size={16} strokeWidth={1.5} />
-            </span>
+          <Link href="/" className="flex items-center gap-2.5">
+            <BrandLogo variant="light" className="size-9" />
             <span className="text-display text-lg tracking-tight">Batangas Heritage</span>
           </Link>
 

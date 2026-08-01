@@ -95,9 +95,18 @@ export default function MtoHeritageFormClient({
         return
       }
 
+      const { checkDuplicateSiteNameAction } = await import("../actions/mto-sites")
+      const duplicate = await checkDuplicateSiteNameAction(form.getValues("siteName"), site?.id)
+      if (duplicate) {
+        const message = `A heritage site named "${duplicate.siteName}" already exists in ${duplicate.municipalityName ?? "this municipality"}. Please use a different name.`
+        setSubmitError(message)
+        toast.warning(message)
+        return
+      }
+
       setPendingStatus(status)
     },
-    [form],
+    [form, site],
   )
 
   const confirmSubmit = useCallback(async () => {

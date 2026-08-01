@@ -7,6 +7,56 @@ import type {
   HeritageSiteReferenceLink,
   HeritageCategory,
 } from "../types"
+import { DuplicateHeritageSiteError } from "../errors"
+
+export type DuplicateSiteMatch = {
+  id: string
+  siteName: string
+  publicationStatus: string
+  municipalityName: string | null
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`)
+}
+
+/**
+ * Case-insensitive, trimmed lookup for an existing site with the same name in the
+ * same municipality. Matches across all publication_status values (including
+ * archived) — see CHT-037: the confirmed production duplicate was one archived
+ * + one published row with an identical name, so archived rows are treated as
+ * duplicates too rather than exempted.
+ */
+export async function findDuplicateHeritageSiteByName(
+  supabase: ReturnType<typeof createClient>,
+  siteName: string,
+  municipalityId: string | null | undefined,
+  excludeId?: string,
+): Promise<DuplicateSiteMatch | null> {
+  const trimmedName = siteName.trim()
+  if (!trimmedName || !municipalityId) return null
+
+  let query = supabase
+    .from("heritage_sites")
+    .select("id, site_name, publication_status, municipality:municipalities(name)")
+    .eq("municipality_id", municipalityId)
+    .ilike("site_name", escapeLikePattern(trimmedName))
+    .limit(1)
+
+  if (excludeId) query = query.neq("id", excludeId)
+
+  const { data, error } = await query.maybeSingle()
+  if (error) throw new Error(`Failed to check for duplicate site name: ${error.message}`)
+  if (!data) return null
+
+  const municipality = data.municipality as unknown as { name: string } | null
+  return {
+    id: data.id as string,
+    siteName: data.site_name as string,
+    publicationStatus: data.publication_status as string,
+    municipalityName: municipality?.name ?? null,
+  }
+}
 
 export function mapDbRowToSite(row: Record<string, unknown>, joined: Record<string, unknown>): HeritageSite {
   const category = joined.category as Record<string, unknown> | null
@@ -208,6 +258,9 @@ export async function createHeritageSite(data: Partial<HeritageSite>): Promise<H
 
   const { data: { user } } = await supabase.auth.getUser()
 
+  const duplicate = await findDuplicateHeritageSiteByName(supabase, data.siteName ?? "", data.municipalityId)
+  if (duplicate) throw new DuplicateHeritageSiteError(duplicate.siteName, duplicate.municipalityName)
+
   const insertData: Record<string, unknown> = {
     site_name: data.siteName ?? "",
     category_id: data.categoryId ?? null,
@@ -257,6 +310,16 @@ export async function updateHeritageSite(id: string, updates: Partial<HeritageSi
   const supabase = createClient(cookieStore)
 
   const { data: { user } } = await supabase.auth.getUser()
+
+  if (updates.siteName !== undefined || updates.municipalityId !== undefined) {
+    const existing = await getHeritageSiteByIdAdmin(id)
+    if (existing) {
+      const nextName = updates.siteName ?? existing.siteName
+      const nextMunicipalityId = updates.municipalityId ?? existing.municipalityId
+      const duplicate = await findDuplicateHeritageSiteByName(supabase, nextName, nextMunicipalityId, id)
+      if (duplicate) throw new DuplicateHeritageSiteError(duplicate.siteName, duplicate.municipalityName)
+    }
+  }
 
   const updateData: Record<string, unknown> = {}
   if (updates.siteName !== undefined) updateData.site_name = updates.siteName

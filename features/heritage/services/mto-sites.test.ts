@@ -27,6 +27,9 @@ function createFakeSupabase(responses: Record<string, { data: unknown; error: un
     }
     builder.select = () => builder
     builder.eq = () => builder
+    builder.neq = () => builder
+    builder.ilike = () => builder
+    builder.limit = () => builder
     builder.order = () => builder
     builder.delete = () => builder
     builder.single = () => Promise.resolve(resolve())
@@ -82,6 +85,7 @@ describe("createMtoSite", () => {
 
     const { client, inserted } = createFakeSupabase({
       heritage_sites: [
+        { data: null, error: null }, // duplicate-name check: no existing match
         { data: { id: SITE_ID }, error: null }, // insert().select("id").single()
         { data: rawSiteRow, error: null }, // raw snapshot select().single()
         { data: fullSiteRow, error: null }, // getMtoSiteById embedded select().maybeSingle()
@@ -113,5 +117,43 @@ describe("createMtoSite", () => {
     expect(result.id).toBe(SITE_ID)
     expect(result.siteName).toBe("Taal Basilica")
     expect(result.municipalityId).toBe(MUNICIPALITY_ID)
+  })
+
+  test("rejects a duplicate site name within the same municipality", async () => {
+    // Regression: CHT-037 — production had two "Taal Basilica" rows in the same
+    // municipality (one archived, one published). Creation must be blocked
+    // before insert, matched case-insensitively and trimmed, regardless of the
+    // existing row's publication_status.
+    const existingMatch = {
+      id: "44444444-4444-4444-4444-444444444444",
+      site_name: "Taal Basilica",
+      publication_status: "archived",
+      municipality: { name: "Taal" },
+    }
+
+    const { client, inserted } = createFakeSupabase({
+      heritage_sites: [
+        { data: existingMatch, error: null }, // duplicate-name check finds the archived row
+      ],
+    })
+
+    mock.module("next/headers", () => ({ cookies: async () => ({ getAll: () => [], set: () => {} }) }))
+    mock.module("@/utils/supabase/server", () => ({ createClient: () => client }))
+
+    const { createMtoSite } = await import("./mto-sites")
+
+    await expect(
+      createMtoSite(
+        {
+          siteName: "  taal basilica  ", // untrimmed, different case — must still match
+          categoryId: null,
+          municipalityId: MUNICIPALITY_ID,
+        },
+        STAFF_ID,
+      ),
+    ).rejects.toThrow('A heritage site named "Taal Basilica" already exists in Taal.')
+
+    // No insert should have been attempted once the duplicate was found.
+    expect(inserted.heritage_sites).toBeUndefined()
   })
 })

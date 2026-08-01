@@ -1,7 +1,8 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import type { HeritageSite, HeritageCategory, HeritageSiteTag } from "@/types/heritage"
-import { createHeritageSiteVersion, deleteSiteDependencies } from "./index"
+import { createHeritageSiteVersion, deleteSiteDependencies, findDuplicateHeritageSiteByName } from "./index"
+import { DuplicateHeritageSiteError } from "../errors"
 
 export type SiteWithDetails = HeritageSite & {
   creatorName?: string | null
@@ -288,6 +289,9 @@ export async function createMtoSite(
 ): Promise<SiteWithDetails> {
   const supabase = await getSupabase()
 
+  const duplicate = await findDuplicateHeritageSiteByName(supabase, data.siteName, data.municipalityId)
+  if (duplicate) throw new DuplicateHeritageSiteError(duplicate.siteName, duplicate.municipalityName)
+
   const { data: site, error } = await supabase
     .from("heritage_sites")
     .insert({
@@ -390,6 +394,11 @@ export async function updateMtoSite(
   const supabase = await getSupabase()
 
   const { data: { user } } = await supabase.auth.getUser()
+
+  if (data.siteName !== undefined) {
+    const duplicate = await findDuplicateHeritageSiteByName(supabase, data.siteName, municipalityId, siteId)
+    if (duplicate) throw new DuplicateHeritageSiteError(duplicate.siteName, duplicate.municipalityName)
+  }
 
   const updateData: Record<string, unknown> = {}
   if (data.siteName !== undefined) updateData.site_name = data.siteName

@@ -149,14 +149,9 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
 
         <motion.div
           style={{ y: heroTextY }}
-          className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-6 pb-8 md:px-10"
+          className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col justify-start px-6 pb-8 md:px-10"
         >
           <motion.div initial="hidden" animate="show" variants={fadeUp} className="max-w-4xl">
-            {userName && (
-              <p className="mb-3 text-sm text-ink-soft">
-                Welcome back, <span className="font-medium text-ink">{userName}</span>.
-              </p>
-            )}
             <div className="mb-3 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-ink/70">
               <span className="h-px w-8 bg-ink/60" />
               First District of Batangas · Cultural Heritage Tourism

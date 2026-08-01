@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback } from "react"
+import { toast } from "sonner"
 import { updateHeritageSiteAction, getArchivedSitesByMunicipalityAction } from "../actions/heritage"
 import { deleteMtoSiteAction } from "../actions/mto-sites"
 import { useHeritageSites } from "../hooks"
@@ -24,8 +25,13 @@ export default function MtoArchiveClient({
   const displaySites = loading && sites.length === 0 ? initialSites : sites
 
   const handleRestore = useCallback(async (id: string) => {
-    await updateHeritageSiteAction(id, { publicationStatus: "draft" })
-    refetch()
+    try {
+      await updateHeritageSiteAction(id, { publicationStatus: "draft" })
+      toast.success("Heritage site restored to draft.")
+      refetch()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to restore site. Please try again.")
+    }
   }, [refetch])
 
   const handleDelete = useCallback(async (id: string) => {

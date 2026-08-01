@@ -1,10 +1,13 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
 import { useState } from "react"
-import { RotateCcwIcon, SearchIcon, EyeIcon, Loader2Icon, Trash2Icon, AlertTriangle } from "lucide-react"
+import { RotateCcwIcon, SearchIcon, EyeIcon, Loader2Icon, Trash2Icon } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import ConfirmDialog from "@/components/confirm-dialog"
 import type { HeritageSite } from "../types"
 
 interface ArchiveListProps {
@@ -16,9 +19,9 @@ interface ArchiveListProps {
 export default function ArchiveList({ sites, onRestore, onDelete }: ArchiveListProps) {
   const [search, setSearch] = useState("")
   const [restoringId, setRestoringId] = useState<string | null>(null)
+  const [restoreTarget, setRestoreTarget] = useState<HeritageSite | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<HeritageSite | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const filtered = sites.filter((site) =>
     site.siteName.toLowerCase().includes(search.toLowerCase()) ||
@@ -34,15 +37,21 @@ export default function ArchiveList({ sites, onRestore, onDelete }: ArchiveListP
     }
   }
 
+  const handleRestoreConfirm = async () => {
+    if (!restoreTarget) return
+    await handleRestore(restoreTarget.id)
+    setRestoreTarget(null)
+  }
+
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return
     setDeletingId(deleteTarget.id)
-    setDeleteError(null)
     try {
       await onDelete(deleteTarget.id)
+      toast.error(`"${deleteTarget.siteName}" permanently deleted.`)
       setDeleteTarget(null)
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : "Failed to delete site")
+      toast.error(error instanceof Error ? error.message : "Failed to delete site")
     } finally {
       setDeletingId(null)
     }
@@ -106,7 +115,7 @@ export default function ArchiveList({ sites, onRestore, onDelete }: ArchiveListP
                         variant="ghost"
                         size="icon-xs"
                         title="Restore to Draft"
-                        onClick={() => handleRestore(site.id)}
+                        onClick={() => setRestoreTarget(site)}
                         disabled={restoringId === site.id || deletingId === site.id}
                       >
                         {restoringId === site.id ? (
@@ -120,7 +129,7 @@ export default function ArchiveList({ sites, onRestore, onDelete }: ArchiveListP
                         size="icon-xs"
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                         title="Delete Permanently"
-                        onClick={() => { setDeleteTarget(site); setDeleteError(null) }}
+                        onClick={() => setDeleteTarget(site)}
                         disabled={restoringId === site.id || deletingId === site.id}
                       >
                         <Trash2Icon className="h-3.5 w-3.5" />
@@ -134,49 +143,42 @@ export default function ArchiveList({ sites, onRestore, onDelete }: ArchiveListP
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
-      {deleteTarget && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Confirm deletion"
-          className="fixed inset-0 z-50 flex items-center justify-center"
-        >
-          <div className="fixed inset-0 bg-black/50" onClick={() => setDeleteTarget(null)} />
-          <div className="relative z-10 mx-4 w-full max-w-md rounded-xl border bg-card p-6 shadow-lg">
-            <div className="flex items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
-                <AlertTriangle className="size-5 text-destructive" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold">Delete heritage site</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Are you sure you want to permanently delete{" "}
-                  <strong>{deleteTarget.siteName}</strong>? This action cannot be undone
-                  and the site will be removed permanently.
-                </p>
-              </div>
-            </div>
-            {deleteError && (
-              <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {deleteError}
-              </p>
-            )}
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => { setDeleteTarget(null); setDeleteError(null) }}
-                disabled={deletingId !== null}
-              >
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deletingId !== null}>
-                {deletingId !== null ? "Deleting..." : "Delete"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Restore Confirmation */}
+      <ConfirmDialog
+        open={restoreTarget !== null}
+        title="Restore heritage site?"
+        description={
+          restoreTarget ? (
+            <>
+              "{restoreTarget.siteName}" will be restored to the heritage sites list
+              as a draft.
+            </>
+          ) : null
+        }
+        confirmLabel="Restore"
+        isConfirming={restoringId !== null}
+        onConfirm={handleRestoreConfirm}
+        onCancel={() => setRestoreTarget(null)}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete heritage site?"
+        description={
+          deleteTarget ? (
+            <>
+              Are you sure you want to permanently delete "{deleteTarget.siteName}"?
+              This action cannot be undone.
+            </>
+          ) : null
+        }
+        confirmLabel="Delete"
+        variant="destructive"
+        isConfirming={deletingId !== null}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

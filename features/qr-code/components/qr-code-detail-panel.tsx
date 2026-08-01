@@ -1,9 +1,11 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
 import { useEffect, useCallback, useState } from "react"
 import { XIcon, QrCodeIcon, RefreshCwIcon, DownloadIcon, BanIcon, CheckCircleIcon, ExternalLinkIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import ConfirmDialog from "@/components/confirm-dialog"
 import type { QRCodeWithSite, QRCodeStatus } from "../types"
 
 interface QRCodeDetailPanelProps {
@@ -36,6 +38,7 @@ export default function QRCodeDetailPanel({
 }: QRCodeDetailPanelProps) {
   const [togglingStatus, setTogglingStatus] = useState(false)
   const [toggleError, setToggleError] = useState<string | null>(null)
+  const [deactivateConfirm, setDeactivateConfirm] = useState(false)
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -204,7 +207,7 @@ export default function QRCodeDetailPanel({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleToggleStatus}
+                    onClick={() => setDeactivateConfirm(true)}
                     disabled={togglingStatus}
                     className="text-destructive hover:bg-destructive/10"
                   >
@@ -250,6 +253,25 @@ export default function QRCodeDetailPanel({
           </div>
         </div>
       </div>
+
+      {/* Deactivate Confirmation */}
+      <ConfirmDialog
+        open={deactivateConfirm}
+        title="Deactivate QR code?"
+        description={
+          qrCode ? (
+            <>
+              The QR code for "{qrCode.siteName}" will be deactivated. Scanning
+              will no longer work until it is reactivated.
+            </>
+          ) : null
+        }
+        confirmLabel="Deactivate"
+        variant="destructive"
+        isConfirming={togglingStatus}
+        onConfirm={handleToggleStatus}
+        onCancel={() => setDeactivateConfirm(false)}
+      />
     </>
   )
 }

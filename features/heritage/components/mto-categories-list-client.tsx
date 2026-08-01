@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
@@ -9,12 +10,13 @@ import {
   MoreHorizontalIcon,
   EyeIcon,
   XIcon,
-  Loader2Icon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import ConfirmDialog from "@/components/confirm-dialog"
 import type { HeritageCategory } from "@/types/heritage"
 
 interface CategoryWithSiteCount extends HeritageCategory {
@@ -36,6 +38,7 @@ export default function MtoCategoriesListClient({
   const [currentPage, setCurrentPage] = useState(1)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CategoryWithSiteCount | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<CategoryWithSiteCount | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
@@ -52,17 +55,28 @@ export default function MtoCategoriesListClient({
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   const handleDelete = useCallback(async (id: string) => {
+    const cat = categories.find((c) => c.id === id)
     setDeletingId(id)
     setOpenMenuId(null)
     try {
       const { deleteCategoryAction } = await import("../actions/category")
       await deleteCategoryAction(id)
       setCategories((prev) => prev.filter((c) => c.id !== id))
-    } catch {
+      toast.error(`Category "${cat?.name ?? ""}" deleted.`)
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete category. Please try again.",
+      )
     } finally {
       setDeletingId(null)
+      setDeleteTarget(null)
     }
-  }, [])
+  }, [categories])
+
+  const confirmDelete = useCallback(() => {
+    if (!deleteTarget) return
+    handleDelete(deleteTarget.id)
+  }, [deleteTarget, handleDelete])
 
   const handleAddNew = useCallback(() => {
     window.location.href = "/mto/categories/new"
@@ -216,14 +230,10 @@ export default function MtoCategoriesListClient({
                           </button>
                           <button
                             className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDelete(cat.id)}
-                            disabled={deletingId === cat.id || cat.siteCount > 0}
+                            onClick={() => setDeleteTarget(cat)}
+                            disabled={cat.siteCount > 0}
                           >
-                            {deletingId === cat.id ? (
-                              <Loader2Icon className="size-3.5 animate-spin" />
-                            ) : (
-                              <span className="size-3.5 inline-flex items-center justify-center text-[10px]">✕</span>
-                            )}
+                            <span className="size-3.5 inline-flex items-center justify-center text-[10px]">✕</span>
                             Delete
                           </button>
                         </div>
@@ -367,14 +377,10 @@ export default function MtoCategoriesListClient({
                     size="sm"
                     variant="destructive"
                     className="flex-1"
-                    onClick={() => handleDelete(selectedCategory.id)}
-                    disabled={deletingId === selectedCategory.id || selectedCategory.siteCount > 0}
+                    onClick={() => setDeleteTarget(selectedCategory)}
+                    disabled={selectedCategory.siteCount > 0}
                   >
-                    {deletingId === selectedCategory.id ? (
-                      <Loader2Icon className="size-4 animate-spin" />
-                    ) : (
-                      <span>Delete</span>
-                    )}
+                    <span>Delete</span>
                   </Button>
                 </div>
               </div>
@@ -382,6 +388,25 @@ export default function MtoCategoriesListClient({
           )}
         </div>
       </>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete category?"
+        description={
+          deleteTarget ? (
+            <>
+              Are you sure you want to delete the category "{deleteTarget.name}"?
+              This action cannot be undone.
+            </>
+          ) : null
+        }
+        confirmLabel="Delete"
+        variant="destructive"
+        isConfirming={deletingId !== null}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

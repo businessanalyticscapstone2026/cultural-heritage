@@ -4,6 +4,7 @@ import { useState, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { SaveIcon, Loader2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -53,14 +54,20 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
     setIsSubmitting(true)
     try {
       await onSubmit(form.getValues())
+      if (category) {
+        toast.info("Category updated successfully.")
+      } else {
+        toast.success("Category created successfully.")
+      }
       router.push("/mto/categories")
       router.refresh()
     } catch (err) {
       console.error("Failed to save category:", err)
+      toast.error(err instanceof Error ? err.message : "Failed to save category. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
-  }, [form, onSubmit, router])
+  }, [form, onSubmit, router, category])
 
   return (
     <div className="space-y-6">

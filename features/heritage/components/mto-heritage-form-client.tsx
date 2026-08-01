@@ -124,7 +124,11 @@ export default function MtoHeritageFormClient({
 
       const { saveMtoSiteAction } = await import("../actions/mto-sites")
       await saveMtoSiteAction(payload)
-      toast.success(site ? "Heritage site updated." : "Heritage site added successfully.")
+      if (site) {
+        toast.info("Heritage site updated.")
+      } else {
+        toast.success("Heritage site added successfully.")
+      }
       router.push("/mto/heritage-sites/")
       router.refresh()
     } catch (err) {

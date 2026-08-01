@@ -1,6 +1,7 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
-import { useState, useMemo, useCallback, startTransition } from "react"
+import { useState, useMemo, useCallback } from "react"
 import {
   SearchIcon,
   FilterIcon,
@@ -12,8 +13,10 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import ConfirmDialog from "@/components/confirm-dialog"
 import type { SiteWithDetails } from "../services/mto-sites"
 import HeritageDetailPanel from "./heritage-detail-panel"
 
@@ -40,6 +43,7 @@ export default function MtoHeritageListClient({
   const [panelOpen, setPanelOpen] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [archivingId, setArchivingId] = useState<string | null>(null)
+  const [archiveTarget, setArchiveTarget] = useState<SiteWithDetails | null>(null)
   const [showFilters, setShowFilters] = useState(false)
 
   const statusCounts = useMemo(() => {
@@ -64,29 +68,31 @@ export default function MtoHeritageListClient({
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
-  const handleArchive = useCallback(async (site: SiteWithDetails) => {
+  const handleArchive = useCallback((site: SiteWithDetails) => {
+    setOpenMenuId(null)
+    setArchiveTarget(site)
+  }, [])
+
+  const confirmArchive = useCallback(async () => {
+    if (!archiveTarget) return
+    const site = archiveTarget
     setArchivingId(site.id)
     setOpenMenuId(null)
-
-    // Optimistic update: remove the site from the list
-    startTransition(() => {
-      setSites((prev) => prev.filter((s) => s.id !== site.id))
-    })
 
     try {
       const { archiveMtoSiteAction } = await import("../actions/mto-sites")
       await archiveMtoSiteAction(site.id)
-    } catch {
-      // Revert on error
-      setSites((prev) =>
-        prev.some((s) => s.id === site.id)
-          ? prev
-          : [site, ...prev],
+      setSites((prev) => prev.filter((s) => s.id !== site.id))
+      toast.warning(`"${site.siteName}" has been archived.`)
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to archive site. Please try again.",
       )
     } finally {
       setArchivingId(null)
+      setArchiveTarget(null)
     }
-  }, [])
+  }, [archiveTarget])
 
   const openDetailPanel = useCallback((site: SiteWithDetails) => {
     setSelectedSite(site)
@@ -379,6 +385,28 @@ export default function MtoHeritageListClient({
         onClose={closeDetailPanel}
         onEdit={handleEdit}
         onArchive={handleArchive}
+      />
+
+      {/* Archive Confirmation */}
+      <ConfirmDialog
+        open={archiveTarget !== null}
+        title="Archive heritage site?"
+        description={
+          archiveTarget ? (
+            <>
+              "{archiveTarget.siteName}" will be moved to the archive. You can restore
+              it later from the Archive page.
+            </>
+          ) : null
+        }
+        confirmLabel="Archive"
+        variant="destructive"
+        isConfirming={archivingId !== null}
+        onConfirm={confirmArchive}
+        onCancel={() => {
+          setArchiveTarget(null)
+          setArchivingId(null)
+        }}
       />
     </div>
   )

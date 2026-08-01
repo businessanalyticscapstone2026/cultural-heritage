@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
 import { useState, useMemo, useCallback, startTransition } from "react"
@@ -13,8 +14,10 @@ import {
   SmartphoneIcon,
   View,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import ConfirmDialog from "@/components/confirm-dialog"
 import QRCodeDetailPanel from "./qr-code-detail-panel"
 import type { QRCodeWithSite, QRKpiCounts, QRScanLogEntry, QRCodeStatus, SiteOption } from "../types"
 
@@ -59,6 +62,7 @@ export default function QRCodeListClient({
   const [generateSiteId, setGenerateSiteId] = useState("")
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
+  const [regenerateTarget, setRegenerateTarget] = useState<QRCodeWithSite | null>(null)
 
   const filtered = useMemo(() => {
     return qrCodes.filter((qr) => {
@@ -123,8 +127,12 @@ export default function QRCodeListClient({
     try {
       const { updateQrCodeStatusAction } = await import("../actions/qr-management")
       await updateQrCodeStatusAction(qrCodeId, newStatus)
+      if (newStatus === "active") {
+        toast.success("QR code reactivated.")
+      } else {
+        toast.error("QR code deactivated.")
+      }
     } catch (error) {
-      // Roll back the optimistic update, then surface the error to the panel
       try {
         const { getMtoQrCodesAction } = await import("../actions/qr-management")
         const fresh = await getMtoQrCodesAction()
@@ -132,6 +140,7 @@ export default function QRCodeListClient({
       } catch {
         // Silent fail — user can refresh
       }
+      toast.error("Failed to update QR code status. Please try again.")
       throw error
     }
   }, [])
@@ -145,6 +154,12 @@ export default function QRCodeListClient({
       const { generateQrCodeAction } = await import("../actions/qr-management")
       const newQrCode = await generateQrCodeAction(generateSiteId)
       setQrCodes((prev) => [newQrCode, ...prev])
+      const site = sites.find((s) => s.id === generateSiteId)
+      toast.success(
+        site
+          ? `QR code generated for "${site.siteName}".`
+          : "QR code generated.",
+      )
       setShowGenerateDialog(false)
       setGenerateSiteId("")
     } catch (error) {
@@ -152,24 +167,33 @@ export default function QRCodeListClient({
     } finally {
       setGenerating(false)
     }
-  }, [generateSiteId, generating])
+  }, [generateSiteId, generating, sites])
 
   const handleRegenerate = useCallback(async (qrCode: QRCodeWithSite) => {
+    setRegenerateTarget(qrCode)
+  }, [])
+
+  const handleRegenerateConfirm = useCallback(async () => {
+    if (!regenerateTarget) return
+    const qr = regenerateTarget
     try {
       const { regenerateQrCodeAction, generateQrCodePreviewAction } = await import(
         "../actions/qr-management"
       )
-      const updatedQrCode = await regenerateQrCodeAction(qrCode.id)
+      const updatedQrCode = await regenerateQrCodeAction(qr.id)
       setQrCodes((prev) =>
         prev.map((q) => (q.id === updatedQrCode.id ? updatedQrCode : q)),
       )
       setSelectedQrSvg(null)
       const svgUrl = await generateQrCodePreviewAction(updatedQrCode.codeValue)
       setSelectedQrSvg(svgUrl)
+      toast.info(`QR code for "${qr.siteName}" regenerated.`)
     } catch {
-      // Regeneration failed
+      toast.error("Failed to regenerate QR code. Please try again.")
+    } finally {
+      setRegenerateTarget(null)
     }
-  }, [])
+  }, [regenerateTarget])
 
   const handleDeactivate = useCallback(async (qrCode: QRCodeWithSite) => {
     await handleStatusChange(qrCode.id, "inactive")
@@ -492,8 +516,28 @@ export default function QRCodeListClient({
         qrSvgUrl={selectedQrSvg}
         open={panelOpen}
         onClose={closeDetailPanel}
-        onRegenerate={handleRegenerate}
+        onRegenerate={(qr) => setRegenerateTarget(qr)}
         onStatusChange={handleStatusChange}
+      />
+
+      {/* Regenerate Confirmation */}
+      <ConfirmDialog
+        open={regenerateTarget !== null}
+        title="Regenerate QR code?"
+        description={
+          regenerateTarget ? (
+            <>
+              A new code will replace the current one for "
+              {regenerateTarget.siteName}". The old code will stop working
+              immediately.
+            </>
+          ) : null
+        }
+        confirmLabel="Regenerate"
+        variant="destructive"
+        isConfirming={false}
+        onConfirm={handleRegenerateConfirm}
+        onCancel={() => setRegenerateTarget(null)}
       />
     </div>
   )

@@ -251,6 +251,28 @@ export async function getMtoSitesForQrGeneration(municipalityId: string): Promis
   if (error) throw error
 
   const siteIds = (data ?? []).map((r) => r.id as string)
+
+  if (siteIds.length > 0) {
+    const { data: existing } = await supabase
+      .from("qr_codes")
+      .select("site_id")
+      .in("site_id", siteIds)
+
+    const sitesWithQr = new Set((existing ?? []).map((r) => r.site_id as string))
+    const eligible = (data ?? []).filter((row) => !sitesWithQr.has(row.id as string))
+
+    const mediaMap = await getSiteMediaMap(eligible.map((r) => r.id as string))
+
+    return eligible.map((row) => {
+      const sid = row.id as string
+      return {
+        id: sid,
+        siteName: row.site_name as string,
+        thumbnail: mediaMap.get(sid)?.fileUrl ?? null,
+      }
+    })
+  }
+
   const mediaMap = await getSiteMediaMap(siteIds)
 
   return (data ?? []).map((row) => {
@@ -315,13 +337,42 @@ export async function getMtoRecentScanLogs(
   })
 }
 
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+function generateShortCodeValue(length = 6): string {
+  const values = new Uint32Array(length)
+  crypto.getRandomValues(values)
+  let code = "TCDSS-"
+  for (const value of values) {
+    code += CODE_ALPHABET[value % CODE_ALPHABET.length]
+  }
+  return code
+}
+
+async function generateUniqueCodeValue(
+  supabase: Awaited<ReturnType<typeof getSupabase>>,
+): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const candidate = generateShortCodeValue()
+    const { data } = await supabase
+      .from("qr_codes")
+      .select("id")
+      .eq("code_value", candidate)
+      .maybeSingle()
+
+    if (!data) return candidate
+  }
+
+  throw new Error("Failed to generate a unique QR code after multiple attempts")
+}
+
 /** Generate a new QR code */
 export async function generateQrCode(
   siteId: string,
   staffProfileId: string,
 ): Promise<QRCodeWithSite> {
   const supabase = await getSupabase()
-  const codeValue = crypto.randomUUID()
+  const codeValue = await generateUniqueCodeValue(supabase)
 
   const { data, error } = await supabase
     .from("qr_codes")
@@ -342,6 +393,62 @@ export async function generateQrCode(
   return {
     id: data.id as string,
     siteId: data.site_id as string,
+    siteName: siteName ?? "Unknown Site",
+    siteThumbnail: mediaMap.get(siteId)?.fileUrl ?? null,
+    codeValue: data.code_value as string,
+    status: (data.status as QRCodeStatus) ?? "active",
+    scanCount: 0,
+    createdBy: data.created_by as string | null,
+    creatorName: null,
+    createdAt: data.created_at as string,
+  }
+}
+
+/** Regenerate a QR code: replaces the existing row's code_value, keeping one QR per site */
+export async function regenerateQrCode(
+  qrCodeId: string,
+  staffProfileId: string,
+  municipalityId: string,
+): Promise<QRCodeWithSite> {
+  const supabase = await getSupabase()
+  const siteIds = await getMunicipalitySiteIds(municipalityId)
+
+  if (siteIds.length === 0) {
+    throw new Error("No sites found for this municipality")
+  }
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("qr_codes")
+    .select("id, site_id")
+    .eq("id", qrCodeId)
+    .in("site_id", siteIds)
+    .maybeSingle()
+
+  if (fetchError) throw fetchError
+  if (!existing) throw new Error("QR code not found in your municipality")
+
+  const codeValue = await generateUniqueCodeValue(supabase)
+
+  const { data, error } = await supabase
+    .from("qr_codes")
+    .update({
+      code_value: codeValue,
+      status: "active",
+      created_by: staffProfileId,
+    })
+    .eq("id", qrCodeId)
+    .select("id, site_id, code_value, status, created_by, created_at")
+    .single()
+
+  if (error) throw new Error(`Failed to regenerate QR code: ${error.message}`)
+
+  const siteId = data.site_id as string
+  const siteName = await getSiteName(siteId)
+  const mediaMap = await getSiteMediaMap([siteId])
+
+  return {
+    id: data.id as string,
+    siteId,
     siteName: siteName ?? "Unknown Site",
     siteThumbnail: mediaMap.get(siteId)?.fileUrl ?? null,
     codeValue: data.code_value as string,
@@ -388,11 +495,4 @@ export async function generateQrSvgDataUrl(content: string): Promise<string> {
     },
   })
   return `data:image/svg+xml;base64,${Buffer.from(svgString).toString("base64")}`
-}
-
-/** Generate the target URL for a QR code */
-export function getQrCodeTargetUrl(siteId: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_VERCEL_URL ?? "http://localhost:3000"
-  const protocol = baseUrl.startsWith("http") ? "" : "https://"
-  return `${protocol}${baseUrl}/heritage/${siteId}`
 }

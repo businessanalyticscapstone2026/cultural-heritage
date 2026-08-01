@@ -320,6 +320,22 @@ export async function deleteSiteDependencies(siteId: string): Promise<void> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
+  const { error: recommendationsError } = await supabase
+    .from("recommendations")
+    .delete()
+    .eq("site_id", siteId)
+  if (recommendationsError) {
+    throw new Error(`Failed to delete site recommendations: ${recommendationsError.message}`)
+  }
+
+  const { error: routeStopsError } = await supabase
+    .from("route_stops")
+    .delete()
+    .eq("site_id", siteId)
+  if (routeStopsError) {
+    throw new Error(`Failed to delete site route stops: ${routeStopsError.message}`)
+  }
+
   const { error: reviewsError } = await supabase
     .from("governance_reviews")
     .delete()

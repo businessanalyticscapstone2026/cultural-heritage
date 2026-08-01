@@ -20,8 +20,8 @@ export default function MtoArchiveClient({
     return getArchivedSitesByMunicipalityAction(municipalityId)
   }, [municipalityId])
 
-  const { sites, refetch } = useHeritageSites(fetchSites)
-  const displaySites = sites.length > 0 ? sites : initialSites
+  const { sites, loading, refetch } = useHeritageSites(fetchSites)
+  const displaySites = loading && sites.length === 0 ? initialSites : sites
 
   const handleRestore = useCallback(async (id: string) => {
     await updateHeritageSiteAction(id, { publicationStatus: "draft" })

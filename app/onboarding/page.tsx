@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
+import { BrandLogo } from "@/components/brand/brand-logo"
 import { useAuth } from "@/context/auth-context"
 import { TRAVEL_STYLES, GROUP_TYPES, ACCESSIBILITY_NEEDS } from "@/lib/constants"
 import {
@@ -286,9 +287,7 @@ export default function OnboardingPage() {
         <div className="w-full max-w-md mx-auto lg:mx-0">
           {/* Logo */}
           <div className="mb-8">
-            <div className="w-12 h-12 rounded-full bg-[#EAF2FB] flex items-center justify-center mb-4">
-              <Compass className="w-5 h-5 text-[#1D5FA8]" />
-            </div>
+            <BrandLogo variant="light" className="mb-4 size-12" />
             <h1 className="text-2xl font-semibold text-[#0B2A4A]">
               {step === 0 && <>Pick your <em className="italic">interests</em></>}
               {step === 1 && <>Where are you <em className="italic">traveling from</em>?</>}
@@ -655,9 +654,7 @@ export default function OnboardingPage() {
 
         <div className="relative z-10 flex flex-col h-full p-10 text-white">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-white/15 flex items-center justify-center">
-              <Compass className="w-5 h-5" />
-            </div>
+            <BrandLogo variant="dark" className="size-11" />
             <div className="text-white leading-tight">
               <p className="text-xs uppercase tracking-wide text-white/70">Batangas Heritage</p>
               <p className="font-semibold text-sm">Tourism DSS</p>

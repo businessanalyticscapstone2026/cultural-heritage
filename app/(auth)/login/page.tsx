@@ -8,6 +8,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
 import { checkLoginRateLimitAction } from "@/features/audit/actions"
+import { BrandLogo } from "@/components/brand/brand-logo"
 
 const currentYear = new Date().getFullYear()
 
@@ -191,9 +192,7 @@ export default function LoginPage() {
               <ArrowLeft size={14} strokeWidth={1.5} />
               Back to home
             </Link>
-            <div className="w-12 h-12 rounded-full bg-[#EAF2FB] flex items-center justify-center mb-4">
-              <Compass className="w-5 h-5 text-[#1D5FA8]" />
-            </div>
+            <BrandLogo variant="light" className="mb-4 size-12" />
             <h1 className="text-2xl font-semibold text-[#0B2A4A]">Welcome back</h1>
             <p className="text-sm text-gray-500 mt-1">Sign in to explore heritage sites near you</p>
           </div>
@@ -368,9 +367,7 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col h-full p-10 text-white">
           {/* Logo badge */}
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-white/15 flex items-center justify-center">
-              <Compass className="w-5 h-5" />
-            </div>
+            <BrandLogo variant="dark" className="size-11" />
             <div className="text-white leading-tight">
               <p className="text-xs uppercase tracking-wide text-white/70">Batangas Heritage</p>
               <p className="font-semibold text-sm">Tourism DSS</p>

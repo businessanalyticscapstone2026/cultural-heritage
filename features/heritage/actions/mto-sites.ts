@@ -19,6 +19,7 @@ import type { SiteWithDetails } from "../services/mto-sites"
 import { mtoHeritageSiteSchema } from "../schemas/mto-heritage-site"
 import { findDuplicateHeritageSiteByName } from "../services/sites"
 import type { DuplicateSiteMatch } from "../services/sites"
+import { autoGenerateQrForSite } from "@/features/qr-code/services/qr-management"
 
 async function getAuthContext() {
   const cookieStore = await cookies()
@@ -197,10 +198,23 @@ export async function saveMtoSiteAction(json: string) {
     })
   }
 
-  return createMtoSite(
+  const site = await createMtoSite(
     { ...validated, municipalityId, tags, referenceLinks },
     staffProfileId,
   )
+
+  revalidatePath("/mto/heritage-sites")
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await autoGenerateQrForSite(site.id, staffProfileId)
+    revalidatePath("/mto/qr-codes")
+  } catch (err) {
+    console.error(`Failed to auto-generate QR code for site ${site.id}:`, err)
+  }
+
+  return site
 }
 
 /** Archive (soft-delete) a site — uses publication_status change */

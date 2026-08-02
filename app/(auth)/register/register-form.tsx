@@ -141,7 +141,7 @@ export default function RegisterForm() {
 
           <div className="relative z-10 flex flex-col h-full p-10 text-white">
             <div className="flex items-center gap-3">
-              <BrandLogo variant="dark" className="size-11" />
+              <BrandLogo variant="white" className="size-11" />
               <div className="text-white leading-tight">
                 <p className="text-xs uppercase tracking-wide text-white/70">Batangas Heritage</p>
                 <p className="font-semibold text-sm">Tourism DSS</p>

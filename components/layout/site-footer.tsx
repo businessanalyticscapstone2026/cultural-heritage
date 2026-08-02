@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Compass, Globe, MessageCircle, ExternalLink } from "lucide-react";
+import { Globe, MessageCircle, ExternalLink } from "lucide-react";
+import { BrandLogo } from "@/components/brand/brand-logo";
 
 const footerColumns = [
   {
@@ -24,13 +25,8 @@ export default function SiteFooter() {
     <footer className="bg-primary text-white/70">
       <div className="mx-auto grid max-w-7xl gap-10 px-6 py-14 lg:grid-cols-[1.3fr_1fr_1fr_1fr] lg:gap-8 lg:px-10">
         <div>
-          <Link href="/" className="flex items-center gap-3">
-            <Compass className="h-6 w-6 text-white" strokeWidth={1.5} />
-            <span className="font-heading text-sm font-semibold uppercase leading-tight tracking-[0.2em] text-white">
-              Batangas
-              <br />
-              Heritage
-            </span>
+          <Link href="/" className="flex items-center">
+            <BrandLogo variant="white" className="h-8 w-auto" />
           </Link>
           <p className="mt-4 max-w-[220px] text-sm">
             Preserving our past, inspiring our future.

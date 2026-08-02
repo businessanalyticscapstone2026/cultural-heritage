@@ -103,3 +103,15 @@ export const ACCESSIBILITY_NEEDS = [
   { value: "mobility", label: "Mobility Support" },
   { value: "cognitive", label: "Cognitive Support" },
 ] as const
+
+export const SITE_CONTACT = {
+  address: "Provincial Capitol Compound, Kumintang Ibaba, Batangas City, Batangas",
+  phone: "+63 43 000 0000",
+  email: "ptcao.batangas@example.com",
+  website: "https://batangas.gov.ph",
+  officeHours: "Monday – Friday · 8:00 AM – 5:00 PM",
+  socials: [
+    { label: "Facebook", href: "#" },
+    { label: "Instagram", href: "#" },
+  ],
+} as const

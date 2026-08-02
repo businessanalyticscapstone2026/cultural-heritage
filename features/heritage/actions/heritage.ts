@@ -1,6 +1,9 @@
 "use server"
 
 import { revalidatePath, revalidateTag } from "next/cache"
+import { cookies } from "next/headers"
+import { createClient } from "@/utils/supabase/server"
+import { autoGenerateQrForSite } from "@/features/qr-code/services/qr-management"
 import { CACHE_TAGS, CACHE_REVALIDATE_SECONDS } from "@/lib/cache-tags"
 import {
   createHeritageSite,
@@ -42,6 +45,22 @@ export async function createHeritageSiteAction(data: Partial<HeritageSite>) {
   revalidatePath("/mto/heritage-sites")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    try {
+      await autoGenerateQrForSite(site.id, user.id)
+      revalidatePath("/mto/qr-codes")
+    } catch (err) {
+      console.error(`Failed to auto-generate QR code for site ${site.id}:`, err)
+    }
+  }
+
   return site
 }
 

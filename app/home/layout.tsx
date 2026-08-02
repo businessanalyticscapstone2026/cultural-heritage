@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import { HomeNavbar } from "@/components/layout/home-navbar"
 import { createClient } from "@/utils/supabase/server"
 import QRScannerFAB from "@/features/qr-code/components/qr-scanner-fab"
+import { FooterContact } from "@/components/layout/footer-contact"
 
 export default async function HomeLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -22,8 +23,8 @@ function HomeSiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <footer className="border-t border-ink/10 bg-cream">
       <div className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-20">
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-4 md:gap-8">
-          <div className="col-span-1 md:col-span-2">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr] lg:gap-8">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1">
             <a href="/home" className="flex items-center gap-2">
               <span className="grid h-9 w-9 place-items-center rounded-full border border-ink/20 text-ink">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -59,6 +60,7 @@ function HomeSiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
               </ul>
             </div>
           )}
+          <FooterContact />
         </div>
       </div>
       <div className="border-t border-ink/10">

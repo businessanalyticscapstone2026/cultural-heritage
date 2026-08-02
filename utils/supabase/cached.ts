@@ -30,8 +30,12 @@ export function createTokenClient(accessToken: string): SupabaseClient {
 export async function resolveAccessToken(): Promise<string> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  return session?.access_token ?? ""
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    return session?.access_token ?? ""
+  } catch {
+    return ""
+  }
 }

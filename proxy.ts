@@ -65,7 +65,18 @@ export async function proxy(request: NextRequest) {
 
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser()
+
+  if (error) {
+    request.cookies.getAll().forEach(({ name }) => {
+      const isSupabaseAuthCookie =
+        name.startsWith("sb-") && (name.includes("-auth-token") || name.endsWith("-code-verifier"))
+      if (isSupabaseAuthCookie) {
+        supabaseResponse.cookies.set(name, "", { path: "/", maxAge: 0 })
+      }
+    })
+  }
 
   const isAuthenticated = !!user
   const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route))

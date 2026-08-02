@@ -62,23 +62,31 @@ export async function getMTODashboardStats(municipalityId: string): Promise<Dash
       .lte("created_at", lastMonth.end),
   ])
 
+  const qrCodeIds = (
+    await supabase
+      .from("qr_codes")
+      .select("id")
+      .in(
+        "site_id",
+        (
+          await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
+        ).data?.map((s) => s.id) ?? [],
+      )
+  ).data?.map((q) => q.id) ?? []
+
+  const countScans = (start: string, end: string) =>
+    qrCodeIds.length === 0
+      ? Promise.resolve({ count: 0, error: null })
+      : supabase
+          .from("qr_scan_logs")
+          .select("id", { count: "exact", head: true })
+          .in("qr_code_id", qrCodeIds)
+          .gte("scanned_at", start)
+          .lte("scanned_at", end)
+
   const [visitsCount, visitsCountPrev] = await Promise.all([
-    supabase
-      .from("tourist_visits")
-      .select("id", { count: "exact", head: true })
-      .gte("visit_date", thisMonth.start.slice(0, 10))
-      .lte("visit_date", thisMonth.end.slice(0, 10))
-      .in("site_id", (
-        await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-      ).data?.map((s) => s.id) ?? []),
-    supabase
-      .from("tourist_visits")
-      .select("id", { count: "exact", head: true })
-      .gte("visit_date", lastMonth.start.slice(0, 10))
-      .lte("visit_date", lastMonth.end.slice(0, 10))
-      .in("site_id", (
-        await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-      ).data?.map((s) => s.id) ?? []),
+    countScans(thisMonth.start, thisMonth.end),
+    countScans(lastMonth.start, lastMonth.end),
   ])
 
   const [bookmarksCount, bookmarksCountPrev] = await Promise.all([
@@ -97,22 +105,24 @@ export async function getMTODashboardStats(municipalityId: string): Promise<Dash
       .lte("created_at", lastMonth.end),
   ])
 
+  const siteIds = (
+    await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
+  ).data?.map((s) => s.id) ?? []
+
+  const countDistinctClickedSites = async (start: string, end: string) => {
+    const { data } = await supabase
+      .from("recommendations")
+      .select("site_id")
+      .eq("was_clicked", true)
+      .in("site_id", siteIds)
+      .gte("clicked_at", start)
+      .lte("clicked_at", end)
+    return new Set((data ?? []).map((r) => r.site_id as string)).size
+  }
+
   const [recsCount, recsCountPrev] = await Promise.all([
-    supabase
-      .from("recommendations")
-      .select("id", { count: "exact", head: true })
-      .eq("was_clicked", true)
-      .in("site_id", (
-        await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-      ).data?.map((s) => s.id) ?? []),
-    supabase
-      .from("recommendations")
-      .select("id", { count: "exact", head: true })
-      .eq("was_clicked", true)
-      .in("site_id", (
-        await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-      ).data?.map((s) => s.id) ?? [])
-      .lte("clicked_at", lastMonth.end),
+    countDistinctClickedSites(thisMonth.start, thisMonth.end),
+    countDistinctClickedSites(lastMonth.start, lastMonth.end),
   ])
 
   const [qrCount, qrCountPrev] = await Promise.all([
@@ -136,7 +146,7 @@ export async function getMTODashboardStats(municipalityId: string): Promise<Dash
   const sitesChange = computeChange(sitesCount.count ?? 0, sitesCountPrev.count ?? 0)
   const visitsChange = computeChange(visitsCount.count ?? 0, visitsCountPrev.count ?? 0)
   const bookmarksChange = computeChange(bookmarksCount.count ?? 0, bookmarksCountPrev.count ?? 0)
-  const recsChange = computeChange(recsCount.count ?? 0, recsCountPrev.count ?? 0)
+  const recsChange = computeChange(recsCount, recsCountPrev)
   const qrChange = computeChange(qrCount.count ?? 0, qrCountPrev.count ?? 0)
 
   return [
@@ -149,11 +159,11 @@ export async function getMTODashboardStats(municipalityId: string): Promise<Dash
       description: "vs last month",
     },
     {
-      label: "Tourist Visits",
+      label: "QR Scans",
       value: visitsCount.count ?? 0,
       changePercent: visitsChange.changePercent,
       changeDirection: visitsChange.changeDirection,
-      icon: "Users",
+      icon: "ScanLine",
       description: "this month",
     },
     {
@@ -165,12 +175,12 @@ export async function getMTODashboardStats(municipalityId: string): Promise<Dash
       description: "total saves",
     },
     {
-      label: "Recommendations Used",
-      value: recsCount.count ?? 0,
+      label: "Sites Clicked",
+      value: recsCount,
       changePercent: recsChange.changePercent,
       changeDirection: recsChange.changeDirection,
       icon: "Sparkles",
-      description: "clicks this month",
+      description: "this month",
     },
     {
       label: "Active QR Codes",
@@ -202,32 +212,39 @@ export async function getMTOVisitsOverview(municipalityId: string): Promise<Mont
     }))
   }
 
+  const yearBounds = (year: number) => ({
+    start: `${year}-01-01T00:00:00.000Z`,
+    end: `${year}-12-31T23:59:59.999Z`,
+  })
+
   const [currentData, priorData] = await Promise.all([
     supabase
-      .from("tourist_visits")
-      .select("visit_date")
+      .from("recommendations")
+      .select("site_id, clicked_at")
+      .eq("was_clicked", true)
       .in("site_id", siteIds)
-      .gte("visit_date", `${currentYear}-01-01`)
-      .lte("visit_date", `${currentYear}-12-31`),
+      .gte("clicked_at", yearBounds(currentYear).start)
+      .lte("clicked_at", yearBounds(currentYear).end),
     supabase
-      .from("tourist_visits")
-      .select("visit_date")
+      .from("recommendations")
+      .select("site_id, clicked_at")
+      .eq("was_clicked", true)
       .in("site_id", siteIds)
-      .gte("visit_date", `${priorYear}-01-01`)
-      .lte("visit_date", `${priorYear}-12-31`),
+      .gte("clicked_at", yearBounds(priorYear).start)
+      .lte("clicked_at", yearBounds(priorYear).end),
   ])
 
-  const countByMonth = (rows: { visit_date: string }[], year: number) => {
-    const counts = new Array(12).fill(0)
+  const distinctSitesByMonth = (rows: { site_id: string; clicked_at: string }[], year: number) => {
+    const monthSets = Array.from({ length: 12 }, () => new Set<string>())
     for (const row of rows) {
-      const d = new Date(row.visit_date)
-      if (d.getFullYear() === year) counts[d.getMonth()]++
+      const d = new Date(row.clicked_at)
+      if (d.getFullYear() === year) monthSets[d.getMonth()].add(row.site_id)
     }
-    return counts
+    return monthSets.map((set) => set.size)
   }
 
-  const currentCounts = countByMonth(currentData.data ?? [], currentYear)
-  const priorCounts = countByMonth(priorData.data ?? [], priorYear)
+  const currentCounts = distinctSitesByMonth(currentData.data ?? [], currentYear)
+  const priorCounts = distinctSitesByMonth(priorData.data ?? [], priorYear)
 
   return Array.from({ length: 12 }, (_, i) => ({
     month: new Date(0, i).toLocaleString("en", { month: "short" }),

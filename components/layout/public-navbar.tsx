@@ -11,10 +11,26 @@ import { BrandLogo } from "@/components/brand/brand-logo"
 const navLinks = [
   { href: "/", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Compass },
-  { href: "/map", label: "Map", icon: Map },
-  { href: "/reviews", label: "Reviews", icon: Star },
+  {
+    href: "/map",
+    label: "Map",
+    icon: Map,
+    requiresAuth: true,
+    promptTitle: "Sign in to view the map",
+    promptDescription: "Explore heritage sites across the First District of Batangas with our interactive GIS map.",
+  },
+  {
+    href: "/reviews",
+    label: "Reviews",
+    icon: Star,
+    requiresAuth: true,
+    promptTitle: "Sign in to view reviews",
+    promptDescription: "Create a free account to read and share stories from heritage explorers in Batangas.",
+  },
   { href: "/about", label: "About", icon: Info },
 ]
+
+type NavLink = (typeof navLinks)[number]
 
 export default function PublicNavbar() {
   const pathname = usePathname()
@@ -50,6 +66,13 @@ export default function PublicNavbar() {
       router.push(`/explore?q=${encodeURIComponent(searchQuery.trim())}`)
       setSearchQuery("")
       setMobileSearchOpen(false)
+    }
+  }
+
+  const handleNavClick = (e: React.MouseEvent, link: NavLink) => {
+    if (link.requiresAuth && !user) {
+      e.preventDefault()
+      showAuthPrompt(link.promptTitle ?? "", link.promptDescription ?? "")
     }
   }
 
@@ -153,6 +176,7 @@ export default function PublicNavbar() {
                 <Link
                   key={link.label}
                   href={link.href}
+                  onClick={(e) => handleNavClick(e, link)}
                   className={
                     active
                       ? "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium text-accent transition-all"
@@ -213,6 +237,7 @@ export default function PublicNavbar() {
               <Link
                 key={tab.label}
                 href={tab.href}
+                onClick={(e) => handleNavClick(e, tab)}
                 className="flex flex-1 flex-col items-center gap-0.5 py-1"
               >
                 <span className={`grid h-10 w-10 place-items-center rounded-xl transition-all ${active ? "bg-ink text-cream" : "text-ink-soft"}`}>

@@ -5,6 +5,7 @@ import {
   Bookmark,
   Sparkles,
   QrCode,
+  ScanLine,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -17,6 +18,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Bookmark,
   Sparkles,
   QrCode,
+  ScanLine,
 }
 
 export default function StatCard({ stat }: { stat: DashboardStat }) {

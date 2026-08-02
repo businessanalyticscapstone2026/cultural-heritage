@@ -420,7 +420,41 @@ export async function generateRecommendations(
     }
   })
 
+  await persistRecommendations(supabase, results, preferences)
+
   return results
+}
+
+async function persistRecommendations(
+  supabase: ReturnType<typeof createClient>,
+  results: RecommendationResult[],
+  preferences: UserPreferences,
+): Promise<void> {
+  if (!preferences.touristId && !preferences.sessionId) {
+    return
+  }
+
+  const rows = results
+    .filter((r) => r.site.municipalityId != null)
+    .map((r) => ({
+      id: r.recommendationId,
+      site_id: r.site.id,
+      municipality_id: r.site.municipalityId as string,
+      score: r.score,
+      method: "weighted_hybrid" as const,
+      tourist_id: preferences.touristId ?? null,
+      session_id: preferences.sessionId ?? null,
+    }))
+
+  if (rows.length === 0) {
+    return
+  }
+
+  const { error } = await supabase.from("recommendations").insert(rows)
+
+  if (error) {
+    console.error("Failed to persist recommendations:", error.message)
+  }
 }
 
 export async function getRecommendations(

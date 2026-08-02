@@ -29,7 +29,7 @@ export default function VisitsOverviewChart({ municipalityId }: { municipalityId
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Tourist Visits Overview</CardTitle>
+        <CardTitle className="text-base">Sites Clicked Overview</CardTitle>
       </CardHeader>
       <CardContent>
         {isError && (

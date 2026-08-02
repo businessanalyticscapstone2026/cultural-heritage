@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { ensureSessionId } from "@/lib/session"
 import { generateRecommendations } from "../services"
 import type { RecommendationResult, UserPreferences } from "@/types/recommendation"
 
@@ -15,7 +16,7 @@ export async function getRecommendationsAction(
 
   const prefs: UserPreferences = {
     ...preferences,
-    sessionId: preferences.sessionId ?? (user ? undefined : crypto.randomUUID()),
+    sessionId: preferences.sessionId ?? (user ? undefined : await ensureSessionId()),
     touristId: user?.id ?? null,
   }
 

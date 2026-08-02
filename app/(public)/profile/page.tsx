@@ -1,9 +1,9 @@
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
-import { redirect } from "next/navigation"
 import { getProfileAction, getRecommendationHistoryAction } from "@/features/profile/actions"
 import { getHeritageCategoriesAction } from "@/features/onboarding/actions"
 import { getBookmarkedSitesAction } from "@/features/heritage/actions/bookmark"
+import RestrictedGuestPrompt from "@/components/auth/restricted-guest-prompt"
 import ProfileClient from "@/features/profile/components/profile-client"
 
 export default async function ProfilePage() {
@@ -15,7 +15,12 @@ export default async function ProfilePage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect("/")
+    return (
+      <RestrictedGuestPrompt
+        title="Sign in to view your profile"
+        description="Create a free account to save destinations, write reviews, and track your heritage journeys."
+      />
+    )
   }
 
   const [profile, categories, savedSites, recommendationHistory] = await Promise.all([

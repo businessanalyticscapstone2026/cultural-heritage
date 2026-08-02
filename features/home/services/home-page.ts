@@ -1,5 +1,6 @@
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
+import { readSessionId } from "@/lib/session"
 import { generateRecommendations } from "@/features/recommendation/services"
 import type {
   HomeAtlasStats,
@@ -352,7 +353,7 @@ async function getRecommendedSites(
     preferredCategoryIds: [],
     limit: RECOMMENDED_LIMIT,
     touristId: user?.id ?? null,
-    sessionId: user ? undefined : crypto.randomUUID(),
+    sessionId: user ? undefined : ((await readSessionId()) ?? undefined),
   }
 
   let userName: string | undefined
@@ -629,7 +630,7 @@ async function getRecentlyViewed(
 }
 
 async function resolveHeroImageUrl(): Promise<string> {
-  return "/images/municipalities/taal/Log%20in%20to%20Foursquare.jfif"
+  return "/images/home/home.jpg"
 }
 
 export async function getTouristHomePageData(): Promise<HomePagePayload> {

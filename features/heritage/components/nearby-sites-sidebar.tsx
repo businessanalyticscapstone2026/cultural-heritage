@@ -1,8 +1,8 @@
 "use client"
 
-import Link from "next/link"
 import Image from "next/image"
 import { MapPin, Clock, Map, Footprints, Car } from "lucide-react"
+import RestrictedLink from "@/components/auth/restricted-link"
 import type { NearbySite, TravelMode } from "../types"
 
 interface NearbySitesSidebarProps {
@@ -76,15 +76,17 @@ export default function NearbySitesSidebar({
           </button>
         </div>
 
-        <a
+        <RestrictedLink
           href={`/map?site=${sites[0]?.siteId ?? ""}`}
+          title="Sign in to view the map"
+          description="Explore heritage sites across the First District of Batangas with our interactive GIS map."
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-heading"
         >
           <Map className="h-3 w-3" />
           View on Map
-        </a>
+        </RestrictedLink>
       </div>
 
       <ul className="mt-3 space-y-1">
@@ -145,12 +147,14 @@ export default function NearbySitesSidebar({
       </ul>
 
       {sites.length > 0 && (
-        <Link
+        <RestrictedLink
           href="/nearby"
+          title="Sign in to view nearby sites"
+          description="Discover heritage sites closest to you in the First District of Batangas."
           className="mt-3 block text-center text-xs font-medium text-primary hover:underline"
         >
           Explore more nearby sites
-        </Link>
+        </RestrictedLink>
       )}
     </section>
   )

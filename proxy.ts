@@ -97,6 +97,15 @@ export async function proxy(request: NextRequest) {
   // Unauthenticated users
   if (!isAuthenticated) {
     if (isPublicRoute(pathname)) {
+      if (!request.cookies.get("session_id")) {
+        supabaseResponse.cookies.set("session_id", crypto.randomUUID(), {
+          path: "/",
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          maxAge: 60 * 60 * 24 * 365,
+        })
+      }
       return supabaseResponse
     }
     const loginUrl = new URL("/login", request.url)

@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
 import Image from "next/image"
 import dynamic from "next/dynamic"
+import RestrictedLink from "@/components/auth/restricted-link"
 import {
   Route,
   MapPin,
@@ -21,7 +21,7 @@ import {
   Camera,
 } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
-import type { HeritageSite, HeritageSiteMedia, HeritageSiteTag, HeritageSiteReferenceLink } from "../types"
+import type { HeritageSite, HeritageSiteTag, HeritageSiteReferenceLink } from "../types"
 import Breadcrumb from "./breadcrumb"
 import { BookmarkButton } from "./bookmark-button"
 import NearbySitesSidebar from "./nearby-sites-sidebar"
@@ -634,13 +634,15 @@ export default function HeritageDetailClient({
 
             {/* Plan My Trip CTA */}
             {hasCoordinates && (
-              <Link
+              <RestrictedLink
                 href={`/map?planRoute=${site.id}`}
+                title="Sign in to plan your trip"
+                description="Create a free account to build optimized heritage tour routes across Batangas."
                 className="flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
               >
                 <Route className="h-4 w-4" />
                 Plan My Trip
-              </Link>
+              </RestrictedLink>
             )}
           </aside>
         </div>

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useGeolocation } from "@/hooks/use-geolocation"
+import { useAuth } from "@/context/auth-context"
+import RestrictedGuestPrompt from "@/components/auth/restricted-guest-prompt"
 import type { NearbySite, TravelMode, HeritageCategory } from "@/types/heritage"
 import {
   LocationPrompt,
@@ -17,13 +19,14 @@ import { WALKING_RADII, DRIVING_RADII } from "@/features/nearby/constants"
 
 export default function NearbyPage() {
   const geo = useGeolocation()
+  const { profile: authProfile, isLoading: authLoading } = useAuth()
 
   const [mode, setMode] = useState<TravelMode>("walking")
   const [radius, setRadius] = useState(3)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [categories, setCategories] = useState<HeritageCategory[]>([])
   const [sites, setSites] = useState<NearbySite[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [manualLocation, setManualLocation] = useState<{
     lat: number
     long: number
@@ -70,7 +73,6 @@ export default function NearbyPage() {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
     fetchNearby().then((results) => {
       if (!cancelled) {
         setSites(results)
@@ -131,6 +133,23 @@ export default function NearbyPage() {
     } else if (newMode === "walking" && radius >= 20) {
       setRadius(3)
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-12 md:px-6 lg:px-10">
+        <div className="h-72 animate-pulse rounded-3xl border border-ink/10 bg-card" />
+      </div>
+    )
+  }
+
+  if (!authProfile) {
+    return (
+      <RestrictedGuestPrompt
+        title="Sign in to view nearby sites"
+        description="Discover heritage sites closest to you in the First District of Batangas."
+      />
+    )
   }
 
   return (

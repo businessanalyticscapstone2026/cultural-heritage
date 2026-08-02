@@ -251,12 +251,15 @@ export default function HeritageDetailClient({
 
           {site.category && (
             <span
-              className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium uppercase tracking-wider backdrop-blur-md"
-              style={{
-                backgroundColor: site.category.color ? `${site.category.color}20` : "rgba(255,255,255,0.15)",
-                color: site.category.color ?? "#fff",
-              }}
+              className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/30 px-3.5 py-1.5 text-xs font-medium uppercase tracking-wider text-white backdrop-blur-md"
             >
+              {site.category.color && (
+                <span
+                  className="size-2 shrink-0 rounded-full ring-1 ring-white/40"
+                  style={{ backgroundColor: site.category.color }}
+                  aria-hidden="true"
+                />
+              )}
               {site.category.icon && <Tag className="h-3 w-3" />}
               {site.category.name}
             </span>

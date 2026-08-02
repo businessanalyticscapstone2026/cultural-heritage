@@ -128,7 +128,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
       <section
         ref={heroRef}
         id="top"
-        className="relative flex min-h-[100svh] w-full flex-col overflow-hidden pt-24 md:pt-20"
+        className="relative flex min-h-[100svh] w-full flex-col overflow-hidden pt-24 md:pt-32"
       >
         <motion.div style={{ y: heroY, opacity: heroOpacity }} className="absolute inset-0">
           {heroImageUrl ? (
@@ -143,7 +143,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
           ) : (
             <div className="h-[115%] w-full bg-gradient-to-br from-parchment via-cream to-ink/20" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-cream/70 via-cream/40 to-cream" />
+          <div className="absolute inset-0 bg-gradient-to-b from-cream/40 via-cream/40 to-cream" />
           <div className="absolute inset-0 bg-gradient-to-r from-cream/60 via-transparent to-transparent" />
         </motion.div>
 

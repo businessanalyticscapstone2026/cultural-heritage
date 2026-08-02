@@ -254,7 +254,7 @@ export default function HeritageDetailClient({
                 </h2>
                 <div className="mt-4 space-y-4">
                   {site.detailedDescription && (
-                    <p className="whitespace-pre-line text-sm leading-relaxed text-body">
+                    <p className="whitespace-pre-line text-justify text-sm leading-relaxed text-body hyphens-auto">
                       {site.detailedDescription}
                     </p>
                   )}
@@ -300,13 +300,13 @@ export default function HeritageDetailClient({
                   {site.historicalSignificance && (
                     <div className="rounded-lg border-l-4 border-secondary/60 bg-card px-4 py-3">
                       <p className="text-xs font-medium uppercase tracking-wider text-secondary">Historical Significance</p>
-                      <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-body">{site.historicalSignificance}</p>
+                      <p className="mt-1 whitespace-pre-line text-justify text-sm leading-relaxed text-body hyphens-auto">{site.historicalSignificance}</p>
                     </div>
                   )}
                   {site.culturalSignificance && (
                     <div className="rounded-lg border-l-4 border-accent/60 bg-card px-4 py-3">
                       <p className="text-xs font-medium uppercase tracking-wider text-accent">Cultural Significance</p>
-                      <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-body">{site.culturalSignificance}</p>
+                      <p className="mt-1 whitespace-pre-line text-justify text-sm leading-relaxed text-body hyphens-auto">{site.culturalSignificance}</p>
                     </div>
                   )}
                 </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import dynamic from "next/dynamic"
 import {
   Route,
   MapPin,
@@ -14,7 +15,6 @@ import {
   Accessibility,
   Building,
   Landmark,
-  Navigation,
   ChevronLeft,
   ChevronRight,
   X,
@@ -28,6 +28,27 @@ import NearbySitesSidebar from "./nearby-sites-sidebar"
 import { ReviewsSection } from "@/features/reviews/components"
 import { StarDisplay } from "@/features/reviews/components"
 import type { NearbySite, TravelMode } from "@/types/heritage"
+
+const Map = dynamic(() => import("@/components/ui/map").then((m) => m.Map), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center bg-muted/30 text-xs text-muted-foreground">
+      Loading map...
+    </div>
+  ),
+})
+const MapMarker = dynamic(
+  () => import("@/components/ui/map").then((m) => m.MapMarker),
+  { ssr: false },
+)
+const MarkerContent = dynamic(
+  () => import("@/components/ui/map").then((m) => m.MarkerContent),
+  { ssr: false },
+)
+const MapControls = dynamic(
+  () => import("@/components/ui/map").then((m) => m.MapControls),
+  { ssr: false },
+)
 
 interface HeritageDetailClientProps {
   site: HeritageSite
@@ -123,9 +144,7 @@ export default function HeritageDetailClient({
     }
   }
 
-  const mapsUrl = hasCoordinates
-    ? `https://www.google.com/maps?q=${site.latitude},${site.longitude}`
-    : `/map?site=${site.id}`
+  const mapsUrl = `https://www.google.com/maps?q=${site.latitude},${site.longitude}`
 
   return (
     <div className="min-h-screen bg-warm-white">
@@ -543,22 +562,45 @@ export default function HeritageDetailClient({
                 <p className="mt-1 text-sm text-muted-foreground">{locationParts.join(", ")}</p>
               )}
 
-              {hasCoordinates && (
+              {hasCoordinates ? (
                 <>
+                  <div className="relative mt-4 h-48 w-full overflow-hidden rounded-lg border border-border">
+                    <Map
+                      className="h-full w-full"
+                      center={[site.longitude!, site.latitude!]}
+                      zoom={15}
+                      theme="light"
+                    >
+                      <MapMarker longitude={site.longitude!} latitude={site.latitude!}>
+                        <MarkerContent>
+                          <div className="flex size-7 items-center justify-center rounded-full border-2 border-white bg-primary shadow-lg">
+                            <MapPin className="size-3.5 text-white" />
+                          </div>
+                        </MarkerContent>
+                      </MapMarker>
+                      <MapControls showZoom position="bottom-right" />
+                    </Map>
+                  </div>
+
                   <a
                     href={mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-body transition-colors hover:bg-muted"
                   >
-                    <Navigation className="h-4 w-4" />
-                    View on Map
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Open in Google Maps
                   </a>
                   <p className="mt-2 text-center text-[10px] text-muted-foreground">
                     {site.latitude!.toFixed(4)}, {site.longitude!.toFixed(4)}
                     {site.elevation && <> · Elev. {site.elevation}m</>}
                   </p>
                 </>
+              ) : (
+                <div className="mt-4 flex h-24 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/30 text-center">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">Location not available</p>
+                </div>
               )}
             </div>
 

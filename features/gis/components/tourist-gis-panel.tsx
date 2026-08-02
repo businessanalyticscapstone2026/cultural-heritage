@@ -9,7 +9,6 @@ import {
   Layers,
   Search,
   X,
-  ExternalLink,
   MapPin,
   Navigation,
   Star,
@@ -19,11 +18,13 @@ import {
   Route,
   Plus,
 } from "lucide-react"
+import type MapLibreGL from "maplibre-gl"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { getBoundsFromViewport } from "@/utils/geo"
 import { useGisUiStore } from "../stores/gis-ui"
 import { useNearbySites } from "../hooks/use-nearby-sites"
+import { fetchDrivingDirections } from "../services/directions"
 import MapEntryState from "./map-entry-state"
 import HeritageStatistics from "./heritage-statistics"
 import NearbyDestinationsList from "./nearby-destinations-list"
@@ -32,6 +33,7 @@ import { RoutePlannerPanel } from "@/features/route-optimization/components"
 import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
 import type { TouristMapSite, TouristMapCategory, CuratedTrail } from "../services/tourist-map"
 import type { SiteWithDistance } from "../hooks/use-nearby-sites"
+import type { DrivingDirections } from "../services/directions"
 import type { User } from "@supabase/supabase-js"
 
 const Map = dynamic(
@@ -124,7 +126,12 @@ export default function TouristGISPanel({
   const [selectedSite, setSelectedSite] = useState<SiteWithDistance | null>(null)
   const [showFilters, setShowFilters] = useState(true)
   const [recommendationRecIds, setRecommendationRecIds] = useState<Record<string, string>>({})
+  const [directionsSiteId, setDirectionsSiteId] = useState<string | null>(null)
+  const [directionsRoute, setDirectionsRoute] = useState<DrivingDirections | null>(null)
+  const [directionsLoading, setDirectionsLoading] = useState(false)
+  const [directionsFailed, setDirectionsFailed] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
+  const mapInstanceRef = useRef<MapLibreGL.Map | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -226,12 +233,73 @@ export default function TouristGISPanel({
 
   const hasUserMarker = userLatitude != null && userLongitude != null
 
-  const getDirectionsUrl = (lat: number, lng: number) => {
-    if (userLatitude != null && userLongitude != null) {
-      return `https://www.google.com/maps/dir/${userLatitude},${userLongitude}/${lat},${lng}`
-    }
-    return `https://www.google.com/maps?q=${lat},${lng}`
-  }
+  const directionsTarget = directionsSiteId
+    ? nearbySites.find((s) => s.id === directionsSiteId) ?? null
+    : null
+
+  // Guards against a stale fetch response (from a superseded or cleared
+  // request) overwriting the state of a newer one.
+  const directionsRequestRef = useRef(0)
+
+  const handleGetDirections = useCallback(
+    (site: SiteWithDistance) => {
+      if (userLatitude == null || userLongitude == null) return
+
+      const requestId = ++directionsRequestRef.current
+      setDirectionsSiteId(site.id)
+      setDirectionsRoute(null)
+      setDirectionsFailed(false)
+      setDirectionsLoading(true)
+      handleCloseDetail()
+
+      // Road-following route (OSRM, OpenStreetMap-based) from the user to the
+      // site. Falls back to a straight line (see render below) if it fails.
+      fetchDrivingDirections(
+        [userLongitude, userLatitude],
+        [site.longitude, site.latitude],
+      ).then((route) => {
+        if (directionsRequestRef.current !== requestId) return
+        setDirectionsLoading(false)
+        setDirectionsRoute(route)
+        setDirectionsFailed(route === null)
+      })
+    },
+    [userLatitude, userLongitude, handleCloseDetail],
+  )
+
+  const handleClearDirections = useCallback(() => {
+    directionsRequestRef.current += 1
+    setDirectionsSiteId(null)
+    setDirectionsRoute(null)
+    setDirectionsLoading(false)
+    setDirectionsFailed(false)
+  }, [])
+
+  // Fit the resolved route (or the two endpoints, if the road route failed)
+  // on screen. The map only reads center/zoom once at mount, so recentering
+  // afterward has to go through the map instance directly.
+  useEffect(() => {
+    if (!directionsTarget || !mapInstanceRef.current) return
+    if (userLatitude == null || userLongitude == null) return
+    if (!directionsRoute && !directionsFailed) return // wait for the fetch to resolve
+
+    const points: [number, number][] = directionsRoute
+      ? directionsRoute.coordinates
+      : [
+          [userLongitude, userLatitude],
+          [directionsTarget.longitude, directionsTarget.latitude],
+        ]
+    const lngs = points.map((p) => p[0])
+    const lats = points.map((p) => p[1])
+
+    mapInstanceRef.current.fitBounds(
+      [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+      { padding: 80, duration: 800, maxZoom: 16 },
+    )
+  }, [directionsTarget, directionsRoute, directionsFailed, userLatitude, userLongitude])
 
   const handleViewportChange = useCallback(
     (vp: { center: [number, number]; zoom: number }) => {
@@ -548,6 +616,7 @@ export default function TouristGISPanel({
         />
 
         <Map
+          ref={mapInstanceRef}
           className="h-full w-full"
           center={mapCenter}
           zoom={hasUserMarker ? 11 : 10}
@@ -647,6 +716,51 @@ export default function TouristGISPanel({
             </MapMarker>
           ))}
 
+          {/* "Get Directions" overlay — road-following route (OSRM) from the
+              user to a single site, falling back to a dashed straight line
+              while loading or if the routing request fails */}
+          {directionsTarget && hasUserMarker && (
+            <>
+              {directionsRoute ? (
+                <MapRoute
+                  id="quick-directions"
+                  coordinates={directionsRoute.coordinates}
+                  color="#4285F4"
+                  width={5}
+                  opacity={0.85}
+                  interactive={false}
+                />
+              ) : (
+                <MapRoute
+                  id="quick-directions"
+                  coordinates={[
+                    [userLongitude, userLatitude],
+                    [directionsTarget.longitude, directionsTarget.latitude],
+                  ]}
+                  color="#EA4335"
+                  width={4}
+                  opacity={0.75}
+                  dashArray={[2, 2]}
+                  interactive={false}
+                />
+              )}
+              <MapMarker
+                longitude={directionsTarget.longitude}
+                latitude={directionsTarget.latitude}
+              >
+                <MarkerContent>
+                  <div className="relative">
+                    <MapPin
+                      className="size-7 -translate-x-1/2 -translate-y-full drop-shadow-lg"
+                      style={{ fill: "#EA4335", color: "#ffffff" }}
+                    />
+                  </div>
+                </MarkerContent>
+                <MarkerLabel>{directionsTarget.siteName}</MarkerLabel>
+              </MapMarker>
+            </>
+          )}
+
           <MapControls showZoom showLocate showCompass />
         </Map>
 
@@ -657,6 +771,38 @@ export default function TouristGISPanel({
             {hasLocation && " · sorted by distance"}
           </span>
         </div>
+
+        {/* Quick directions banner */}
+        {directionsTarget && hasUserMarker && (
+          <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg bg-cream px-3 py-1.5 text-xs font-medium text-ink shadow-sm lg:left-auto lg:right-3">
+            {directionsLoading ? (
+              <Loader2 className="size-3.5 animate-spin text-[#4285F4]" />
+            ) : (
+              <Navigation className={cn("size-3.5", directionsRoute ? "text-[#4285F4]" : "text-[#EA4335]")} />
+            )}
+            <span>
+              {directionsLoading ? (
+                `Finding route to ${directionsTarget.siteName}…`
+              ) : directionsRoute ? (
+                `${directionsTarget.siteName} · ${directionsRoute.distanceKm.toFixed(1)} km · ~${directionsRoute.durationMin} min`
+              ) : (
+                <>
+                  Directions to {directionsTarget.siteName}
+                  {directionsTarget.distanceKm != null &&
+                    ` · ${directionsTarget.distanceKm < 1 ? `${(directionsTarget.distanceKm * 1000).toFixed(0)}m` : `${directionsTarget.distanceKm.toFixed(1)}km`} (straight-line, road route unavailable)`}
+                </>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={handleClearDirections}
+              className="rounded p-0.5 text-ink-soft hover:text-ink"
+              aria-label="Clear directions"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Right Detail Panel (slide-in) */}
@@ -789,18 +935,16 @@ export default function TouristGISPanel({
                   {routeStopIds.includes(selectedSite.id) ? "Added to Trip" : "Add to Trip"}
                 </button>
 
-                <a
-                  href={getDirectionsUrl(
-                    selectedSite.latitude,
-                    selectedSite.longitude,
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex w-full items-center justify-center gap-2 rounded-full border border-ink/10 bg-cream px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-parchment"
+                <button
+                  type="button"
+                  onClick={() => handleGetDirections(selectedSite)}
+                  disabled={!hasUserMarker}
+                  title={hasUserMarker ? undefined : "Enable location to get directions"}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-ink/10 bg-cream px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-parchment disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <ExternalLink className="size-4" />
+                  <Navigation className="size-4" />
                   Get Directions
-                </a>
+                </button>
               </div>
 
               {/* Nearby Sites in Detail Panel */}

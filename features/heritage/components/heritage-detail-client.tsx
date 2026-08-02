@@ -296,13 +296,11 @@ export default function HeritageDetailClient({
           <div className="space-y-10">
             {/* Title row + actions */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                {site.shortDescription && (
-                  <p className="text-base leading-relaxed text-body">{site.shortDescription}</p>
-                )}
-              </div>
+              {site.shortDescription && (
+                <p className="text-base leading-relaxed text-body">{site.shortDescription}</p>
+              )}
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
                 {matchScore !== undefined && (
                   <span className="flex items-center gap-1 rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
                     <Star className="h-3 w-3 fill-success" />

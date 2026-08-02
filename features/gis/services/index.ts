@@ -118,8 +118,9 @@ export async function getMtoMapSites(municipalityId: string): Promise<MapSite[]>
   if (error) throw new Error(`Failed to fetch map sites: ${error.message}`)
 
   return (data ?? []).map((row) => {
-    const catRaw = row.category as Record<string, unknown>[] | null
-    const cat = catRaw?.[0] as { name: string; color: string } | null
+    // Supabase returns a to-one embed as a plain object, not an array.
+    const catRaw = row.category as Record<string, unknown>[] | Record<string, unknown> | null
+    const cat = (Array.isArray(catRaw) ? catRaw[0] : catRaw) as { name: string; color: string } | null
     const mediaArr = (row.media ?? []) as Record<string, unknown>[]
     const primaryImage = mediaArr.find((m) => m.media_type === "image")
 
@@ -168,8 +169,8 @@ export async function getMtoSiteDetail(
   if (error) throw new Error(`Failed to fetch site detail: ${error.message}`)
   if (!data) return null
 
-  const catRaw = data.category as Record<string, unknown>[] | null
-  const cat = catRaw?.[0] as { name: string; color: string } | null
+  const catRaw = data.category as Record<string, unknown>[] | Record<string, unknown> | null
+  const cat = (Array.isArray(catRaw) ? catRaw[0] : catRaw) as { name: string; color: string } | null
   const mediaArr = (data.media ?? []) as Record<string, unknown>[]
   const primaryImage = mediaArr.find(
     (m) => m.media_type === "image",

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Route, AlertTriangle, ChevronDown, ChevronRight, MapPin, Clock, Mountain } from "lucide-react"
+import { Route, ChevronDown, ChevronRight, MapPin, Clock, Mountain } from "lucide-react"
 import { useGisUiStore } from "../stores/gis-ui"
 import type { CuratedTrail } from "../services/tourist-map"
 
@@ -93,20 +93,9 @@ export default function CuratedTrailsPanel({ trails }: CuratedTrailsPanelProps) 
           )}
 
           {!hasTrailData && (
-            <div className="rounded-xl border border-dashed border-warning/30 bg-warning/5 px-3 py-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" />
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-ink">Schema gap: curated trails not yet available</p>
-                  <p className="text-[11px] leading-relaxed text-ink-soft">
-                    The <code className="rounded bg-parchment px-1 font-mono text-[10px]">routes</code> table lacks an{" "}
-                    <code className="rounded bg-parchment px-1 font-mono text-[10px]">is_curated</code> flag to
-                    distinguish system-generated trails from user-created routes. Pre-defined trails cannot be
-                    queried until this column is added and populated.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <p className="px-1 py-2 text-xs text-ink-soft">
+              No curated trails published yet. Check back as heritage staff add pre-defined routes.
+            </p>
           )}
         </div>
       )}

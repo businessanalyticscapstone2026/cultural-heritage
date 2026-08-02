@@ -58,10 +58,13 @@ export async function getTouristMapSites(): Promise<TouristMapSite[]> {
   if (error) throw new Error(`Failed to fetch map sites: ${error.message}`)
 
   return (data ?? []).map((row) => {
-    const catArr = row.category as { name: string; color: string; icon: string }[] | null
-    const cat = catArr?.[0] ?? null
-    const munArr = row.municipality as { name: string }[] | null
-    const mun = munArr?.[0] ?? null
+    // Supabase returns a to-one embed (belongs-to a single category/municipality)
+    // as a plain object, not an array — despite the array-shaped cast some
+    // callers use elsewhere. Handle both shapes defensively.
+    const catRaw = row.category as { name: string; color: string; icon: string }[] | { name: string; color: string; icon: string } | null
+    const cat = Array.isArray(catRaw) ? (catRaw[0] ?? null) : catRaw
+    const munRaw = row.municipality as { name: string }[] | { name: string } | null
+    const mun = Array.isArray(munRaw) ? (munRaw[0] ?? null) : munRaw
     const mediaArr = (row.media ?? []) as Record<string, unknown>[]
     const primaryImg = mediaArr.find(
       (m) => m.media_type === "image" && m.is_primary === true,
@@ -132,8 +135,9 @@ export async function getCuratedTrails(): Promise<CuratedTrail[]> {
 
   return (routes ?? []).map((route) => {
     const stops = ((route.stops ?? []) as Record<string, unknown>[]).map((s) => {
-      const siteArr = s.site as { id: string; site_name: string; latitude: number; longitude: number }[] | null
-      const site = siteArr?.[0] ?? null
+      type StopSite = { id: string; site_name: string; latitude: number; longitude: number }
+      const siteRaw = s.site as StopSite[] | StopSite | null
+      const site = Array.isArray(siteRaw) ? (siteRaw[0] ?? null) : siteRaw
       return {
         siteId: site?.id ?? "",
         siteName: site?.site_name ?? "",

@@ -404,6 +404,29 @@ export async function generateQrCode(
   }
 }
 
+/**
+ * Auto-generate an active QR code for a heritage site when it is created.
+ * Best-effort: returns null if the site already has a QR code (the DB unique
+ * index on `site_id` also guards against duplicates). Callers decide how to
+ * handle failures — see saveMtoSiteAction / createHeritageSiteAction.
+ */
+export async function autoGenerateQrForSite(
+  siteId: string,
+  staffProfileId: string,
+): Promise<QRCodeWithSite | null> {
+  const supabase = await getSupabase()
+
+  const { data: existing } = await supabase
+    .from("qr_codes")
+    .select("id")
+    .eq("site_id", siteId)
+    .maybeSingle()
+
+  if (existing) return null
+
+  return generateQrCode(siteId, staffProfileId)
+}
+
 /** Regenerate a QR code: replaces the existing row's code_value, keeping one QR per site */
 export async function regenerateQrCode(
   qrCodeId: string,

@@ -56,6 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
       }
       setIsLoading(false)
+    }).catch(() => {
+      setSession(null)
+      setIsLoading(false)
     })
 
     return () => subscription.unsubscribe()
@@ -81,19 +84,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const refreshSession = async () => {
-    const { data } = await supabase.auth.getSession()
-    if (data.session) {
-      setSession({
-        user: {
-          id: data.session.user.id,
-          email: data.session.user.email ?? "",
-          fullName: data.session.user.user_metadata?.full_name ?? "",
-          createdAt: data.session.user.created_at ?? "",
-          updatedAt: data.session.user.updated_at ?? "",
-        },
-        accessToken: data.session.access_token,
-      })
-    } else {
+    try {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        setSession({
+          user: {
+            id: data.session.user.id,
+            email: data.session.user.email ?? "",
+            fullName: data.session.user.user_metadata?.full_name ?? "",
+            createdAt: data.session.user.created_at ?? "",
+            updatedAt: data.session.user.updated_at ?? "",
+          },
+          accessToken: data.session.access_token,
+        })
+      } else {
+        setSession(null)
+      }
+    } catch {
       setSession(null)
     }
   }

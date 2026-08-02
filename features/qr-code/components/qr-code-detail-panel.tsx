@@ -74,6 +74,7 @@ export default function QRCodeDetailPanel({
       setToggleError("Failed to update QR code status. Please try again.")
     } finally {
       setTogglingStatus(false)
+      setDeactivateConfirm(false)
     }
   }, [qrCode, togglingStatus, onStatusChange])
 

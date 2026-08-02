@@ -71,8 +71,12 @@ export async function signOut() {
 
 export async function getSession() {
   const supabase = createClient()
-  const { data } = await supabase.auth.getSession()
-  return data.session
+  try {
+    const { data } = await supabase.auth.getSession()
+    return data.session
+  } catch {
+    return null
+  }
 }
 
 export async function resetPassword(email: string) {

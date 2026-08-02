@@ -86,7 +86,7 @@ export default function MTOSidebar() {
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar">
       <div className="flex items-center gap-2.5 border-b px-4 py-4">
-        <BrandLogo variant="light" className="size-8" />
+        <BrandLogo variant="white" className="size-8" />
         <div className="min-w-0">
           <p className="text-sm font-bold leading-tight tracking-tight text-sidebar-foreground">MTO PORTAL</p>
           <p className="text-[10px] leading-tight text-sidebar-foreground/80">Municipal Tourism Office</p>

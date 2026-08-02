@@ -130,7 +130,7 @@ export default function QRCodeListClient({
       if (newStatus === "active") {
         toast.success("QR code reactivated.")
       } else {
-        toast.error("QR code deactivated.")
+        toast.success("QR code deactivated.")
       }
     } catch (error) {
       try {

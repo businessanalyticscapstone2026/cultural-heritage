@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
 import { getTouristMapSites, getTouristMapCategories, getCuratedTrails } from "@/features/gis/services/tourist-map"
+import RestrictedGuestPrompt from "@/components/auth/restricted-guest-prompt"
 import { TouristMapClient } from "./tourist-map-client"
 
 interface MapPageProps {
@@ -13,6 +14,15 @@ export default async function MapPage({ searchParams }: MapPageProps) {
   const supabase = createClient(cookieStore)
 
   const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return (
+      <RestrictedGuestPrompt
+        title="Sign in to view the map"
+        description="Explore heritage sites across the First District of Batangas with our interactive GIS map."
+      />
+    )
+  }
 
   let homeLatitude: number | null = null
   let homeLongitude: number | null = null

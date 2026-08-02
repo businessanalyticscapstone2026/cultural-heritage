@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
 import { listRoutes } from "@/features/route-optimization/services"
+import RestrictedGuestPrompt from "@/components/auth/restricted-guest-prompt"
 import RoutesClient from "./routes-client"
 
 export const dynamic = "force-dynamic"
@@ -10,7 +11,17 @@ export default async function RoutesPage() {
   const supabase = createClient(cookieStore)
 
   const { data: { user } } = await supabase.auth.getUser()
-  const routes = user ? await listRoutes(supabase, user.id) : []
+
+  if (!user) {
+    return (
+      <RestrictedGuestPrompt
+        title="Sign in to view routes"
+        description="Plan and view your heritage tour routes across the First District of Batangas."
+      />
+    )
+  }
+
+  const routes = await listRoutes(supabase, user.id)
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-12 md:px-6 lg:px-10">

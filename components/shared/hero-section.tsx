@@ -1,6 +1,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Play } from "lucide-react"
+import RestrictedLink from "@/components/auth/restricted-link"
 
 interface HeroSectionProps {
   siteName?: string | null
@@ -53,12 +54,14 @@ export default function HeroSection({
             >
               Explore Heritage
             </Link>
-            <Link
+            <RestrictedLink
               href="/map"
+              title="Sign in to view the map"
+              description="Explore heritage sites across the First District of Batangas with our interactive GIS map."
               className="rounded-lg border-2 border-white/80 px-7 py-3.5 text-sm font-medium text-white transition-colors hover:bg-white hover:text-primary"
             >
               Interactive GIS Map
-            </Link>
+            </RestrictedLink>
           </div>
         </div>
       </div>

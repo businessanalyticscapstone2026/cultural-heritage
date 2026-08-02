@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { motion, type Variants } from "motion/react"
 import { Star, Quote } from "lucide-react"
+import { useAuth } from "@/context/auth-context"
+import RestrictedGuestPrompt from "@/components/auth/restricted-guest-prompt"
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -61,6 +63,25 @@ const reviews = [
 ]
 
 export default function ReviewsPage() {
+  const { profile, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-12 md:px-6 lg:px-10">
+        <div className="h-72 animate-pulse rounded-3xl border border-ink/10 bg-card" />
+      </div>
+    )
+  }
+
+  if (!profile) {
+    return (
+      <RestrictedGuestPrompt
+        title="Sign in to view reviews"
+        description="Create a free account to read and share stories from heritage explorers in Batangas."
+      />
+    )
+  }
+
   return (
     <>
       <section className="bg-cream border-b border-ink/10 pt-0 md:pt-0">

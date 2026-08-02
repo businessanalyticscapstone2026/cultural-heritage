@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
-import { redirect } from "next/navigation"
+import RestrictedGuestPrompt from "@/components/auth/restricted-guest-prompt"
 import SavedSitesPageContent from "./saved-content"
 
 export default async function SavedSitesPage() {
@@ -9,7 +9,12 @@ export default async function SavedSitesPage() {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect("/")
+    return (
+      <RestrictedGuestPrompt
+        title="Sign in to view your saved sites"
+        description="Create a free account to bookmark heritage destinations and come back to them later."
+      />
+    )
   }
 
   return <SavedSitesPageContent />

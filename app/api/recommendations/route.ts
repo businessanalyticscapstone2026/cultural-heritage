@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { ensureSessionId } from "@/lib/session"
 import { generateRecommendations } from "@/features/recommendation/services"
 import type { UserPreferences } from "@/types/recommendation"
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl
-    const sessionId = searchParams.get("session_id")
+    const querySessionId = searchParams.get("session_id")
     const latParam = searchParams.get("latitude")
     const lngParam = searchParams.get("longitude")
     const limitParam = searchParams.get("limit")
@@ -17,10 +18,12 @@ export async function GET(request: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser()
 
+    const sessionId = user ? undefined : (querySessionId ?? await ensureSessionId())
+
     const preferences: UserPreferences = {
       interests: [],
       preferredCategoryIds: [],
-      sessionId: sessionId ?? (user ? undefined : crypto.randomUUID()),
+      sessionId,
       homeLatitude: latParam ? Number(latParam) : undefined,
       homeLongitude: lngParam ? Number(lngParam) : undefined,
       limit: limitParam ? Number(limitParam) : 20,

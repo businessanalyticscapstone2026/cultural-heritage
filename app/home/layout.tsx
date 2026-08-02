@@ -1,5 +1,6 @@
 import { cookies } from "next/headers"
 import { HomeNavbar } from "@/components/layout/home-navbar"
+import { BrandLogo } from "@/components/brand/brand-logo"
 import { createClient } from "@/utils/supabase/server"
 import QRScannerFAB from "@/features/qr-code/components/qr-scanner-fab"
 import { FooterContact } from "@/components/layout/footer-contact"
@@ -26,11 +27,7 @@ function HomeSiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr] lg:gap-8">
           <div className="col-span-1 sm:col-span-2 lg:col-span-1">
             <a href="/home" className="flex items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-full border border-ink/20 text-ink">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M12 2 4 7v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7z" />
-                </svg>
-              </span>
+              <BrandLogo variant="light" className="size-9" />
               <span className="text-display text-lg tracking-tight">Batangas Heritage</span>
             </a>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-soft">

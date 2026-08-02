@@ -14,7 +14,7 @@ export default async function PublicLayout({ children }: { children: React.React
   return (
     <>
       <PublicNavbar />
-      <main className="min-h-screen bg-background text-ink overflow-x-hidden pb-20 pt-0 md:pb-0 md:pt-0">{children}</main>
+      <main className="min-h-screen bg-background text-ink overflow-x-clip pb-20 pt-0 md:pb-0 md:pt-0">{children}</main>
       <PublicFooter isAuthenticated={!!user} />
       <QRScannerFAB />
     </>

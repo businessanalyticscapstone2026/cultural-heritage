@@ -29,7 +29,7 @@ export default function RecommendedSection({ sites }: RecommendedSectionProps) {
           {sites.map((site) => (
             <Link
               key={site.id}
-              href={`/explore/${site.id}`}
+              href={`/heritage/${site.id}`}
               className="group overflow-hidden rounded-xl border border-border bg-card shadow-md transition-shadow hover:shadow-xl"
             >
               <div className="relative aspect-[4/3]">

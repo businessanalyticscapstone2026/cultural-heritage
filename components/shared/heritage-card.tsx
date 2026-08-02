@@ -12,7 +12,7 @@ interface HeritageCardProps {
 }
 
 export default function HeritageCard({ site, href }: HeritageCardProps) {
-  const link = href ?? `/explore/${site.id}`
+  const link = href ?? `/heritage/${site.id}`
   const primaryImage = site.media.find((m) => m.isPrimary && m.mediaType === "image")
     ?? site.media.find((m) => m.mediaType === "image")
 

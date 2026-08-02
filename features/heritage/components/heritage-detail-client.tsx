@@ -51,8 +51,33 @@ export default function HeritageDetailClient({
   const hasCoordinates = site.latitude !== null && site.longitude !== null
   const locationParts = [site.barangay, site.municipalityName].filter(Boolean)
 
-  const heroImage = images.find((m) => m.isPrimary) ?? images[0]
+  const primaryIndex = Math.max(
+    images.findIndex((m) => m.isPrimary),
+    0,
+  )
   const heroImageCount = images.length
+
+  const [heroIndex, setHeroIndex] = useState(primaryIndex)
+  const [heroAutoplayPaused, setHeroAutoplayPaused] = useState(false)
+
+  const goToHero = useCallback(
+    (index: number) => {
+      if (heroImageCount === 0) return
+      setHeroIndex(((index % heroImageCount) + heroImageCount) % heroImageCount)
+    },
+    [heroImageCount],
+  )
+
+  const heroNext = useCallback(() => goToHero(heroIndex + 1), [goToHero, heroIndex])
+  const heroPrev = useCallback(() => goToHero(heroIndex - 1), [goToHero, heroIndex])
+
+  useEffect(() => {
+    if (heroImageCount <= 1 || heroAutoplayPaused) return
+    const id = setInterval(() => {
+      setHeroIndex((prev) => (prev + 1) % heroImageCount)
+    }, 4000)
+    return () => clearInterval(id)
+  }, [heroImageCount, heroAutoplayPaused, heroIndex])
 
   const hasHistory = site.historicalPeriod || site.yearEstablished || site.architectBuilder || site.architecturalStyle
   const hasSignificance = site.historicalSignificance || site.culturalSignificance
@@ -118,16 +143,45 @@ export default function HeritageDetailClient({
           1. HERO
          ═══════════════════════════════════════════════════════ */}
       <section className="mx-auto mt-4 max-w-7xl px-4 md:px-6 lg:px-10">
-        <div className="relative h-[320px] overflow-hidden rounded-xl sm:h-[420px] lg:h-[520px]">
-          {heroImage ? (
-            <Image
-              src={heroImage.fileUrl}
-              alt={heroImage.caption ?? site.siteName}
-              fill
-              priority
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
-            />
+        <div
+          className="relative h-[320px] overflow-hidden rounded-xl sm:h-[420px] lg:h-[520px]"
+          onMouseEnter={() => setHeroAutoplayPaused(true)}
+          onMouseLeave={() => setHeroAutoplayPaused(false)}
+        >
+          {heroImageCount > 0 ? (
+            <motion.div
+              className="absolute inset-0"
+              drag={heroImageCount > 1 ? "x" : false}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.15}
+              onDragStart={() => setHeroAutoplayPaused(true)}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -60) heroNext()
+                else if (info.offset.x > 60) heroPrev()
+                setHeroAutoplayPaused(false)
+              }}
+            >
+              <AnimatePresence initial={false} mode="popLayout">
+                <motion.div
+                  key={images[heroIndex].id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0"
+                >
+                  <Image
+                    src={images[heroIndex].fileUrl}
+                    alt={images[heroIndex].caption ?? site.siteName}
+                    fill
+                    priority
+                    draggable={false}
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </motion.div>
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-muted">
               <div className="text-center">
@@ -138,6 +192,43 @@ export default function HeritageDetailClient({
           )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+
+          {heroImageCount > 1 && (
+            <>
+              <button
+                onClick={heroPrev}
+                className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-colors hover:bg-black/50"
+                aria-label="Previous photo"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                onClick={heroNext}
+                className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-colors hover:bg-black/50"
+                aria-label="Next photo"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+
+              <div className="absolute left-4 top-4 rounded-full bg-black/30 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
+                {heroIndex + 1} / {heroImageCount}
+              </div>
+
+              <div className="absolute bottom-24 left-1/2 flex -translate-x-1/2 items-center gap-1.5 sm:bottom-28">
+                {images.map((img, i) => (
+                  <button
+                    key={img.id}
+                    onClick={() => goToHero(i)}
+                    aria-label={`Go to photo ${i + 1}`}
+                    aria-current={i === heroIndex}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === heroIndex ? "w-5 bg-white" : "w-1.5 bg-white/50 hover:bg-white/75"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
 
           {site.category && (
             <span

@@ -54,11 +54,11 @@ async function fetchKpiData(supabase: SupabaseServer): Promise<KpiData> {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
 
   const { count: totalVisitsThisMonth, error: errVisits } = await supabase
-    .from("tourist_visits")
+    .from("qr_scan_logs")
     .select("*", { count: "exact", head: true })
-    .gte("visit_date", monthStart)
+    .gte("scanned_at", monthStart)
 
-  if (errVisits) throw new Error(`Failed to count tourist_visits: ${errVisits.message}`)
+  if (errVisits) throw new Error(`Failed to count qr_scan_logs: ${errVisits.message}`)
 
   return {
     totalHeritageSites: totalHeritageSites ?? 0,
@@ -129,19 +129,19 @@ async function fetchRecentSites(supabase: SupabaseServer): Promise<RecentHeritag
 async function fetchVisitOverview(supabase: SupabaseServer): Promise<VisitOverview[]> {
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split("T")[0]
 
   const { data, error } = await supabase
-    .from("tourist_visits")
-    .select("visit_date")
-    .gte("visit_date", monthStart)
-    .lte("visit_date", monthEnd)
+    .from("qr_scan_logs")
+    .select("scanned_at")
+    .gte("scanned_at", monthStart)
+    .lt("scanned_at", nextMonthStart)
 
-  if (error) throw new Error(`Failed to fetch tourist_visits: ${error.message}`)
+  if (error) throw new Error(`Failed to fetch qr_scan_logs: ${error.message}`)
 
   const grouped = new Map<string, number>()
   for (const row of data ?? []) {
-    const key = row.visit_date as string
+    const key = (row.scanned_at as string).split("T")[0]
     grouped.set(key, (grouped.get(key) ?? 0) + 1)
   }
 

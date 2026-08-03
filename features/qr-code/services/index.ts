@@ -1,5 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { revalidateTag } from "next/cache"
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
 import type { ScanResult } from "../types"
 
 export async function resolveQRCode(code: string): Promise<ScanResult> {
@@ -64,8 +66,13 @@ export async function recordScanEvent(codeValue: string, deviceType?: string): P
 
   if (!qrCode) return
 
-  await supabase.from("qr_scan_logs").insert({
+  const { error } = await supabase.from("qr_scan_logs").insert({
     qr_code_id: qrCode.id,
     device_type: deviceType ?? null,
   })
+
+  if (error) return
+
+  revalidateTag(CACHE_TAGS.dashboardKpis, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardVisits, { expire: CACHE_REVALIDATE_SECONDS })
 }

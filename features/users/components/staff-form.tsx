@@ -28,12 +28,30 @@ type StaffFormProps = {
 }
 
 export function StaffForm({ editingProfile, roles, municipalities, onSave, onCancel }: StaffFormProps) {
+  const isMtoRole = (roleId: string) => {
+    const role = roles.find((r) => r.id === roleId)
+    return role?.name === "MTO Staff"
+  }
+
+  const resolver = zodResolver(
+    staffSchema.superRefine((values, ctx) => {
+      if (isMtoRole(values.role_id) && !values.municipality_id) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["municipality_id"],
+          message: "Municipality is required for MTO Staff accounts",
+        })
+      }
+    })
+  )
+
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<StaffFormValues>({
-    resolver: zodResolver(staffSchema),
+    resolver,
     defaultValues: editingProfile
       ? {
           email: "",
@@ -54,6 +72,8 @@ export function StaffForm({ editingProfile, roles, municipalities, onSave, onCan
           municipality_id: "",
         },
   })
+
+  const mtoRequiresMunicipality = isMtoRole(watch("role_id") || "")
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -155,14 +175,14 @@ export function StaffForm({ editingProfile, roles, municipalities, onSave, onCan
             </div>
             <div>
               <label htmlFor="municipality_id" className="mb-1 block text-xs font-medium text-muted-foreground">
-                Municipality
+                Municipality{mtoRequiresMunicipality ? " *" : ""}
               </label>
               <select
                 id="municipality_id"
                 {...register("municipality_id")}
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
               >
-                <option value="">All / Provincial</option>
+                <option value="">{mtoRequiresMunicipality ? "Select municipality" : "All / Provincial"}</option>
                 {municipalities.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}

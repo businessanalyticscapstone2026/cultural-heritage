@@ -28,7 +28,7 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
   const [staff, setStaff] = useState<StaffProfileWithRelations[]>(initialStaff)
   const [showStaffForm, setShowStaffForm] = useState(false)
   const [editingProfile, setEditingProfile] = useState<StaffProfileWithRelations | null>(null)
-  const [staffError] = useState<string | null>(null)
+  const [staffError, setStaffError] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const tabs: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -38,30 +38,35 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
   ]
 
   const handleStaffFormSave = async (data: Record<string, unknown>) => {
-    if (editingProfile) {
-      const updated = await apiClient<StaffProfileWithRelations>(
-        `/users/${editingProfile.id}`,
-        {
-          method: "PATCH",
-          body: {
-            first_name: data.first_name,
-            last_name: data.last_name,
-            username: data.username,
-            role_id: data.role_id,
-            municipality_id: data.municipality_id || null,
-          },
-        }
-      )
-      setStaff((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
-    } else {
-      const created = await apiClient<StaffProfileWithRelations>("/users", {
-        method: "POST",
-        body: data,
-      })
-      setStaff((prev) => [created, ...prev])
+    setStaffError(null)
+    try {
+      if (editingProfile) {
+        const updated = await apiClient<StaffProfileWithRelations>(
+          `/users/${editingProfile.id}`,
+          {
+            method: "PATCH",
+            body: {
+              first_name: data.first_name,
+              last_name: data.last_name,
+              username: data.username,
+              role_id: data.role_id,
+              municipality_id: data.municipality_id || null,
+            },
+          }
+        )
+        setStaff((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+      } else {
+        const created = await apiClient<StaffProfileWithRelations>("/users", {
+          method: "POST",
+          body: data,
+        })
+        setStaff((prev) => [created, ...prev])
+      }
+      setShowStaffForm(false)
+      setEditingProfile(null)
+    } catch (err) {
+      setStaffError(err instanceof Error ? err.message : "Failed to save staff account")
     }
-    setShowStaffForm(false)
-    setEditingProfile(null)
   }
 
   const handleToggleStatus = useCallback(async (profile: StaffProfileWithRelations) => {
@@ -70,6 +75,7 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
       previousStatus === "active" ? "inactive" : "active"
 
     setTogglingId(profile.id)
+    setStaffError(null)
     setStaff((prev) =>
       prev.map((p) =>
         p.id === profile.id ? { ...p, account_status: flippedStatus } : p
@@ -84,7 +90,8 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
       setStaff((prev) =>
         prev.map((p) => (p.id === updated.id ? updated : p))
       )
-    } catch {
+    } catch (err) {
+      setStaffError(err instanceof Error ? err.message : "Failed to update account status")
       setStaff((prev) =>
         prev.map((p) =>
           p.id === profile.id ? { ...p, account_status: previousStatus } : p
@@ -184,6 +191,7 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
             <button
               type="button"
               onClick={() => {
+                setStaffError(null)
                 setEditingProfile(null)
                 setShowStaffForm(true)
               }}
@@ -197,6 +205,7 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
           <StaffTable
             staff={staff}
             onEdit={(profile) => {
+              setStaffError(null)
               setEditingProfile(profile)
               setShowStaffForm(true)
             }}

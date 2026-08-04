@@ -6,7 +6,7 @@ export const mtoHeritageSiteSchema = z.object({
   categoryId: z.preprocess(
     (val) => (val === "" ? null : val),
     z.string().uuid("Invalid category").nullable(),
-  ).refine((val) => val !== null, { message: "Category is required" }),
+  ),
   barangay: z.string().max(255).nullable().optional(),
   exactAddress: z.string().max(500).nullable().optional(),
   shortDescription: z.string().max(500).nullable().optional(),
@@ -24,6 +24,16 @@ export const mtoHeritageSiteSchema = z.object({
   geoAccuracy: z.string().max(100).nullable().optional(),
   publicationStatus: z.enum(["draft", "published", "archived"]),
   isFeatured: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+  // Category is only mandatory when publishing — drafts can be saved
+  // incrementally with fields still missing.
+  if (data.publicationStatus === "published" && data.categoryId === null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["categoryId"],
+      message: "Category is required",
+    })
+  }
 })
 
 export type MtoHeritageSiteFormValues = z.infer<typeof mtoHeritageSiteSchema>

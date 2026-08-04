@@ -54,6 +54,42 @@ export async function PATCH(
 
   const body = await request.json()
 
+  let roleId = body.role_id as string | undefined
+  let currentMunicipalityId: string | null | undefined = undefined
+
+  if (roleId === undefined || body.municipality_id === undefined) {
+    const { data: existing } = await supabase
+      .from("staff_profiles")
+      .select("role_id, municipality_id")
+      .eq("id", id)
+      .maybeSingle()
+
+    if (existing) {
+      if (roleId === undefined) roleId = existing.role_id ?? undefined
+      if (body.municipality_id === undefined) {
+        currentMunicipalityId = existing.municipality_id
+      }
+    }
+  }
+
+  const finalMunicipalityId =
+    body.municipality_id !== undefined ? body.municipality_id : currentMunicipalityId
+
+  if (roleId) {
+    const { data: role } = await supabase
+      .from("roles")
+      .select("name")
+      .eq("id", roleId)
+      .maybeSingle()
+
+    if (role?.name === "MTO Staff" && !finalMunicipalityId) {
+      return NextResponse.json(
+        { error: "Municipality is required for MTO Staff accounts" },
+        { status: 400 }
+      )
+    }
+  }
+
   const allowedFields: Record<string, unknown> = {}
   const fieldMap: Record<string, string> = {
     first_name: "first_name",

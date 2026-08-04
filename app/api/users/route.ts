@@ -55,6 +55,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
 
+  const { data: role } = await supabase
+    .from("roles")
+    .select("name")
+    .eq("id", role_id)
+    .maybeSingle()
+
+  if (role?.name === "MTO Staff" && !municipality_id) {
+    return NextResponse.json(
+      { error: "Municipality is required for MTO Staff accounts" },
+      { status: 400 }
+    )
+  }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      { error: "SUPABASE_SERVICE_ROLE_KEY is not set. Staff account creation requires the service role key." },
+      { status: 500 }
+    )
+  }
+
   let authUserId: string
 
   try {

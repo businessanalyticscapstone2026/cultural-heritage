@@ -17,7 +17,16 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
   })
 
   if (!res.ok) {
-    throw new Error(`API Error: ${res.status} ${res.statusText}`)
+    let message = `API Error: ${res.status} ${res.statusText}`
+    try {
+      const body = await res.json()
+      if (body?.error) {
+        message = body.error
+      }
+    } catch {
+      // response body is not JSON; keep the generic message
+    }
+    throw new Error(message)
   }
 
   return res.json()

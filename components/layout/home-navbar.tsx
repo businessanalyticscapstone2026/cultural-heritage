@@ -2,11 +2,12 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Compass, Map, Info, User, Search, Star } from "lucide-react"
+import { Home, Compass, Map, Info, User, Search, Star, LogOut, ChevronDown } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { BrandLogo } from "@/components/brand/brand-logo"
 import { useScrollHide } from "@/hooks/use-scroll-hide"
 import { useScrolled } from "@/hooks/use-scrolled"
+import { useAuth } from "@/context/auth-context"
 
 const navLinks = [
   { href: "/home", label: "Home", icon: Home },
@@ -21,11 +22,38 @@ export function HomeNavbar() {
   const router = useRouter()
   const hidden = useScrollHide()
   const scrolled = useScrolled()
+  const { session, signOut } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const mobileSearchRef = useRef<HTMLInputElement>(null)
   const [desktopSearchOpen, setDesktopSearchOpen] = useState(false)
   const desktopSearchRef = useRef<HTMLInputElement>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const [desktopMenuOpen, setDesktopMenuOpen] = useState(false)
+  const desktopMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false)
+      }
+      if (desktopMenuRef.current && !desktopMenuRef.current.contains(e.target as Node)) {
+        setDesktopMenuOpen(false)
+      }
+    }
+    if (mobileMenuOpen || desktopMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+      return () => document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [mobileMenuOpen, desktopMenuOpen])
+
+  const handleSignOut = async () => {
+    setMobileMenuOpen(false)
+    setDesktopMenuOpen(false)
+    await signOut()
+    router.push("/")
+  }
 
   useEffect(() => {
     if (mobileSearchOpen && mobileSearchRef.current) {
@@ -99,12 +127,46 @@ export function HomeNavbar() {
                 <Search size={16} strokeWidth={1.5} />
               </button>
             )}
-            <Link
-              href="/profile"
-              className="grid h-9 w-9 place-items-center rounded-full border border-ink/10 bg-parchment/40 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
-            >
-              <User size={16} strokeWidth={1.5} />
-            </Link>
+            {session ? (
+              <div className="relative" ref={mobileMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen((open) => !open)}
+                  aria-label="Account menu"
+                  aria-expanded={mobileMenuOpen}
+                  className="grid h-9 w-9 place-items-center rounded-full border border-ink/10 bg-parchment/40 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+                >
+                  <User size={16} strokeWidth={1.5} />
+                </button>
+                {mobileMenuOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-44 rounded-xl border border-ink/10 bg-cream py-1 shadow-lg">
+                    <Link
+                      href="/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-ink transition-colors hover:bg-parchment"
+                    >
+                      <User size={14} strokeWidth={1.5} />
+                      Profile
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-ink transition-colors hover:bg-parchment"
+                    >
+                      <LogOut size={14} strokeWidth={1.5} />
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/profile"
+                className="grid h-9 w-9 place-items-center rounded-full border border-ink/10 bg-parchment/40 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+              >
+                <User size={16} strokeWidth={1.5} />
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -176,12 +238,47 @@ export function HomeNavbar() {
                 <Search size={16} strokeWidth={1.5} />
               </button>
             )}
-            <Link
-              href="/profile"
-              className="grid h-9 w-9 place-items-center rounded-full border border-ink/10 bg-parchment/40 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
-            >
-              <User size={16} strokeWidth={1.5} />
-            </Link>
+            {session ? (
+              <div className="relative" ref={desktopMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setDesktopMenuOpen((open) => !open)}
+                  aria-label="Account menu"
+                  aria-expanded={desktopMenuOpen}
+                  className="flex h-9 items-center gap-1 rounded-full border border-ink/10 bg-parchment/40 px-2.5 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+                >
+                  <User size={16} strokeWidth={1.5} />
+                  <ChevronDown size={12} strokeWidth={1.5} />
+                </button>
+                {desktopMenuOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-44 rounded-xl border border-ink/10 bg-cream py-1 shadow-lg">
+                    <Link
+                      href="/profile"
+                      onClick={() => setDesktopMenuOpen(false)}
+                      className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-ink transition-colors hover:bg-parchment"
+                    >
+                      <User size={14} strokeWidth={1.5} />
+                      Profile
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-ink transition-colors hover:bg-parchment"
+                    >
+                      <LogOut size={14} strokeWidth={1.5} />
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/profile"
+                className="grid h-9 w-9 place-items-center rounded-full border border-ink/10 bg-parchment/40 text-ink transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
+              >
+                <User size={16} strokeWidth={1.5} />
+              </Link>
+            )}
           </div>
         </div>
       </header>

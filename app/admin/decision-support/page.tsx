@@ -47,10 +47,12 @@ export default async function DecisionSupportPage({
         threshold={threshold}
       />
 
-      <UnderPromotedSitesSection data={data.underPromotedSites} />
-      <MunicipalityPerformanceSection data={data.municipalityPerformance} />
-      <CategoryDemandSection data={data.categoryDemand} />
-      <ResourceAllocationSection data={data.resourceAllocation} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <MunicipalityPerformanceSection data={data.municipalityPerformance} />
+        <CategoryDemandSection data={data.categoryDemand} />
+        <ResourceAllocationSection data={data.resourceAllocation} />
+        <UnderPromotedSitesSection data={data.underPromotedSites} />
+      </div>
     </div>
   )
 }

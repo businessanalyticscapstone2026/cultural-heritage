@@ -6,6 +6,7 @@ import { Toaster } from "sonner"
 import { AuthProvider } from "@/context/auth-context"
 import { RoleProvider } from "@/context/role-context"
 import { QueryProvider } from "@/components/providers/query-provider"
+import { MotionProvider } from "@/components/providers/motion-provider"
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" })
 
@@ -38,7 +39,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <AuthProvider>
           <RoleProvider>
-            <QueryProvider>{children}</QueryProvider>
+            <QueryProvider>
+              <MotionProvider>{children}</MotionProvider>
+            </QueryProvider>
           </RoleProvider>
         </AuthProvider>
         <Toaster richColors closeButton position="top-right" />

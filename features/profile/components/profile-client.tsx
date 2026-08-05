@@ -2,7 +2,9 @@
 
 import { useState, useCallback } from "react"
 import Link from "next/link"
+import { motion } from "motion/react"
 import { ArrowLeft, User, Compass, Bookmark, Clock, Settings, Save, Loader2, CheckCircle } from "lucide-react"
+import { Reveal } from "@/components/animations/reveal"
 import { updateProfileAction } from "../actions"
 import PreferencesTab from "./preferences-tab"
 import SavedTab from "./saved-tab"
@@ -107,7 +109,7 @@ export default function ProfileClient({
         </Link>
 
         {/* Header */}
-        <div className="mb-8">
+        <Reveal className="mb-8">
           <div className="flex items-center gap-4">
             <span className="grid h-14 w-14 shrink-0 rounded-full bg-ink text-cream text-lg font-semibold">
               <span className="m-auto">{initials || "?"}</span>
@@ -119,7 +121,7 @@ export default function ProfileClient({
               <p className="text-sm text-ink-soft">{profile.email}</p>
             </div>
           </div>
-        </div>
+        </Reveal>
 
         {/* Tabs */}
         <nav className="mb-8 flex gap-1 overflow-x-auto rounded-xl border border-ink/10 bg-cream p-1">
@@ -145,7 +147,13 @@ export default function ProfileClient({
         </nav>
 
         {/* Tab content */}
-        <div className="rounded-2xl border border-ink/10 bg-cream p-6">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-2xl border border-ink/10 bg-cream p-6"
+        >
           {activeTab === "profile" && (
             <div className="space-y-6">
               <div>
@@ -252,7 +260,7 @@ export default function ProfileClient({
           {activeTab === "history" && <HistoryTab items={recommendationHistory} />}
 
           {activeTab === "account" && <AccountTab email={profile.email} />}
-        </div>
+        </motion.div>
       </div>
     </div>
   )

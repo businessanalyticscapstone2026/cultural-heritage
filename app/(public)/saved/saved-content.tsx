@@ -9,6 +9,7 @@ import {
   UndoToast,
   EmptyState,
 } from "@/features/bookmarks/components"
+import { Reveal } from "@/components/animations/reveal"
 
 interface UndoState {
   siteId: string
@@ -165,40 +166,44 @@ export default function SavedSitesPageContent() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pt-24 pb-12 md:px-6 lg:px-10">
-      <div className="mb-8">
+      <Reveal className="mb-8">
         <h1 className="text-display text-2xl text-ink">Saved Destinations</h1>
         <p className="mt-1 text-sm text-ink-soft">
           Your bookmarked heritage sites, ready to explore.
         </p>
-      </div>
+      </Reveal>
 
-      <SavedHeader
-        count={sites.length}
-        municipalities={municipalities}
-        categories={categories}
-        onMunicipalityFilter={setMunicipalityFilter}
-        onCategoryFilter={setCategoryFilter}
-        activeMunicipality={municipalityFilter}
-        activeCategory={categoryFilter}
-      />
+      <Reveal>
+        <SavedHeader
+          count={sites.length}
+          municipalities={municipalities}
+          categories={categories}
+          onMunicipalityFilter={setMunicipalityFilter}
+          onCategoryFilter={setCategoryFilter}
+          activeMunicipality={municipalityFilter}
+          activeCategory={categoryFilter}
+        />
+      </Reveal>
 
       {sites.length === 0 ? (
-        <EmptyState />
+        <Reveal><EmptyState /></Reveal>
       ) : filteredSites.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-sm text-ink-soft">
-            No sites match the current filters.
-          </p>
-          <button
-            onClick={() => {
-              setMunicipalityFilter(null)
-              setCategoryFilter(null)
-            }}
-            className="mt-2 text-sm text-accent hover:underline"
-          >
-            Clear filters
-          </button>
-        </div>
+        <Reveal>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-sm text-ink-soft">
+              No sites match the current filters.
+            </p>
+            <button
+              onClick={() => {
+                setMunicipalityFilter(null)
+                setCategoryFilter(null)
+              }}
+              className="mt-2 text-sm text-accent hover:underline"
+            >
+              Clear filters
+            </button>
+          </div>
+        </Reveal>
       ) : (
         <SavedSitesList sites={filteredSites} onRemove={handleRemove} />
       )}

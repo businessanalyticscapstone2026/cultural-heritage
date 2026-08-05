@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
 import { listRoutes } from "@/features/route-optimization/services"
 import RestrictedGuestPrompt from "@/components/auth/restricted-guest-prompt"
+import { Reveal } from "@/components/animations/reveal"
 import RoutesClient from "./routes-client"
 
 export const dynamic = "force-dynamic"
@@ -25,12 +26,12 @@ export default async function RoutesPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-12 md:px-6 lg:px-10">
-      <div className="mb-8">
+      <Reveal className="mb-8">
         <h1 className="text-display text-2xl text-ink">Routes</h1>
         <p className="mt-1 text-sm text-ink-soft">
           Plan and view your heritage tour routes.
         </p>
-      </div>
+      </Reveal>
 
       <RoutesClient initialRoutes={routes} />
     </div>

@@ -1,15 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { motion, type Variants } from "motion/react"
+import { motion } from "motion/react"
+import { fadeUp } from "@/lib/motion-variants"
 import { Star, Quote } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import RestrictedGuestPrompt from "@/components/auth/restricted-guest-prompt"
-
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 30 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
-}
 
 const reviews = [
   {

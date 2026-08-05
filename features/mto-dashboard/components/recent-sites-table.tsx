@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react"
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
-import { toast } from "sonner"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { getAllDashboardDataAction } from "../actions/dashboard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -53,13 +53,13 @@ export default function RecentSitesTable({ municipalityId }: { municipalityId: s
       const { getMtoSiteByIdAction } = await import("@/features/heritage/actions/mto-sites")
       const detail = await getMtoSiteByIdAction(site.id)
       if (!detail) {
-        toast.error("Site details could not be loaded.")
+        notifyError("Site details could not be loaded.")
         return
       }
       setSelectedSite(detail)
       setPanelOpen(true)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load site details.")
+      notifyError(errorReason(err, "Failed to load site details."))
     } finally {
       setLoadingId(null)
     }
@@ -88,9 +88,9 @@ export default function RecentSitesTable({ municipalityId }: { municipalityId: s
       const { archiveMtoSiteAction } = await import("@/features/heritage/actions/mto-sites")
       await archiveMtoSiteAction(site.id)
       await refetch()
-      toast.warning(`"${site.siteName}" has been archived.`)
+      notifySuccess(`"${site.siteName}" has been archived.`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to archive site. Please try again.")
+      notifyError(errorReason(err, "Failed to archive site. Please try again."))
     } finally {
       setArchivingId(null)
       setArchiveTarget(null)

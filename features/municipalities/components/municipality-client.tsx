@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Plus } from "lucide-react"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { MunicipalityTable } from "./municipality-table"
 import { MunicipalityForm } from "./municipality-form"
 import { AuditLogDialog } from "./audit-log-dialog"
@@ -22,23 +23,23 @@ export function MunicipalityClient({ initialMunicipalities }: MunicipalityClient
   const [showForm, setShowForm] = useState(false)
   const [editingMunicipality, setEditingMunicipality] = useState<Municipality | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   const [auditLogOpen, setAuditLogOpen] = useState(false)
   const [auditLogMunicipality, setAuditLogMunicipality] = useState<{ id: string; name: string } | null>(null)
 
   const handleSave = async (data: { name: string; default_map_center?: { lat: number; long: number } }) => {
-    setError(null)
     try {
       if (editingMunicipality) {
         const updated = await updateMunicipalityAction(editingMunicipality.id, data)
         setMunicipalities((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
+        notifySuccess("Municipality updated.")
       } else {
         const created = await createMunicipalityAction(data)
         setMunicipalities((prev) => [...prev, created])
+        notifySuccess("Municipality registered.")
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save municipality")
+      notifyError(errorReason(err, "Failed to save municipality. Please try again."))
       throw err
     }
   }
@@ -46,7 +47,6 @@ export function MunicipalityClient({ initialMunicipalities }: MunicipalityClient
   const handleToggleStatus = async (municipality: Municipality) => {
     const newStatus: MunicipalityStatus = municipality.status === "active" ? "inactive" : "active"
 
-    setError(null)
     setTogglingId(municipality.id)
     setMunicipalities((prev) =>
       prev.map((m) => (m.id === municipality.id ? { ...m, status: newStatus } : m))
@@ -55,11 +55,12 @@ export function MunicipalityClient({ initialMunicipalities }: MunicipalityClient
     try {
       const updated = await updateMunicipalityStatusAction(municipality.id, newStatus)
       setMunicipalities((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
+      notifySuccess(`"${municipality.name}" is now ${newStatus}.`)
     } catch (err) {
       setMunicipalities((prev) =>
         prev.map((m) => (m.id === municipality.id ? { ...m, status: municipality.status } : m))
       )
-      setError(err instanceof Error ? err.message : "Failed to update status")
+      notifyError(errorReason(err, "Failed to update status. Please try again."))
     } finally {
       setTogglingId(null)
     }
@@ -69,8 +70,8 @@ export function MunicipalityClient({ initialMunicipalities }: MunicipalityClient
     try {
       const fresh = await listMunicipalitiesAction()
       setMunicipalities(fresh)
-    } catch {
-      // keep current state
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to refresh municipalities."))
     }
   }
 
@@ -82,10 +83,6 @@ export function MunicipalityClient({ initialMunicipalities }: MunicipalityClient
           Register and manage participating municipalities in the First District of Batangas
         </p>
       </div>
-
-      {error && (
-        <div className="rounded-lg bg-error/10 px-4 py-2 text-sm text-error">{error}</div>
-      )}
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">

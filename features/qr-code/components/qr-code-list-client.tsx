@@ -14,7 +14,7 @@ import {
   SmartphoneIcon,
   View,
 } from "lucide-react"
-import { toast } from "sonner"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import ConfirmDialog from "@/components/confirm-dialog"
@@ -127,11 +127,7 @@ export default function QRCodeListClient({
     try {
       const { updateQrCodeStatusAction } = await import("../actions/qr-management")
       await updateQrCodeStatusAction(qrCodeId, newStatus)
-      if (newStatus === "active") {
-        toast.success("QR code reactivated.")
-      } else {
-        toast.success("QR code deactivated.")
-      }
+      notifySuccess(newStatus === "active" ? "QR code reactivated." : "QR code deactivated.")
     } catch (error) {
       try {
         const { getMtoQrCodesAction } = await import("../actions/qr-management")
@@ -140,7 +136,7 @@ export default function QRCodeListClient({
       } catch {
         // Silent fail — user can refresh
       }
-      toast.error("Failed to update QR code status. Please try again.")
+      notifyError(errorReason(error, "Failed to update QR code status. Please try again."))
       throw error
     }
   }, [])
@@ -155,15 +151,13 @@ export default function QRCodeListClient({
       const newQrCode = await generateQrCodeAction(generateSiteId)
       setQrCodes((prev) => [newQrCode, ...prev])
       const site = sites.find((s) => s.id === generateSiteId)
-      toast.success(
-        site
-          ? `QR code generated for "${site.siteName}".`
-          : "QR code generated.",
-      )
+      notifySuccess(site ? `QR code generated for "${site.siteName}".` : "QR code generated.")
       setShowGenerateDialog(false)
       setGenerateSiteId("")
     } catch (error) {
-      setGenerateError(error instanceof Error ? error.message : "Failed to generate QR code")
+      const message = errorReason(error, "Failed to generate QR code.")
+      setGenerateError(message)
+      notifyError(message)
     } finally {
       setGenerating(false)
     }
@@ -187,9 +181,9 @@ export default function QRCodeListClient({
       setSelectedQrSvg(null)
       const svgUrl = await generateQrCodePreviewAction(updatedQrCode.codeValue)
       setSelectedQrSvg(svgUrl)
-      toast.info(`QR code for "${qr.siteName}" regenerated.`)
-    } catch {
-      toast.error("Failed to regenerate QR code. Please try again.")
+      notifySuccess(`QR code for "${qr.siteName}" regenerated.`)
+    } catch (error) {
+      notifyError(errorReason(error, "Failed to regenerate QR code. Please try again."))
     } finally {
       setRegenerateTarget(null)
     }

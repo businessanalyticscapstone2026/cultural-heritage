@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { Save, RotateCcw } from "lucide-react"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -38,8 +39,6 @@ type ThresholdSettingsFormProps = {
 export default function ThresholdSettingsForm({ settings }: ThresholdSettingsFormProps) {
   const [weightsSaving, setWeightsSaving] = useState(false)
   const [routingSaving, setRoutingSaving] = useState(false)
-  const [weightsMessage, setWeightsMessage] = useState<{ text: string; error: boolean } | null>(null)
-  const [routingMessage, setRoutingMessage] = useState<{ text: string; error: boolean } | null>(null)
 
   const weightsForm = useForm<RecommendationWeightsFormValues>({
     defaultValues: {
@@ -65,17 +64,16 @@ export default function ThresholdSettingsForm({ settings }: ThresholdSettingsFor
 
   async function onSubmitWeights(values: RecommendationWeightsFormValues) {
     if (!weightsValid) {
-      setWeightsMessage({ text: "Weights must sum to 1.0.", error: true })
+      notifyError("Weights must sum to 1.0.")
       return
     }
     setWeightsSaving(true)
-    setWeightsMessage(null)
     try {
       const { updateRecommendationWeights } = await import("../actions")
       await updateRecommendationWeights(values)
-      setWeightsMessage({ text: "Recommendation weights saved.", error: false })
-    } catch {
-      setWeightsMessage({ text: "Failed to save recommendation weights.", error: true })
+      notifySuccess("Recommendation weights saved.")
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to save recommendation weights."))
     } finally {
       setWeightsSaving(false)
     }
@@ -87,13 +85,12 @@ export default function ThresholdSettingsForm({ settings }: ThresholdSettingsFor
 
   async function onSubmitRouting(values: RoutingConfigFormValues) {
     setRoutingSaving(true)
-    setRoutingMessage(null)
     try {
       const { updateRoutingConfig } = await import("../actions")
       await updateRoutingConfig(values)
-      setRoutingMessage({ text: "Routing config saved.", error: false })
-    } catch {
-      setRoutingMessage({ text: "Failed to save routing config.", error: true })
+      notifySuccess("Routing config saved.")
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to save routing config."))
     } finally {
       setRoutingSaving(false)
     }
@@ -185,11 +182,6 @@ export default function ThresholdSettingsForm({ settings }: ThresholdSettingsFor
             <RotateCcw className="size-3.5" />
             Reset to Defaults
           </Button>
-          {weightsMessage && (
-            <span className={weightsMessage.error ? "text-xs text-destructive" : "text-xs text-emerald-600"}>
-              {weightsMessage.text}
-            </span>
-          )}
         </div>
       </form>
 
@@ -254,11 +246,6 @@ export default function ThresholdSettingsForm({ settings }: ThresholdSettingsFor
             <Save className="size-3.5" />
             {routingSaving ? "Saving..." : "Save Routing Config"}
           </Button>
-          {routingMessage && (
-            <span className={routingMessage.error ? "text-xs text-destructive" : "text-xs text-emerald-600"}>
-              {routingMessage.text}
-            </span>
-          )}
         </div>
       </form>
     </div>

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react"
 import { Shield } from "lucide-react"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import type { Role, PermissionMatrixCell } from "../types"
 import { apiClient } from "@/lib/api-client"
 
@@ -18,7 +19,6 @@ export function PermissionMatrix({ roles, initialRoleId }: PermissionMatrixProps
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
   const lastRequestId = useRef(0)
 
   const loadMatrix = async (roleId: string) => {
@@ -76,8 +76,6 @@ export function PermissionMatrix({ roles, initialRoleId }: PermissionMatrixProps
   const handleSave = async () => {
     if (!selectedRoleId) return
     setSaving(true)
-    setError(null)
-    setSuccess(false)
     try {
       await apiClient("/role-permissions", {
         method: "PUT",
@@ -89,10 +87,9 @@ export function PermissionMatrix({ roles, initialRoleId }: PermissionMatrixProps
           })),
         },
       })
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 2000)
+      notifySuccess("Permissions saved successfully.")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save permissions")
+      notifyError(errorReason(err, "Failed to save permissions. Please try again."))
     } finally {
       setSaving(false)
     }
@@ -148,12 +145,6 @@ export function PermissionMatrix({ roles, initialRoleId }: PermissionMatrixProps
       {error && (
         <div className="rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
           {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="rounded-lg bg-success/10 px-4 py-2 text-sm text-success">
-          Permissions saved successfully
         </div>
       )}
 

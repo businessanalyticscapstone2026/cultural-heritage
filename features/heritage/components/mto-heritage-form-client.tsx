@@ -4,7 +4,7 @@ import { useState, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { SaveIcon, FileTextIcon, Loader2Icon, AlertCircleIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -91,7 +91,7 @@ export default function MtoHeritageFormClient({
       if (!valid) {
         const message = "Please fix the highlighted fields before saving."
         setSubmitError(message)
-        toast.warning(message)
+        notifyError(message)
         return
       }
 
@@ -100,7 +100,7 @@ export default function MtoHeritageFormClient({
       if (duplicate) {
         const message = `A heritage site named "${duplicate.siteName}" already exists in ${duplicate.municipalityName ?? "this municipality"}. Please use a different name.`
         setSubmitError(message)
-        toast.warning(message)
+        notifyError(message)
         return
       }
 
@@ -124,18 +124,14 @@ export default function MtoHeritageFormClient({
 
       const { saveMtoSiteAction } = await import("../actions/mto-sites")
       await saveMtoSiteAction(payload)
-      if (site) {
-        toast.info("Heritage site updated.")
-      } else {
-        toast.success("Heritage site added successfully.")
-      }
+      notifySuccess(site ? "Heritage site updated." : "Heritage site added successfully.")
       router.push("/mto/heritage-sites/")
       router.refresh()
     } catch (err) {
       console.error("Failed to save site:", err)
-      const message = err instanceof Error ? err.message : "Failed to save site. Please try again."
+      const message = errorReason(err, "Failed to save site. Please try again.")
       setSubmitError(message)
-      toast.error(message)
+      notifyError(message)
     } finally {
       setIsSubmitting(false)
       setPendingStatus(null)

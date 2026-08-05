@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react"
 import { Inbox, Database } from "lucide-react"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { createBackupAction, getBackupsListAction } from "../actions/backup"
 import {
   getGovernanceQueueAction,
@@ -46,30 +47,49 @@ export default function AdminGovernanceClient({
   const [detailOpen, setDetailOpen] = useState(false)
 
   const handleCreateBackup = useCallback(async () => {
-    await createBackupAction()
-    refetchBackups()
+    try {
+      await createBackupAction()
+      notifySuccess("Backup created successfully.")
+      refetchBackups()
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to create backup. Please try again."))
+    }
   }, [refetchBackups])
 
   const handleViewReview = useCallback(async (review: GovernanceReviewWithSite) => {
-    const fullReview = await getGovernanceReviewByIdAction(review.id)
-    if (fullReview) {
-      setSelectedReview(fullReview)
-      setDetailOpen(true)
+    try {
+      const fullReview = await getGovernanceReviewByIdAction(review.id)
+      if (fullReview) {
+        setSelectedReview(fullReview)
+        setDetailOpen(true)
+      }
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to load review details."))
     }
   }, [])
 
   const handleApprove = useCallback(async (reviewId: string, comment?: string) => {
-    await approveSubmissionAction(reviewId, comment)
-    setDetailOpen(false)
-    setSelectedReview(null)
-    refetchQueue()
+    try {
+      await approveSubmissionAction(reviewId, comment)
+      notifySuccess("Submission approved.")
+      setDetailOpen(false)
+      setSelectedReview(null)
+      refetchQueue()
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to approve submission. Please try again."))
+    }
   }, [refetchQueue])
 
   const handleReject = useCallback(async (reviewId: string, comment: string) => {
-    await rejectSubmissionAction(reviewId, comment)
-    setDetailOpen(false)
-    setSelectedReview(null)
-    refetchQueue()
+    try {
+      await rejectSubmissionAction(reviewId, comment)
+      notifySuccess("Submission rejected.")
+      setDetailOpen(false)
+      setSelectedReview(null)
+      refetchQueue()
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to reject submission. Please try again."))
+    }
   }, [refetchQueue])
 
   return (

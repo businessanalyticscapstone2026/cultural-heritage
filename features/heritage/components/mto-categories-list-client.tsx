@@ -14,7 +14,7 @@ import {
   ChevronRightIcon,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import ConfirmDialog from "@/components/confirm-dialog"
@@ -64,11 +64,9 @@ export default function MtoCategoriesListClient({
       const { deleteCategoryAction } = await import("../actions/category")
       await deleteCategoryAction(id)
       setCategories((prev) => prev.filter((c) => c.id !== id))
-      toast.error(`Category "${cat?.name ?? ""}" deleted.`)
+      notifySuccess(`Category "${cat?.name ?? ""}" deleted.`)
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete category. Please try again.",
-      )
+      notifyError(errorReason(err, "Failed to delete category. Please try again."))
     } finally {
       setDeletingId(null)
       setDeleteTarget(null)

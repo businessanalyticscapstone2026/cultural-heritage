@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { Landmark, Plus, Search } from "lucide-react"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import {
   createHeritageSiteAction,
   updateHeritageSiteAction,
@@ -66,7 +67,10 @@ export default function AdminHeritageClient({
     setDeletingId(id)
     try {
       await deleteHeritageSiteAction(id)
+      notifySuccess("Heritage site deleted.")
       refetch()
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to delete heritage site. Please try again."))
     } finally {
       setDeletingId(null)
     }
@@ -77,8 +81,13 @@ export default function AdminHeritageClient({
   }, [])
 
   const handleRestoreVersion = useCallback(async (versionId: string) => {
-    await restoreHeritageSiteVersionAction(versionId)
-    refetch()
+    try {
+      await restoreHeritageSiteVersionAction(versionId)
+      notifySuccess("Heritage site version restored.")
+      refetch()
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to restore version. Please try again."))
+    }
   }, [refetch])
 
   const handleViewVersions = useCallback(async (site: HeritageSite) => {
@@ -89,8 +98,14 @@ export default function AdminHeritageClient({
   }, [handleFetchVersions])
 
   const handleArchive = useCallback(async (site: HeritageSite) => {
-    await handleUpdate(site.id, { publicationStatus: "archived" })
-  }, [handleUpdate])
+    try {
+      await updateHeritageSiteAction(site.id, { publicationStatus: "archived" })
+      notifySuccess(`"${site.siteName}" has been archived.`)
+      refetch()
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to archive site. Please try again."))
+    }
+  }, [refetch])
 
   return (
     <div className="space-y-6">

@@ -10,6 +10,7 @@ import {
   ExternalLink,
   AlertCircle,
 } from "lucide-react"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -85,13 +86,14 @@ export default function IntegrationsPanel({ integrations }: IntegrationsPanelPro
         status: values.status,
         api_key_masked: values.apiKeyMasked ? maskApiKey(values.apiKeyMasked) : null,
       })
+      notifySuccess(`Integration "${values.name}" added.`)
+      setAddDialogOpen(false)
+      addForm.reset()
       // Re-fetch page to get fresh data
       window.location.reload()
-    } catch {
-      // Error handled by parent page revalidation
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to add integration. Please try again."))
     }
-    setAddDialogOpen(false)
-    addForm.reset()
   }
 
   async function handleDelete() {
@@ -100,8 +102,9 @@ export default function IntegrationsPanel({ integrations }: IntegrationsPanelPro
       const { deleteIntegrationAction } = await import("../actions")
       await deleteIntegrationAction(deleteTarget.id)
       setLocalIntegrations((prev) => prev.filter((i) => i.id !== deleteTarget.id))
-    } catch {
-      // Error handled by parent page revalidation
+      notifySuccess(`Integration "${deleteTarget.name}" deleted.`)
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to delete integration. Please try again."))
     }
     setDeleteTarget(null)
   }
@@ -138,8 +141,9 @@ export default function IntegrationsPanel({ integrations }: IntegrationsPanelPro
       setLocalIntegrations((prev) =>
         prev.map((i) => (i.id === integration.id ? { ...i, status: newStatus } : i))
       )
-    } catch {
-      // Error handled by parent page revalidation
+      notifySuccess(`"${integration.name}" is now ${newStatus}.`)
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to update integration status. Please try again."))
     }
   }
 
@@ -151,9 +155,10 @@ export default function IntegrationsPanel({ integrations }: IntegrationsPanelPro
       setLocalIntegrations((prev) =>
         prev.map((i) => (i.id === integrationId ? { ...i, apiKeyMasked: masked } : i))
       )
+      notifySuccess("API key updated.")
       setEditTarget(null)
-    } catch {
-      // Error handled by parent page revalidation
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to update API key. Please try again."))
     }
   }
 

@@ -3,7 +3,7 @@
 
 import { useState } from "react"
 import { RotateCcwIcon, SearchIcon, EyeIcon, Loader2Icon, Trash2Icon } from "lucide-react"
-import { toast } from "sonner"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -50,10 +50,10 @@ export default function ArchiveList({ sites, onRestore, onDelete }: ArchiveListP
     setDeletingId(deleteTarget.id)
     try {
       await onDelete(deleteTarget.id)
-      toast.error(`"${deleteTarget.siteName}" permanently deleted.`)
+      notifySuccess(`"${deleteTarget.siteName}" permanently deleted.`)
       setDeleteTarget(null)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete site")
+      notifyError(errorReason(error, "Failed to delete site. Please try again."))
     } finally {
       setDeletingId(null)
     }

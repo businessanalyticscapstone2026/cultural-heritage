@@ -13,7 +13,7 @@ import UploadOrchestrator from "@/features/media/components/upload-orchestrator"
 import MediaLibraryTabs from "@/features/media/components/media-library-tabs"
 import MediaGrid from "@/features/media/components/media-grid"
 import { Skeleton } from "@/components/ui/skeleton"
-import { toast } from "sonner"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import ConfirmDialog from "@/components/confirm-dialog"
 import type { HeritageSite, HeritageSiteMedia } from "@/types/heritage"
 import type { MediaSettings, MediaTabType } from "@/features/media/types"
@@ -82,13 +82,9 @@ export default function MediaPageClient() {
             isPrimary: m.mediaType === "image" ? m.id === mediaId : m.isPrimary,
           }))
         )
-        toast.info("Primary image updated.")
+        notifySuccess("Primary image updated.")
       } catch (err) {
-        toast.error(
-          err instanceof Error
-            ? err.message
-            : "Failed to update primary image.",
-        )
+        notifyError(errorReason(err, "Failed to update primary image."))
       }
     },
     [selectedSiteId]
@@ -101,11 +97,9 @@ export default function MediaPageClient() {
       await deleteMediaAction(selectedSiteId, deleteTarget.id)
       setMedia((prev) => prev.filter((m) => m.id !== deleteTarget.id))
       setDeleteTarget(null)
-      toast.error("Media deleted.")
+      notifySuccess("Media deleted.")
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete media. Please try again.",
-      )
+      notifyError(errorReason(err, "Failed to delete media. Please try again."))
     } finally {
       setIsDeleting(false)
     }
@@ -118,8 +112,8 @@ export default function MediaPageClient() {
         await reorderMediaAction(selectedSiteId, mediaId, direction)
         const refreshed = await getMediaAction(selectedSiteId)
         setMedia(refreshed)
-      } catch {
-        // keep current state
+      } catch (err) {
+        notifyError(errorReason(err, "Failed to reorder media. Please try again."))
       }
     },
     [selectedSiteId]

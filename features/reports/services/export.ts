@@ -1,3 +1,4 @@
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import type {
   UnderPromotedSite,
   MunicipalityPerformance,
@@ -20,13 +21,18 @@ function toCsv(headers: string[], rows: string[][]): string {
 }
 
 function downloadCsv(content: string, filename: string): void {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
+  try {
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+    notifySuccess(`Exported ${filename}.`)
+  } catch (err) {
+    notifyError(errorReason(err, "Failed to export CSV. Please try again."))
+  }
 }
 
 export function exportUnderPromotedSites(data: UnderPromotedSite[]): void {

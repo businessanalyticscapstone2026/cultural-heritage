@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { Save } from "lucide-react"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -54,7 +55,6 @@ type GlobalSettingsFormProps = {
 
 export default function GlobalSettingsForm({ settings }: GlobalSettingsFormProps) {
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
 
   const form = useForm({
     defaultValues: {
@@ -71,13 +71,12 @@ export default function GlobalSettingsForm({ settings }: GlobalSettingsFormProps
 
   async function onSubmit(values: GlobalSettingsFormValues) {
     setSaving(true)
-    setMessage(null)
     try {
       const { updateGlobalSettings } = await import("../actions")
       await updateGlobalSettings(values)
-      setMessage({ text: "Global settings saved.", error: false })
-    } catch {
-      setMessage({ text: "Failed to save global settings.", error: true })
+      notifySuccess("Global settings saved.")
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to save global settings."))
     } finally {
       setSaving(false)
     }
@@ -220,10 +219,10 @@ export default function GlobalSettingsForm({ settings }: GlobalSettingsFormProps
                   // Optimistic UI: fire-and-forget server action for boolean toggle
                   import("../actions").then(({ updateMaintenanceMode }) =>
                     updateMaintenanceMode(checked).then(() => {
-                      setMessage({ text: "Maintenance mode updated.", error: false })
-                    }).catch(() => {
+                      notifySuccess("Maintenance mode updated.")
+                    }).catch((err) => {
                       form.setValue("maintenanceMode", !checked, { shouldValidate: true })
-                      setMessage({ text: "Failed to update maintenance mode.", error: true })
+                      notifyError(errorReason(err, "Failed to update maintenance mode."))
                     })
                   )
                 }}
@@ -244,10 +243,10 @@ export default function GlobalSettingsForm({ settings }: GlobalSettingsFormProps
                   // Optimistic UI: fire-and-forget server action for boolean toggle
                   import("../actions").then(({ updateAllowUserRegistration }) =>
                     updateAllowUserRegistration(checked).then(() => {
-                      setMessage({ text: "User registration setting updated.", error: false })
-                    }).catch(() => {
+                      notifySuccess("User registration setting updated.")
+                    }).catch((err) => {
                       form.setValue("allowUserRegistration", !checked, { shouldValidate: true })
-                      setMessage({ text: "Failed to update user registration setting.", error: true })
+                      notifyError(errorReason(err, "Failed to update user registration setting."))
                     })
                   )
                 }}
@@ -261,11 +260,6 @@ export default function GlobalSettingsForm({ settings }: GlobalSettingsFormProps
             <Save className="size-3.5" />
             {saving ? "Saving..." : "Save General Settings"}
           </Button>
-          {message && (
-            <span className={message.error ? "text-xs text-destructive" : "text-xs text-emerald-600"}>
-              {message.text}
-            </span>
-          )}
         </div>
       </form>
     </div>

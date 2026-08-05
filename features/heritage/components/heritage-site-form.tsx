@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { toast } from "sonner"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import {
   ChevronRightIcon,
   ChevronLeftIcon,
@@ -181,12 +181,12 @@ export default function HeritageSiteForm({
         ...reviewForm.getValues(),
       } as Partial<HeritageSite>
       await onSubmit(allData)
-      toast.success(site ? "Heritage site updated." : "Heritage site added successfully.")
+      notifySuccess(site ? "Heritage site updated." : "Heritage site added successfully.")
       onOpenChange(false)
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save heritage site. Please try again."
+      const message = errorReason(err, "Failed to save heritage site. Please try again.")
       setSubmitError(message)
-      toast.error(message)
+      notifyError(message)
     } finally {
       setIsSubmitting(false)
     }

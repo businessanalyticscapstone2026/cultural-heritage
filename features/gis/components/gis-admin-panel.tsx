@@ -5,7 +5,7 @@ import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { toast } from "sonner"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import {
   Eye,
   EyeOff,
@@ -167,9 +167,6 @@ export default function GisAdminPanel({
   const [layerSaving, setLayerSaving] = useState(false)
   const [basemapSaving, setBasemapSaving] = useState(false)
   const [centerSaving, setCenterSaving] = useState(false)
-  const [layerMessage, setLayerMessage] = useState<{ text: string; error: boolean } | null>(null)
-  const [basemapMessage, setBasemapMessage] = useState<{ text: string; error: boolean } | null>(null)
-  const [centerMessage, setCenterMessage] = useState<{ text: string; error: boolean } | null>(null)
 
   const [boundaryMunicipalityId, setBoundaryMunicipalityId] = useState(municipalities[0]?.id ?? "")
   const [boundaryUploading, setBoundaryUploading] = useState(false)
@@ -219,17 +216,17 @@ export default function GisAdminPanel({
     if (!file) return
 
     if (!boundaryMunicipalityId) {
-      toast.error("Select a municipality before uploading.")
+      notifyError("Select a municipality before uploading.")
       return
     }
 
     const extension = getBoundaryFileExtension(file.name)
     if (!BOUNDARY_ACCEPTED_EXTENSIONS.includes(extension)) {
-      toast.error(`Unsupported file type "${extension || "unknown"}". Upload a .geojson, .json, or .kml file.`)
+      notifyError(`Unsupported file type "${extension || "unknown"}". Upload a .geojson, .json, or .kml file.`)
       return
     }
     if (file.size > MAX_BOUNDARY_FILE_BYTES) {
-      toast.error(
+      notifyError(
         `File is ${formatBoundaryFileSize(file.size)}; the limit is ${formatBoundaryFileSize(MAX_BOUNDARY_FILE_BYTES)}.`,
       )
       return
@@ -246,9 +243,9 @@ export default function GisAdminPanel({
 
       setBoundaryStatusOverrides((prev) => ({ ...prev, [boundaryMunicipalityId]: boundary.updatedAt }))
       const municipalityName = municipalities.find((m) => m.id === boundaryMunicipalityId)?.name ?? "municipality"
-      toast.success(`Boundary uploaded for ${municipalityName}.`)
+      notifySuccess(`Boundary uploaded for ${municipalityName}.`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to upload boundary file.")
+      notifyError(errorReason(err, "Failed to upload boundary file."))
     } finally {
       setBoundaryUploading(false)
     }
@@ -284,13 +281,12 @@ export default function GisAdminPanel({
 
   async function onSaveLayerToggles(values: z.infer<typeof visibleCategoryIdsSchema>) {
     setLayerSaving(true)
-    setLayerMessage(null)
     try {
       const { updateVisibleCategories } = await import("../actions")
       await updateVisibleCategories(values.visibleCategoryIds)
-      setLayerMessage({ text: "Layer toggles saved.", error: false })
-    } catch {
-      setLayerMessage({ text: "Failed to save layer toggles.", error: true })
+      notifySuccess("Layer toggles saved.")
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to save layer toggles."))
     } finally {
       setLayerSaving(false)
     }
@@ -298,13 +294,12 @@ export default function GisAdminPanel({
 
   async function onSaveBasemap(values: z.infer<typeof basemapSchema>) {
     setBasemapSaving(true)
-    setBasemapMessage(null)
     try {
       const { updateBasemapProvider } = await import("../actions")
       await updateBasemapProvider(values.provider, values.googleMapsStyle)
-      setBasemapMessage({ text: "Base map source saved.", error: false })
-    } catch {
-      setBasemapMessage({ text: "Failed to save base map source.", error: true })
+      notifySuccess("Base map source saved.")
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to save base map source."))
     } finally {
       setBasemapSaving(false)
     }
@@ -312,13 +307,12 @@ export default function GisAdminPanel({
 
   async function onSaveMapCenter(values: z.infer<typeof mapCenterSchema>) {
     setCenterSaving(true)
-    setCenterMessage(null)
     try {
       const { updateDefaultMapCenter } = await import("../actions")
       await updateDefaultMapCenter(values.lat, values.lng, values.zoom)
-      setCenterMessage({ text: "Default map center saved.", error: false })
-    } catch {
-      setCenterMessage({ text: "Failed to save default map center.", error: true })
+      notifySuccess("Default map center saved.")
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to save default map center."))
     } finally {
       setCenterSaving(false)
     }
@@ -492,15 +486,6 @@ export default function GisAdminPanel({
                   <Save className="size-3.5" />
                   {layerSaving ? "Saving..." : "Save Layer Toggles"}
                 </Button>
-                {layerMessage && (
-                  <span
-                    className={
-                      layerMessage.error ? "text-xs text-error" : "text-xs text-success"
-                    }
-                  >
-                    {layerMessage.text}
-                  </span>
-                )}
               </div>
             </form>
           )}
@@ -625,15 +610,6 @@ export default function GisAdminPanel({
                 <Save className="size-3.5" />
                 {basemapSaving ? "Saving..." : "Save Base Map"}
               </Button>
-              {basemapMessage && (
-                <span
-                  className={
-                    basemapMessage.error ? "text-xs text-error" : "text-xs text-success"
-                  }
-                >
-                  {basemapMessage.text}
-                </span>
-              )}
             </div>
           </form>
         </div>
@@ -723,15 +699,6 @@ export default function GisAdminPanel({
                 <Save className="size-3.5" />
                 {centerSaving ? "Saving..." : "Save Map Center"}
               </Button>
-              {centerMessage && (
-                <span
-                  className={
-                    centerMessage.error ? "text-xs text-error" : "text-xs text-success"
-                  }
-                >
-                  {centerMessage.text}
-                </span>
-              )}
             </div>
           </form>
         </div>

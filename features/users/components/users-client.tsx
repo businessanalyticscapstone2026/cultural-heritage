@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { UserPlus, Shield, Key } from "lucide-react"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { StaffTable } from "./staff-table"
 import { StaffForm } from "./staff-form"
 import { RoleTable } from "./role-table"
@@ -28,7 +29,6 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
   const [staff, setStaff] = useState<StaffProfileWithRelations[]>(initialStaff)
   const [showStaffForm, setShowStaffForm] = useState(false)
   const [editingProfile, setEditingProfile] = useState<StaffProfileWithRelations | null>(null)
-  const [staffError, setStaffError] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const tabs: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -38,7 +38,6 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
   ]
 
   const handleStaffFormSave = async (data: Record<string, unknown>) => {
-    setStaffError(null)
     try {
       if (editingProfile) {
         const updated = await apiClient<StaffProfileWithRelations>(
@@ -55,17 +54,19 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
           }
         )
         setStaff((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+        notifySuccess("Staff account updated.")
       } else {
         const created = await apiClient<StaffProfileWithRelations>("/users", {
           method: "POST",
           body: data,
         })
         setStaff((prev) => [created, ...prev])
+        notifySuccess("Staff account created.")
       }
       setShowStaffForm(false)
       setEditingProfile(null)
     } catch (err) {
-      setStaffError(err instanceof Error ? err.message : "Failed to save staff account")
+      notifyError(errorReason(err, "Failed to save staff account. Please try again."))
     }
   }
 
@@ -75,7 +76,6 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
       previousStatus === "active" ? "inactive" : "active"
 
     setTogglingId(profile.id)
-    setStaffError(null)
     setStaff((prev) =>
       prev.map((p) =>
         p.id === profile.id ? { ...p, account_status: flippedStatus } : p
@@ -90,8 +90,9 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
       setStaff((prev) =>
         prev.map((p) => (p.id === updated.id ? updated : p))
       )
+      notifySuccess(`Account status updated to ${flippedStatus}.`)
     } catch (err) {
-      setStaffError(err instanceof Error ? err.message : "Failed to update account status")
+      notifyError(errorReason(err, "Failed to update account status. Please try again."))
       setStaff((prev) =>
         prev.map((p) =>
           p.id === profile.id ? { ...p, account_status: previousStatus } : p
@@ -105,10 +106,8 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
   const [roleList, setRoleList] = useState<Role[]>(roles)
   const [showRoleForm, setShowRoleForm] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
-  const [roleError, setRoleError] = useState<string | null>(null)
 
   const handleRoleSave = async (data: Record<string, unknown>) => {
-    setRoleError(null)
     try {
       if (editingRole) {
         const updated = await apiClient<Role>(`/roles/${editingRole.id}`, {
@@ -116,28 +115,30 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
           body: data,
         })
         setRoleList((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+        notifySuccess("Role updated.")
       } else {
         const created = await apiClient<Role>("/roles", {
           method: "POST",
           body: data,
         })
         setRoleList((prev) => [...prev, created])
+        notifySuccess("Role created.")
       }
       setShowRoleForm(false)
       setEditingRole(null)
     } catch (err) {
-      setRoleError(err instanceof Error ? err.message : "Failed to save role")
+      notifyError(errorReason(err, "Failed to save role. Please try again."))
     }
   }
 
   const handleRoleDelete = async (role: Role) => {
     if (!confirm(`Delete role "${role.name}"? This action cannot be undone.`)) return
-    setRoleError(null)
     try {
       await apiClient(`/roles/${role.id}`, { method: "DELETE" })
       setRoleList((prev) => prev.filter((r) => r.id !== role.id))
+      notifySuccess(`Role "${role.name}" deleted.`)
     } catch (err) {
-      setRoleError(err instanceof Error ? err.message : "Failed to delete role")
+      notifyError(errorReason(err, "Failed to delete role. Please try again."))
     }
   }
 
@@ -170,18 +171,6 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
         })}
       </div>
 
-      {staffError && (
-        <div className="rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
-          {staffError}
-        </div>
-      )}
-
-      {roleError && (
-        <div className="rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
-          {roleError}
-        </div>
-      )}
-
       {activeTab === "staff" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -191,7 +180,6 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
             <button
               type="button"
               onClick={() => {
-                setStaffError(null)
                 setEditingProfile(null)
                 setShowStaffForm(true)
               }}
@@ -205,7 +193,6 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
           <StaffTable
             staff={staff}
             onEdit={(profile) => {
-              setStaffError(null)
               setEditingProfile(profile)
               setShowStaffForm(true)
             }}

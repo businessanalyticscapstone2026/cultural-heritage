@@ -13,7 +13,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react"
-import { toast } from "sonner"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -86,11 +86,9 @@ export default function MtoHeritageListClient({
       const { archiveMtoSiteAction } = await import("../actions/mto-sites")
       await archiveMtoSiteAction(site.id)
       setSites((prev) => prev.filter((s) => s.id !== site.id))
-      toast.warning(`"${site.siteName}" has been archived.`)
+      notifySuccess(`"${site.siteName}" has been archived.`)
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to archive site. Please try again.",
-      )
+      notifyError(errorReason(err, "Failed to archive site. Please try again."))
     } finally {
       setArchivingId(null)
       setArchiveTarget(null)

@@ -3,7 +3,7 @@
 
 import { useEffect, useCallback, useState } from "react"
 import { XIcon, QrCodeIcon, RefreshCwIcon, DownloadIcon, BanIcon, CheckCircleIcon, ExternalLinkIcon, ChevronDownIcon, Loader2Icon } from "lucide-react"
-import { toast } from "sonner"
+import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import ConfirmDialog from "@/components/confirm-dialog"
@@ -98,8 +98,9 @@ export default function QRCodeDetailPanel({
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-    } catch {
-      toast.error("Failed to generate download. Please try again.")
+      notifySuccess(`QR code downloaded as ${format.toUpperCase()}.`)
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to generate download. Please try again."))
     } finally {
       setDownloading(false)
     }

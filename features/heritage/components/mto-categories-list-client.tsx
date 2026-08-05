@@ -13,6 +13,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +33,7 @@ const PAGE_SIZE = 10
 export default function MtoCategoriesListClient({
   initialCategories,
 }: MtoCategoriesListClientProps) {
+  const router = useRouter()
   const [categories, setCategories] = useState<CategoryWithSiteCount[]>(initialCategories)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("")
@@ -79,12 +81,12 @@ export default function MtoCategoriesListClient({
   }, [deleteTarget, handleDelete])
 
   const handleAddNew = useCallback(() => {
-    window.location.href = "/mto/categories/new"
-  }, [])
+    router.push("/mto/categories/new")
+  }, [router])
 
   const handleEdit = useCallback((cat: CategoryWithSiteCount) => {
-    window.location.href = `/mto/categories/${cat.id}/edit`
-  }, [])
+    router.push(`/mto/categories/${cat.id}/edit`)
+  }, [router])
 
   const openDetailPanel = useCallback((cat: CategoryWithSiteCount) => {
     setSelectedCategory(cat)

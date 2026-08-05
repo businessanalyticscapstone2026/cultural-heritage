@@ -14,6 +14,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { categorySchema, type CategoryFormValues } from "../schemas/category"
 import type { HeritageCategory } from "@/types/heritage"
+import CategoryIcon from "./category-icon"
+import CategoryIconPicker from "./category-icon-picker"
 
 type CategoryFormData = {
   name: string
@@ -32,6 +34,7 @@ interface MtoCategoryFormClientProps {
 export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategoryFormClientProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
@@ -46,6 +49,10 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
   })
 
   const watchAll = form.watch()
+
+  const colorInputValue = watchAll.color?.match(/^#[0-9a-fA-F]{6}$/)
+    ? watchAll.color
+    : "#6366f1"
 
   const handleSubmit = useCallback(async () => {
     const valid = await form.trigger()
@@ -142,7 +149,7 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
                       placeholder="e.g., Church, Landmark"
                       className="flex-1"
                     />
-                    <Button type="button" variant="outline" size="sm" className="shrink-0">
+                    <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setIconPickerOpen(true)}>
                       Choose Icon
                     </Button>
                   </div>
@@ -159,10 +166,13 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
                     <input
                       type="color"
                       className="size-8 shrink-0 rounded border cursor-pointer"
-                      value={form.watch("color") ?? "#6366f1"}
+                      value={colorInputValue}
                       onChange={(e) => form.setValue("color", e.target.value)}
                     />
                   </div>
+                  {form.formState.errors.color && (
+                    <p className="text-xs text-destructive">{form.formState.errors.color.message}</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -250,7 +260,7 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
               <CardContent>
                 <div className="flex items-center justify-center rounded-xl border-2 border-dashed p-8">
                   {watchAll.icon ? (
-                    <span className="text-5xl">{watchAll.icon}</span>
+                    <CategoryIcon name={watchAll.icon} className="size-16 text-foreground" />
                   ) : (
                     <span className="text-sm text-muted-foreground">No icon selected</span>
                   )}
@@ -274,7 +284,7 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
                         color: watchAll.color ?? undefined,
                       }}
                     >
-                      {watchAll.icon && <span className="mr-1.5">{watchAll.icon}</span>}
+                      {watchAll.icon && <CategoryIcon name={watchAll.icon} className="mr-1.5 size-4" />}
                       {watchAll.name}
                     </span>
                   )}
@@ -295,6 +305,13 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
           </div>
         </div>
       </div>
+
+      <CategoryIconPicker
+        open={iconPickerOpen}
+        onOpenChange={setIconPickerOpen}
+        onSelect={(value) => form.setValue("icon", value, { shouldValidate: true })}
+        current={watchAll.icon ?? null}
+      />
     </div>
   )
 }

@@ -87,12 +87,17 @@ export async function updateCategory(id: string, updates: Partial<HeritageCatego
   if (updates.displayOrder !== undefined) updateData.display_order = updates.displayOrder
   if (updates.status !== undefined) updateData.status = updates.status
 
-  const { error } = await supabase
+  const { data: updatedRows, error } = await supabase
     .from("heritage_categories")
     .update(updateData)
     .eq("id", id)
+    .select("id")
 
   if (error) throw new Error(`Failed to update category: ${error.message}`)
+
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new Error("Failed to update category: the record was not found or update was not permitted")
+  }
 
   const { data: updated, error: fetchError } = await supabase
     .from("heritage_categories")
@@ -126,12 +131,17 @@ export async function deleteCategory(id: string): Promise<void> {
     throw new Error(`Cannot delete category: ${count} heritage site(s) still use it`)
   }
 
-  const { error } = await supabase
+  const { data: deletedRows, error } = await supabase
     .from("heritage_categories")
     .delete()
     .eq("id", id)
+    .select("id")
 
   if (error) throw new Error(`Failed to delete category: ${error.message}`)
+
+  if (!deletedRows || deletedRows.length === 0) {
+    throw new Error("Failed to delete category: the record was not found or deletion was not permitted")
+  }
 }
 
 export async function getCategoriesWithSiteCount(): Promise<(HeritageCategory & { siteCount: number })[]> {

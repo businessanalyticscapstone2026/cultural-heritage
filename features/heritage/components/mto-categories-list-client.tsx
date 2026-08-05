@@ -17,8 +17,15 @@ import { useRouter } from "next/navigation"
 import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import ConfirmDialog from "@/components/confirm-dialog"
 import type { HeritageCategory } from "@/types/heritage"
+import CategoryIcon from "./category-icon"
 
 interface CategoryWithSiteCount extends HeritageCategory {
   siteCount: number
@@ -38,7 +45,6 @@ export default function MtoCategoriesListClient({
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CategoryWithSiteCount | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<CategoryWithSiteCount | null>(null)
@@ -59,7 +65,6 @@ export default function MtoCategoriesListClient({
   const handleDelete = useCallback(async (id: string) => {
     const cat = categories.find((c) => c.id === id)
     setDeletingId(id)
-    setOpenMenuId(null)
     try {
       const { deleteCategoryAction } = await import("../actions/category")
       await deleteCategoryAction(id)
@@ -89,7 +94,6 @@ export default function MtoCategoriesListClient({
   const openDetailPanel = useCallback((cat: CategoryWithSiteCount) => {
     setSelectedCategory(cat)
     setPanelOpen(true)
-    setOpenMenuId(null)
   }, [])
 
   const closeDetailPanel = useCallback(() => {
@@ -178,14 +182,20 @@ export default function MtoCategoriesListClient({
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      {cat.icon && <span className="text-lg">{cat.icon}</span>}
+                      {cat.icon && <CategoryIcon name={cat.icon} className="text-lg" />}
                       <span className="font-medium">{cat.name}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">
                     {cat.description || "—"}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{cat.icon || "—"}</td>
+                  <td className="px-4 py-3">
+                    {cat.icon ? (
+                      <CategoryIcon name={cat.icon} className="size-4 text-muted-foreground" />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {cat.color ? (
                       <div className="flex items-center gap-2">
@@ -203,41 +213,32 @@ export default function MtoCategoriesListClient({
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="relative" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOpenMenuId(openMenuId === cat.id ? null : cat.id)
-                        }}
-                      >
-                        <MoreHorizontalIcon className="size-4" />
-                      </Button>
-                      {openMenuId === cat.id && (
-                        <div className="absolute right-0 top-8 z-10 w-36 rounded-lg border bg-popover shadow-md py-1">
-                          <button
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
-                            onClick={() => openDetailPanel(cat)}
-                          >
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="ghost" size="icon-xs">
+                              <MoreHorizontalIcon className="size-4" />
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => openDetailPanel(cat)}>
                             <EyeIcon className="size-3.5" /> View
-                          </button>
-                          <button
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
-                            onClick={() => handleEdit(cat)}
-                          >
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(cat)}>
                             <EditIcon className="size-3.5" /> Edit
-                          </button>
-                          <button
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
                             onClick={() => setDeleteTarget(cat)}
                             disabled={cat.siteCount > 0}
                           >
                             <span className="size-3.5 inline-flex items-center justify-center text-[10px]">✕</span>
                             Delete
-                          </button>
-                        </div>
-                      )}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </td>
                 </tr>
@@ -320,8 +321,8 @@ export default function MtoCategoriesListClient({
                 {/* Icon + Name */}
                 <div className="flex items-center gap-4">
                   {selectedCategory.icon && (
-                    <div className="size-14 rounded-xl bg-muted flex items-center justify-center text-2xl">
-                      {selectedCategory.icon}
+                    <div className="size-14 rounded-xl bg-muted flex items-center justify-center">
+                      <CategoryIcon name={selectedCategory.icon} className="size-6" />
                     </div>
                   )}
                   <div>
@@ -362,7 +363,14 @@ export default function MtoCategoriesListClient({
 
                 {/* Dates */}
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>Icon: {selectedCategory.icon || "—"}</p>
+                  <p>
+                    Icon:{" "}
+                    {selectedCategory.icon ? (
+                      <CategoryIcon name={selectedCategory.icon} className="inline size-4 align-text-bottom" />
+                    ) : (
+                      "—"
+                    )}
+                  </p>
                   <p>Created: —</p>
                   <p>Last Updated: —</p>
                 </div>

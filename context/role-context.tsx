@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import type { UserRole } from "@/types/user"
 import { useAuth } from "@/context/auth-context"
 import { resolveUserRole } from "@/features/auth/services"
@@ -35,69 +35,93 @@ function resolveStaffName(
   return fallback || null
 }
 
+type RoleResolution = {
+  userId: string
+  role: UserRole | null
+  roleName: string | null
+  staffName: string | null
+  municipalityId: string | null
+  municipalityName: string | null
+}
+
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { session, isLoading: authLoading } = useAuth()
-  const [role, setRole] = useState<UserRole | null>(null)
-  const [roleName, setRoleName] = useState<string | null>(null)
-  const [municipalityId, setMunicipalityId] = useState<string | null>(null)
-  const [municipalityName, setMunicipalityName] = useState<string | null>(null)
-  const [staffName, setStaffName] = useState<string | null>(null)
-  const sessionUserIdRef = useRef<string | null>(null)
+  const [resolution, setResolution] = useState<RoleResolution | null>(null)
 
   useEffect(() => {
     if (authLoading) return
-
-    const userId = session?.user.id ?? null
-
-    // Reset all state whenever the authenticated user changes so a previous
-    // session's name/role/municipality never leaks into the new session.
-    if (sessionUserIdRef.current !== userId) {
-      sessionUserIdRef.current = userId
-      setRole(null)
-      setRoleName(null)
-      setStaffName(null)
-      setMunicipalityId(null)
-      setMunicipalityName(null)
-    }
-
     if (!session) return
 
-    resolveUserRole(session.user.id).then((result) => {
-      // Ignore stale results from a previous session.
-      if (sessionUserIdRef.current !== session.user.id) return
+    let cancelled = false
 
-      setRole(result.role)
-      setRoleName(result.roleName)
+    resolveUserRole(session.user.id)
+      .then(async (result) => {
+        if (cancelled) return
 
-      if (result.role === "ptcao_admin" || result.role === "mto") {
         const profile = result.profile as Record<string, unknown> | null
-        setStaffName(resolveStaffName(profile, session.user.fullName))
-
-        if (result.role === "mto") {
-          const mId = (profile?.municipality_id as string) ?? null
-          setMunicipalityId(mId)
-
-          if (mId) {
-            const supabase = createClient()
-            supabase
-              .from("municipalities")
-              .select("name")
-              .eq("id", mId)
-              .maybeSingle()
-              .then(({ data }) => {
-                if (sessionUserIdRef.current !== session.user.id) return
-                setMunicipalityName((data?.name as string) ?? null)
-              })
-          }
+        const next: RoleResolution = {
+          userId: session.user.id,
+          role: result.role,
+          roleName: result.roleName,
+          staffName: null,
+          municipalityId: null,
+          municipalityName: null,
         }
-      } else if (result.role === "tourist") {
-        const profile = result.profile as Record<string, unknown> | null
-        setStaffName(resolveStaffName(profile, session.user.fullName))
-      }
-    })
+
+        if (result.role === "ptcao_admin" || result.role === "mto") {
+          next.staffName = resolveStaffName(profile, session.user.fullName)
+
+          if (result.role === "mto") {
+            const mId = (profile?.municipality_id as string) ?? null
+            next.municipalityId = mId
+
+            if (mId) {
+              const supabase = createClient()
+              const { data } = await supabase
+                .from("municipalities")
+                .select("name")
+                .eq("id", mId)
+                .maybeSingle()
+              if (!cancelled) next.municipalityName = (data?.name as string) ?? null
+            }
+          }
+        } else if (result.role === "tourist") {
+          next.staffName = resolveStaffName(profile, session.user.fullName)
+        }
+
+        if (!cancelled) setResolution(next)
+      })
+      .catch(() => {
+        // Never hang on a failed role lookup — mark resolution complete so
+        // guards can redirect instead of leaving a blank screen.
+        if (!cancelled) {
+          setResolution({
+            userId: session.user.id,
+            role: null,
+            roleName: null,
+            staffName: null,
+            municipalityId: null,
+            municipalityName: null,
+          })
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [session, authLoading])
 
-  const roleLoading = authLoading || (!!session && role === null) || (!session && role !== null)
+  const userId = session?.user.id ?? null
+  const resolvedForSession =
+    resolution !== null && userId !== null && resolution.userId === userId
+  const current = resolvedForSession ? resolution : null
+
+  const role = current?.role ?? null
+  const roleName = current?.roleName ?? null
+  const staffName = current?.staffName ?? null
+  const municipalityId = current?.municipalityId ?? null
+  const municipalityName = current?.municipalityName ?? null
+  const roleLoading = authLoading || (userId !== null && !resolvedForSession)
 
   const value: RoleContextValue = {
     role,

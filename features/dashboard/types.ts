@@ -1,8 +1,13 @@
+export type KpiMetric = {
+  value: number
+  previous: number
+}
+
 export type KpiData = {
-  totalHeritageSites: number
-  totalMunicipalities: number
-  totalRegisteredUsers: number
-  totalVisitsThisMonth: number
+  heritageSites: KpiMetric
+  activeMunicipalities: KpiMetric
+  registeredUsers: KpiMetric
+  visitsThisMonth: KpiMetric
 }
 
 export type CategoryBreakdown = {

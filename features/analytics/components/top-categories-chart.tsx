@@ -9,10 +9,14 @@ import {
   Bar,
   XAxis,
   YAxis,
+  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LabelList,
 } from "recharts"
+import { ChartTooltip } from "@/components/charts/chart-tooltip"
+import { CHART_AXIS_STROKE, CHART_AXIS_TICK, CHART_GRID_STROKE } from "@/components/charts/chart-theme"
 import type { CategoryVisit, AnalyticsFilters } from "../types"
 
 export default function TopCategoriesChart({
@@ -35,6 +39,8 @@ export default function TopCategoriesChart({
     return () => { cancelled = true }
   }, [filterKey, filters])
 
+  const total = data ? data.reduce((sum, d) => sum + d.visits, 0) : 0
+
   return (
     <Card>
       <CardHeader>
@@ -47,22 +53,33 @@ export default function TopCategoriesChart({
           <p className="py-8 text-center text-sm text-muted-foreground">No category data</p>
         )}
         {data && data.length > 0 && (
-          <ResponsiveContainer width="100%" height={Math.max(200, data.length * 40)}>
-            <BarChart data={data} layout="vertical" margin={{ left: 100 }}>
-              <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis type="category" dataKey="categoryName" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={90} />
+          <ResponsiveContainer width="100%" height={Math.max(200, data.length * 44)}>
+            <BarChart data={data} layout="vertical" margin={{ left: 12, right: 36 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} horizontal={false} />
+              <XAxis type="number" tick={CHART_AXIS_TICK} stroke={CHART_AXIS_STROKE} tickLine={false} axisLine={false} allowDecimals={false} />
+              <YAxis type="category" dataKey="categoryName" tick={CHART_AXIS_TICK} stroke={CHART_AXIS_STROKE} width={90} tickLine={false} axisLine={false} />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                }}
+                cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
+                content={
+                  <ChartTooltip
+                    labelFormatter={(label) => String(label)}
+                    valueFormatter={(value) => {
+                      const pct = total > 0 ? Math.round((value / total) * 100) : 0
+                      return `${value.toLocaleString()} visits (${pct}%)`
+                    }}
+                  />
+                }
               />
-              <Bar dataKey="visits" radius={[0, 4, 4, 0]}>
-                {data.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
+              <Bar dataKey="visits" name="Visits" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={700}>
+                {data.map((entry) => (
+                  <Cell key={entry.categoryId} fill={entry.color} />
                 ))}
+                <LabelList
+                  dataKey="visits"
+                  position="right"
+                  formatter={(value: unknown) => Number(value).toLocaleString()}
+                  className="fill-foreground text-xs font-medium"
+                />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

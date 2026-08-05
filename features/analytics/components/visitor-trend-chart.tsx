@@ -1,19 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useId, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getVisitorTrendAction } from "../actions/analytics"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
+import { ChartTooltip } from "@/components/charts/chart-tooltip"
+import { CHART_AXIS_STROKE, CHART_AXIS_TICK, CHART_GRID_STROKE } from "@/components/charts/chart-theme"
 import { cn } from "@/lib/utils"
 import type { VisitorTrendPoint, TrendGranularity, AnalyticsFilters } from "../types"
 
@@ -31,6 +33,7 @@ export default function VisitorTrendChart({
   const router = useRouter()
   const searchParams = useSearchParams()
   const granularity = (searchParams.get("granularity") as TrendGranularity) ?? "monthly"
+  const gradientId = useId().replace(/:/g, "")
   const [data, setData] = useState<VisitorTrendPoint[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -53,6 +56,10 @@ export default function VisitorTrendChart({
     params.set("granularity", g)
     router.push(`?${params.toString()}`)
   }
+
+  const totalVisitors = data ? data.reduce((sum, d) => sum + d.visitors, 0) : 0
+  const average =
+    data && data.length > 0 ? Math.round(totalVisitors / data.length) : 0
 
   return (
     <Card>
@@ -87,29 +94,72 @@ export default function VisitorTrendChart({
           <p className="py-8 text-center text-sm text-muted-foreground">No visitor data for this period</p>
         )}
         {data && data.length > 0 && (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="period" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="visitors"
-                stroke="#2E5BFF"
-                strokeWidth={2}
-                name="Visitors"
-                dot={{ fill: "#2E5BFF", r: 3 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <>
+            <div className="mb-3 flex flex-wrap gap-2">
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                Total{" "}
+                <span className="ml-1 font-semibold text-foreground">
+                  {totalVisitors.toLocaleString()}
+                </span>
+              </span>
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                Avg per period{" "}
+                <span className="ml-1 font-semibold text-foreground">
+                  {average.toLocaleString()}
+                </span>
+              </span>
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                Peak{" "}
+                <span className="ml-1 font-semibold text-foreground">
+                  {Math.max(...data.map((d) => d.visitors)).toLocaleString()}
+                </span>
+              </span>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -12 }}>
+                <defs>
+                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#2E5BFF" stopOpacity={0.28} />
+                    <stop offset="100%" stopColor="#2E5BFF" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} vertical={false} />
+                <XAxis
+                  dataKey="period"
+                  tick={CHART_AXIS_TICK}
+                  stroke={CHART_AXIS_STROKE}
+                  tickLine={false}
+                  minTickGap={32}
+                />
+                <YAxis
+                  tick={CHART_AXIS_TICK}
+                  stroke={CHART_AXIS_STROKE}
+                  width={44}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  cursor={{ stroke: "hsl(var(--border))" }}
+                  content={
+                    <ChartTooltip
+                      valueFormatter={(value) => `${value.toLocaleString()} visitors`}
+                    />
+                  }
+                />
+                <Area
+                  type="monotone"
+                  dataKey="visitors"
+                  name="Visitors"
+                  stroke="#2E5BFF"
+                  strokeWidth={2}
+                  fill={`url(#${gradientId})`}
+                  activeDot={{ r: 4, fill: "#2E5BFF" }}
+                  isAnimationActive
+                  animationDuration={700}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </>
         )}
       </CardContent>
     </Card>

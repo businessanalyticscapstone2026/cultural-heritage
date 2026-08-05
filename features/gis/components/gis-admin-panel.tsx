@@ -1,20 +1,77 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import {
   Eye,
   EyeOff,
-  Map,
+  Map as MapIcon,
   Crosshair,
   AlertTriangle,
   Save,
   Globe,
   Lock,
+  Info,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { GisConfig, HeritageCategoryWithStatus, IntegrationInfo } from "../types"
+import type { MapSite } from "../services"
+import type { StyleSpecification } from "maplibre-gl"
+
+const MapPreview = dynamic(
+  () => import("@/components/ui/map").then((m) => m.Map),
+  { ssr: false, loading: () => <div className="flex h-full items-center justify-center bg-muted/30 text-sm text-muted-foreground">Loading map...</div> },
+)
+const MapMarker = dynamic(
+  () => import("@/components/ui/map").then((m) => m.MapMarker),
+  { ssr: false },
+)
+const MarkerContent = dynamic(
+  () => import("@/components/ui/map").then((m) => m.MarkerContent),
+  { ssr: false },
+)
+const MapControls = dynamic(
+  () => import("@/components/ui/map").then((m) => m.MapControls),
+  { ssr: false },
+)
+
+// Standard OSM raster tiles for the "openstreetmap" provider. Distinct from
+// "mapcn" which uses the Map component's own bundled vector style.
+const OSM_RASTER_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+    },
+  },
+  layers: [{ id: "osm", type: "raster", source: "osm" }],
+}
+
+/**
+ * Google Maps tile rendering isn't implemented yet (separate integration ticket).
+ * Fall back to the default basemap instead of crashing or leaving the preview blank.
+ */
+function resolvePreviewBasemap(
+  provider: GisConfig["basemapProvider"],
+  googleMapsIntegration: IntegrationInfo | null,
+): { styles?: { light: StyleSpecification; dark: StyleSpecification }; notice: string | null } {
+  if (provider === "openstreetmap") {
+    return { styles: { light: OSM_RASTER_STYLE, dark: OSM_RASTER_STYLE }, notice: null }
+  }
+  if (provider === "google_maps") {
+    return {
+      notice: googleMapsIntegration?.status === "active"
+        ? "Google Maps rendering isn't wired up yet — showing the default basemap."
+        : "Google Maps Platform isn't configured — showing the default basemap.",
+    }
+  }
+  return { notice: null }
+}
 
 const visibleCategoryIdsSchema = z.object({
   visibleCategoryIds: z.array(z.string()),
@@ -35,6 +92,7 @@ type GisAdminPanelProps = {
   gisConfig: GisConfig
   categories: HeritageCategoryWithStatus[]
   googleMapsIntegration: IntegrationInfo | null
+  sites: MapSite[]
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -54,6 +112,7 @@ export default function GisAdminPanel({
   gisConfig,
   categories,
   googleMapsIntegration,
+  sites,
 }: GisAdminPanelProps) {
   const [layerSaving, setLayerSaving] = useState(false)
   const [basemapSaving, setBasemapSaving] = useState(false)
@@ -84,6 +143,10 @@ export default function GisAdminPanel({
   })
 
   const selectedProvider = basemapForm.watch("provider")
+
+  const mappableSites = sites.filter((s) => s.latitude != null && s.longitude != null)
+  const previewBasemap = resolvePreviewBasemap(selectedProvider, googleMapsIntegration)
+  const previewCenter = gisConfig.defaultMapCenter
 
   async function onSaveLayerToggles(values: z.infer<typeof visibleCategoryIdsSchema>) {
     setLayerSaving(true)
@@ -146,6 +209,56 @@ export default function GisAdminPanel({
         <p className="mt-1 text-sm opacity-80">
           Configure map layers, base map sources, and map defaults
         </p>
+      </div>
+
+      {/* Map Preview */}
+      <div className="rounded-xl border bg-card p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MapIcon className="size-5 text-muted-foreground" />
+            <h2 className="font-semibold">Map Preview</h2>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {mappableSites.length} site{mappableSites.length !== 1 ? "s" : ""} plotted · {PROVIDER_LABELS[selectedProvider]}
+          </span>
+        </div>
+
+        {previewBasemap.notice && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground">
+            <Info className="mt-0.5 size-3.5 shrink-0 text-warning" />
+            {previewBasemap.notice}
+          </div>
+        )}
+
+        <div className="relative h-[420px] w-full overflow-hidden rounded-lg border">
+          <MapPreview
+            className="h-full w-full"
+            styles={previewBasemap.styles}
+            viewport={{
+              center: [previewCenter.lng, previewCenter.lat],
+              zoom: gisConfig.defaultZoom,
+              bearing: 0,
+              pitch: 0,
+            }}
+          >
+            {mappableSites.map((site) => (
+              <MapMarker
+                key={site.id}
+                longitude={site.longitude as number}
+                latitude={site.latitude as number}
+              >
+                <MarkerContent>
+                  <div
+                    className="flex size-5 items-center justify-center rounded-full border-2 border-white shadow-md"
+                    style={{ backgroundColor: site.categoryColor ?? "#6366f1" }}
+                    title={site.siteName}
+                  />
+                </MarkerContent>
+              </MapMarker>
+            ))}
+            <MapControls showZoom showLocate />
+          </MapPreview>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -428,7 +541,7 @@ export default function GisAdminPanel({
         {/* Section 4: Municipal Boundaries */}
         <div className="rounded-xl border bg-card p-5">
           <div className="flex items-center gap-2">
-            <Map className="size-5 text-muted-foreground" />
+            <MapIcon className="size-5 text-muted-foreground" />
             <h2 className="font-semibold">Municipal Boundaries</h2>
           </div>
 
@@ -450,7 +563,7 @@ export default function GisAdminPanel({
             </div>
 
             <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-center">
-              <Map className="mx-auto size-8 text-muted-foreground/70" />
+              <MapIcon className="mx-auto size-8 text-muted-foreground/70" />
               <p className="mt-2 text-xs text-muted-foreground">
                 TODO: Upload GeoJSON or KML boundary files here once schema supports it.
               </p>

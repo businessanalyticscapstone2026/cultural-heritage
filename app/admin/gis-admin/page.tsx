@@ -1,11 +1,12 @@
-import { getGisConfig, getHeritageCategories, getGoogleMapsIntegration } from "@/features/gis/services"
+import { getGisConfig, getHeritageCategories, getGoogleMapsIntegration, getAllMapSites } from "@/features/gis/services"
 import GisAdminPanel from "@/features/gis/components/gis-admin-panel"
 
 export default async function GISAdminPage() {
-  const [gisConfig, categories, googleMapsIntegration] = await Promise.all([
+  const [gisConfig, categories, googleMapsIntegration, sites] = await Promise.all([
     getGisConfig(),
     getHeritageCategories(),
     getGoogleMapsIntegration(),
+    getAllMapSites(),
   ])
 
   return (
@@ -13,6 +14,7 @@ export default async function GISAdminPage() {
       gisConfig={gisConfig}
       categories={categories}
       googleMapsIntegration={googleMapsIntegration}
+      sites={sites}
     />
   )
 }

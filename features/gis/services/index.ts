@@ -142,6 +142,49 @@ export async function getMtoMapSites(municipalityId: string): Promise<MapSite[]>
   })
 }
 
+/** Admin map preview: fetch all heritage sites system-wide (all municipalities) with category color */
+export async function getAllMapSites(): Promise<MapSite[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("heritage_sites")
+    .select(`
+      id, site_name, latitude, longitude, elevation, geo_accuracy,
+      category_id, barangay, publication_status, short_description,
+      category:heritage_categories(name, color),
+      media:heritage_site_media(id, media_type, file_url, caption)
+    `)
+    .order("site_name", { ascending: true })
+    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
+
+  if (error) throw new Error(`Failed to fetch map sites: ${error.message}`)
+
+  return (data ?? []).map((row) => {
+    // Supabase returns a to-one embed as a plain object, not an array.
+    const catRaw = row.category as Record<string, unknown>[] | Record<string, unknown> | null
+    const cat = (Array.isArray(catRaw) ? catRaw[0] : catRaw) as { name: string; color: string } | null
+    const mediaArr = (row.media ?? []) as Record<string, unknown>[]
+    const primaryImage = mediaArr.find((m) => m.media_type === "image")
+
+    return {
+      id: row.id as string,
+      siteName: row.site_name as string,
+      latitude: row.latitude as number | null,
+      longitude: row.longitude as number | null,
+      elevation: row.elevation as number | null,
+      geoAccuracy: row.geo_accuracy as string | null,
+      categoryId: row.category_id as string | null,
+      categoryName: cat?.name ?? null,
+      categoryColor: cat?.color ?? null,
+      barangay: row.barangay as string | null,
+      publicationStatus: row.publication_status as string,
+      shortDescription: row.short_description as string | null,
+      primaryImage: primaryImage?.file_url as string | null ?? null,
+    }
+  })
+}
+
 /** Feed 2 (detail panel): fetch full site detail scoped to municipality */
 export async function getMtoSiteDetail(
   siteId: string,

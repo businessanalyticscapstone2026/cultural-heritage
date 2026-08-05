@@ -233,11 +233,11 @@ function QuickActionButton({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-xl border bg-card p-4 text-sm font-medium transition-colors hover:bg-accent"
+      className="group flex items-center gap-3 rounded-xl border bg-card p-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
     >
-      <Icon className="size-5 shrink-0 text-muted-foreground" />
+      <Icon className="size-5 shrink-0 text-muted-foreground transition-colors group-hover:text-accent-foreground" />
       <span className="flex-1">{label}</span>
-      <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground" />
+      <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-accent-foreground" />
     </Link>
   )
 }

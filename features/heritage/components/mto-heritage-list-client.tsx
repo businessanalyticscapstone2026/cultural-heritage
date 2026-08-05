@@ -16,6 +16,12 @@ import {
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import ConfirmDialog from "@/components/confirm-dialog"
 import type { SiteWithDetails } from "../services/mto-sites"
 import HeritageDetailPanel from "./heritage-detail-panel"
@@ -41,7 +47,6 @@ export default function MtoHeritageListClient({
   const [pageSize, setPageSize] = useState(PAGE_SIZE)
   const [selectedSite, setSelectedSite] = useState<SiteWithDetails | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [archivingId, setArchivingId] = useState<string | null>(null)
   const [archiveTarget, setArchiveTarget] = useState<SiteWithDetails | null>(null)
   const [showFilters, setShowFilters] = useState(false)
@@ -69,7 +74,6 @@ export default function MtoHeritageListClient({
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   const handleArchive = useCallback((site: SiteWithDetails) => {
-    setOpenMenuId(null)
     setArchiveTarget(site)
   }, [])
 
@@ -77,7 +81,6 @@ export default function MtoHeritageListClient({
     if (!archiveTarget) return
     const site = archiveTarget
     setArchivingId(site.id)
-    setOpenMenuId(null)
 
     try {
       const { archiveMtoSiteAction } = await import("../actions/mto-sites")
@@ -97,7 +100,6 @@ export default function MtoHeritageListClient({
   const openDetailPanel = useCallback((site: SiteWithDetails) => {
     setSelectedSite(site)
     setPanelOpen(true)
-    setOpenMenuId(null)
   }, [])
 
   const closeDetailPanel = useCallback(() => {
@@ -280,40 +282,31 @@ export default function MtoHeritageListClient({
                   </td>
                   <td className="px-4 py-3">{getStatusBadge(site.publicationStatus)}</td>
                   <td className="px-4 py-3 text-right">
-                    <div className="relative" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOpenMenuId(openMenuId === site.id ? null : site.id)
-                        }}
-                      >
-                        <MoreHorizontalIcon className="size-4" />
-                      </Button>
-                      {openMenuId === site.id && (
-                        <div className="absolute right-0 top-8 z-10 w-40 rounded-lg border bg-popover shadow-md py-1">
-                          <button
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
-                            onClick={() => { openDetailPanel(site) }}
-                          >
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="ghost" size="icon-xs">
+                              <MoreHorizontalIcon className="size-4" />
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => openDetailPanel(site)}>
                             <EyeIcon className="size-3.5" /> View
-                          </button>
-                          <button
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
-                            onClick={() => { handleEdit(site) }}
-                          >
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(site)}>
                             <EditIcon className="size-3.5" /> Edit
-                          </button>
-                          <button
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
                             onClick={() => handleArchive(site)}
                             disabled={archivingId === site.id}
                           >
                             <ArchiveIcon className="size-3.5" /> Archive
-                          </button>
-                        </div>
-                      )}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </td>
                 </tr>

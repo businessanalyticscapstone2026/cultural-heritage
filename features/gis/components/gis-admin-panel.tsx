@@ -21,15 +21,20 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import UploadZone from "@/features/media/components/upload-zone"
-import type { GisConfig, HeritageCategoryWithStatus, IntegrationInfo } from "../types"
+import type { GisConfig, HeritageCategoryWithStatus, IntegrationInfo, GeoFeatureCollection } from "../types"
 import type { MapSite } from "../services"
 import {
   MAX_BOUNDARY_FILE_BYTES,
   BOUNDARY_ACCEPTED_EXTENSIONS,
   formatBoundaryFileSize,
   getBoundaryFileExtension,
+  DEFAULT_BOUNDARY_STYLE,
+  type BoundaryStyleConfig,
 } from "../constants"
-import type { StyleSpecification } from "maplibre-gl"
+import type { StyleSpecification, FillLayerSpecification, LineLayerSpecification } from "maplibre-gl"
+
+type BoundaryFillPaint = NonNullable<FillLayerSpecification["paint"]>
+type BoundaryLinePaint = NonNullable<LineLayerSpecification["paint"]>
 
 const MapPreview = dynamic(
   () => import("@/components/ui/map").then((m) => m.Map),
@@ -45,6 +50,10 @@ const MarkerContent = dynamic(
 )
 const MapControls = dynamic(
   () => import("@/components/ui/map").then((m) => m.MapControls),
+  { ssr: false },
+)
+const MapGeoJSON = dynamic(
+  () => import("@/components/ui/map").then((m) => m.MapGeoJSON),
   { ssr: false },
 )
 
@@ -126,6 +135,9 @@ type GisAdminPanelProps = {
   sites: MapSite[]
   municipalities: { id: string; name: string }[]
   boundaryStatuses: Record<string, string>
+  boundaries: GeoFeatureCollection
+  /** Overrides for the boundary layer's stroke/fill style. Falls back to DEFAULT_BOUNDARY_STYLE. */
+  boundaryStyle?: Partial<BoundaryStyleConfig>
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -149,6 +161,8 @@ export default function GisAdminPanel({
   sites,
   municipalities,
   boundaryStatuses,
+  boundaries,
+  boundaryStyle,
 }: GisAdminPanelProps) {
   const [layerSaving, setLayerSaving] = useState(false)
   const [basemapSaving, setBasemapSaving] = useState(false)
@@ -161,6 +175,44 @@ export default function GisAdminPanel({
   const [boundaryUploading, setBoundaryUploading] = useState(false)
   const [boundaryStatusOverrides, setBoundaryStatusOverrides] = useState<Record<string, string>>({})
   const mergedBoundaryStatuses = { ...boundaryStatuses, ...boundaryStatusOverrides }
+
+  const [showBoundaryLayer, setShowBoundaryLayer] = useState(true)
+  const [selectedBoundaryId, setSelectedBoundaryId] = useState<string | null>(null)
+  const mergedBoundaryStyle: BoundaryStyleConfig = { ...DEFAULT_BOUNDARY_STYLE, ...boundaryStyle }
+  const selectedBoundaryName =
+    boundaries.features.find((f) => f.properties.municipalityId === selectedBoundaryId)
+      ?.properties.municipalityName as string | undefined
+
+  const boundaryFillPaint: BoundaryFillPaint = (
+    selectedBoundaryId
+      ? {
+          "fill-color": [
+            "case",
+            ["==", ["get", "municipalityId"], selectedBoundaryId],
+            mergedBoundaryStyle.highlightFillColor,
+            mergedBoundaryStyle.fillColor,
+          ],
+          "fill-opacity": [
+            "case",
+            ["==", ["get", "municipalityId"], selectedBoundaryId],
+            mergedBoundaryStyle.highlightFillOpacity,
+            mergedBoundaryStyle.fillOpacity,
+          ],
+        }
+      : {
+          "fill-color": mergedBoundaryStyle.fillColor,
+          "fill-opacity": mergedBoundaryStyle.fillOpacity,
+        }
+  ) as unknown as BoundaryFillPaint
+
+  const boundaryLinePaint: BoundaryLinePaint = {
+    "line-color": mergedBoundaryStyle.strokeColor,
+    "line-width": mergedBoundaryStyle.strokeWidth,
+  }
+
+  function handleBoundaryClick(municipalityId: string) {
+    setSelectedBoundaryId((prev) => (prev === municipalityId ? null : municipalityId))
+  }
 
   async function handleBoundaryFilesSelected(files: File[]) {
     const file = files[0]
@@ -300,9 +352,20 @@ export default function GisAdminPanel({
             <MapIcon className="size-5 text-muted-foreground" />
             <h2 className="font-semibold">Map Preview</h2>
           </div>
-          <span className="text-xs text-muted-foreground">
-            {mappableSites.length} site{mappableSites.length !== 1 ? "s" : ""} plotted · {PROVIDER_LABELS[selectedProvider]}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              {mappableSites.length} site{mappableSites.length !== 1 ? "s" : ""} plotted ·{" "}
+              {boundaries.features.length} boundar{boundaries.features.length !== 1 ? "ies" : "y"} · {PROVIDER_LABELS[selectedProvider]}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowBoundaryLayer((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent"
+            >
+              {showBoundaryLayer ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+              Boundaries
+            </button>
+          </div>
         </div>
 
         {previewBasemap.notice && (
@@ -323,6 +386,20 @@ export default function GisAdminPanel({
               pitch: 0,
             }}
           >
+            {showBoundaryLayer && boundaries.features.length > 0 && (
+              <MapGeoJSON
+                id="municipal-boundaries"
+                data={boundaries as never}
+                promoteId="municipalityId"
+                fillPaint={boundaryFillPaint}
+                linePaint={boundaryLinePaint}
+                interactive
+                onClick={(e) => {
+                  const municipalityId = e.feature.properties?.municipalityId as string | undefined
+                  if (municipalityId) handleBoundaryClick(municipalityId)
+                }}
+              />
+            )}
             {mappableSites.map((site) => (
               <MapMarker
                 key={site.id}
@@ -341,6 +418,21 @@ export default function GisAdminPanel({
             <MapControls showZoom showLocate />
           </MapPreview>
         </div>
+
+        {selectedBoundaryId && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              Highlighted: <span className="font-medium text-foreground">{selectedBoundaryName}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedBoundaryId(null)}
+              className="text-primary underline underline-offset-2"
+            >
+              Clear
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

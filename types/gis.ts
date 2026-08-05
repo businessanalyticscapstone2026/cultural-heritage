@@ -3,8 +3,8 @@ import type { HeritageSite } from "./heritage"
 export interface GeoFeature {
   type: "Feature"
   geometry: {
-    type: "Point" | "Polygon" | "LineString"
-    coordinates: number[] | number[][] | number[][][]
+    type: "Point" | "Polygon" | "LineString" | "MultiPolygon"
+    coordinates: number[] | number[][] | number[][][] | number[][][][]
   }
   properties: Record<string, unknown>
 }

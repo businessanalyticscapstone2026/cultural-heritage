@@ -25,3 +25,23 @@ export function getBoundaryFileExtension(fileName: string): string {
   if (dotIndex === -1) return ""
   return fileName.slice(dotIndex).toLowerCase()
 }
+
+/** Configurable render style for the municipal boundary layer (CHT-081). */
+export type BoundaryStyleConfig = {
+  strokeColor: string
+  strokeWidth: number
+  fillColor: string
+  fillOpacity: number
+  /** Fill color applied to the boundary highlighted by click-to-highlight interaction. */
+  highlightFillColor: string
+  highlightFillOpacity: number
+}
+
+export const DEFAULT_BOUNDARY_STYLE: BoundaryStyleConfig = {
+  strokeColor: "#2563eb",
+  strokeWidth: 2,
+  fillColor: "#3b82f6",
+  fillOpacity: 0.15,
+  highlightFillColor: "#f97316",
+  highlightFillOpacity: 0.35,
+}

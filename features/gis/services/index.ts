@@ -44,8 +44,43 @@ export async function getHeritageGeoJSON(): Promise<GeoFeatureCollection> {
   return { type: "FeatureCollection", features: [] }
 }
 
+/**
+ * Boundaries for every municipality that has one uploaded, as a GeoJSON
+ * FeatureCollection ready to feed into `<MapGeoJSON>`. Municipalities with no
+ * uploaded boundary simply have no feature here (CHT-081 requirement: no
+ * crash / blank overlay for those).
+ */
 export async function getMunicipalityBoundaries(): Promise<GeoFeatureCollection> {
-  return { type: "FeatureCollection", features: [] }
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("municipal_boundaries")
+    .select("municipality_id, boundary_geojson, municipalities(name)")
+
+  if (error) throw new Error(`Failed to fetch municipal boundaries: ${error.message}`)
+
+  return {
+    type: "FeatureCollection",
+    features: (data ?? []).flatMap((row) => {
+      const geojson = row.boundary_geojson as BoundaryGeoJSON | null
+      if (!geojson?.geometry) return []
+
+      const municipalityRaw = row.municipalities as { name: string }[] | { name: string } | null
+      const municipality = Array.isArray(municipalityRaw) ? municipalityRaw[0] : municipalityRaw
+
+      return [
+        {
+          type: "Feature",
+          geometry: geojson.geometry,
+          properties: {
+            municipalityId: row.municipality_id as string,
+            municipalityName: municipality?.name ?? "Unknown municipality",
+          },
+        },
+      ]
+    }),
+  }
 }
 
 export function calculateViewportBounds(coordinates: [number, number][]): MapViewport {

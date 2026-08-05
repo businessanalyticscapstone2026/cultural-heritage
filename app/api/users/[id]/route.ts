@@ -1,7 +1,24 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { createAdminClient } from "@/utils/supabase/admin"
 import { requirePermission } from "@/lib/permissions"
+import { z } from "zod"
+
+const updateStaffSchema = z.object({
+  first_name: z.string().min(1, "First name is required").optional(),
+  last_name: z.string().min(1, "Last name is required").optional(),
+  username: z.string().min(1, "Username is required").optional(),
+  role_id: z.string().min(1, "Role is required").optional(),
+  municipality_id: z.string().optional(),
+})
+
+const STAFF_RELATIONS_SELECT = `
+  *,
+  role:role_id (id, name),
+  municipality:municipality_id (id, name),
+  creator:created_by (id, first_name, last_name)
+`
 
 export async function GET(
   _request: Request,
@@ -19,12 +36,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("staff_profiles")
-    .select(`
-      *,
-      role:role_id (id, name),
-      municipality:municipality_id (id, name),
-      creator:created_by (id, first_name, last_name)
-    `)
+    .select(STAFF_RELATIONS_SELECT)
     .eq("id", id)
     .maybeSingle()
 
@@ -54,10 +66,18 @@ export async function PATCH(
 
   const body = await request.json()
 
-  let roleId = body.role_id as string | undefined
-  let currentMunicipalityId: string | null | undefined = undefined
+  const parsed = updateStaffSchema.safeParse(body)
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message ?? "Invalid input"
+    return NextResponse.json({ error: message }, { status: 400 })
+  }
 
-  if (roleId === undefined || body.municipality_id === undefined) {
+  const { first_name, last_name, username, role_id, municipality_id } = parsed.data
+
+  let finalRoleId = role_id
+  let resolvedMunicipalityId: string | null | undefined = municipality_id
+
+  if (finalRoleId === undefined || resolvedMunicipalityId === undefined) {
     const { data: existing } = await supabase
       .from("staff_profiles")
       .select("role_id, municipality_id")
@@ -65,24 +85,26 @@ export async function PATCH(
       .maybeSingle()
 
     if (existing) {
-      if (roleId === undefined) roleId = existing.role_id ?? undefined
-      if (body.municipality_id === undefined) {
-        currentMunicipalityId = existing.municipality_id
+      if (finalRoleId === undefined) finalRoleId = existing.role_id ?? undefined
+      if (resolvedMunicipalityId === undefined) {
+        resolvedMunicipalityId = existing.municipality_id
       }
     }
   }
 
-  const finalMunicipalityId =
-    body.municipality_id !== undefined ? body.municipality_id : currentMunicipalityId
+  const normalizedMunicipalityId =
+    typeof resolvedMunicipalityId === "string" && resolvedMunicipalityId.trim() === ""
+      ? null
+      : (resolvedMunicipalityId ?? null)
 
-  if (roleId) {
+  if (finalRoleId) {
     const { data: role } = await supabase
       .from("roles")
       .select("name")
-      .eq("id", roleId)
+      .eq("id", finalRoleId)
       .maybeSingle()
 
-    if (role?.name === "MTO Staff" && !finalMunicipalityId) {
+    if (role?.name === "MTO Staff" && !normalizedMunicipalityId) {
       return NextResponse.json(
         { error: "Municipality is required for MTO Staff accounts" },
         { status: 400 }
@@ -91,19 +113,11 @@ export async function PATCH(
   }
 
   const allowedFields: Record<string, unknown> = {}
-  const fieldMap: Record<string, string> = {
-    first_name: "first_name",
-    last_name: "last_name",
-    username: "username",
-    role_id: "role_id",
-    municipality_id: "municipality_id",
-  }
-
-  for (const [inputKey, dbKey] of Object.entries(fieldMap)) {
-    if (body[inputKey] !== undefined) {
-      allowedFields[dbKey] = body[inputKey]
-    }
-  }
+  if (first_name !== undefined) allowedFields.first_name = first_name
+  if (last_name !== undefined) allowedFields.last_name = last_name
+  if (username !== undefined) allowedFields.username = username
+  if (finalRoleId !== undefined) allowedFields.role_id = finalRoleId
+  if (municipality_id !== undefined) allowedFields.municipality_id = normalizedMunicipalityId
 
   if (Object.keys(allowedFields).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
@@ -115,12 +129,7 @@ export async function PATCH(
     .from("staff_profiles")
     .update(allowedFields)
     .eq("id", id)
-    .select(`
-      *,
-      role:role_id (id, name),
-      municipality:municipality_id (id, name),
-      creator:created_by (id, first_name, last_name)
-    `)
+    .select(STAFF_RELATIONS_SELECT)
     .single()
 
   if (error) {
@@ -128,4 +137,65 @@ export async function PATCH(
   }
 
   return NextResponse.json(data)
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requirePermission("users", "delete")
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  const { id } = await params
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser()
+  if (!currentUser) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  if (currentUser.id === id) {
+    return NextResponse.json(
+      { error: "You cannot delete your own account." },
+      { status: 400 }
+    )
+  }
+
+  const { data: existing } = await supabase
+    .from("staff_profiles")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle()
+
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  const { error: deleteError } = await supabase
+    .from("staff_profiles")
+    .delete()
+    .eq("id", id)
+
+  if (deleteError) {
+    return NextResponse.json(
+      { error: `Failed to delete staff account: ${deleteError.message}` },
+      { status: 500 }
+    )
+  }
+
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const adminClient = createAdminClient()
+      await adminClient.auth.admin.deleteUser(id)
+    } catch (err) {
+      console.error("Failed to delete auth user after profile deletion:", err)
+    }
+  }
+
+  return NextResponse.json({ success: true })
 }

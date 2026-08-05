@@ -1,6 +1,6 @@
 "use client"
 
-import { Users } from "lucide-react"
+import { Users, Trash2 } from "lucide-react"
 import { AccountStatusBadge } from "./account-status-badge"
 import type { StaffProfileWithRelations } from "../types"
 
@@ -8,10 +8,11 @@ type StaffTableProps = {
   staff: StaffProfileWithRelations[]
   onEdit: (profile: StaffProfileWithRelations) => void
   onToggleStatus: (profile: StaffProfileWithRelations) => void
+  onDelete: (profile: StaffProfileWithRelations) => void
   togglingId: string | null
 }
 
-export function StaffTable({ staff, onEdit, onToggleStatus, togglingId }: StaffTableProps) {
+export function StaffTable({ staff, onEdit, onToggleStatus, onDelete, togglingId }: StaffTableProps) {
   if (staff.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -82,6 +83,14 @@ export function StaffTable({ staff, onEdit, onToggleStatus, togglingId }: StaffT
                       : profile.account_status === "active"
                         ? "Deactivate"
                         : "Activate"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(profile)}
+                    className="rounded-md p-1 text-error transition-colors hover:bg-error/10"
+                    aria-label={`Delete ${profile.username ?? "staff account"}`}
+                  >
+                    <Trash2 className="size-4" />
                   </button>
                 </div>
               </td>

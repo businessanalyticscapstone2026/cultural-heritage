@@ -70,6 +70,22 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
     }
   }
 
+  const handleDeleteStaff = async (profile: StaffProfileWithRelations) => {
+    const displayName =
+      profile.username ||
+      [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
+      "this staff account"
+    if (!confirm(`Delete staff account "${displayName}"? This action cannot be undone.`)) return
+
+    try {
+      await apiClient(`/users/${profile.id}`, { method: "DELETE" })
+      setStaff((prev) => prev.filter((p) => p.id !== profile.id))
+      notifySuccess("Staff account deleted.")
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to delete staff account. Please try again."))
+    }
+  }
+
   const handleToggleStatus = useCallback(async (profile: StaffProfileWithRelations) => {
     const previousStatus = profile.account_status
     const flippedStatus: StaffProfile["account_status"] =
@@ -197,6 +213,7 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
               setShowStaffForm(true)
             }}
             onToggleStatus={handleToggleStatus}
+            onDelete={handleDeleteStaff}
             togglingId={togglingId}
           />
         </div>

@@ -3,8 +3,8 @@
 import { useState, useEffect, useTransition, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { motion } from "motion/react"
 import { Search, X, SlidersHorizontal, Star, MapPin, Clock, ChevronRight, ChevronLeft, Sparkles } from "lucide-react"
+import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
 import { useDebounce } from "@/hooks/use-debounce"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
 import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
@@ -129,7 +129,7 @@ export default function ExploreClient({
   return (
     <>
       <section className="bg-cream border-b border-ink/10 pt-0 md:pt-0">
-        <div className="px-4 py-12 md:px-6 lg:px-10">
+        <Reveal className="px-4 py-12 md:px-6 lg:px-10">
           <div className="mx-auto max-w-7xl">
             <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-accent">
               <span className="h-px w-8 bg-accent" /> Explore Heritage
@@ -141,7 +141,7 @@ export default function ExploreClient({
               Discover colonial churches, archaeological treasures, and natural heritage across Batangas 1st District.
             </p>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       <section className="mx-auto max-w-7xl px-4 pb-24 md:px-6 md:pb-32 lg:px-10">
@@ -270,7 +270,7 @@ export default function ExploreClient({
           </div>
         </div>
 
-        <div className="flex items-center justify-between py-6 font-mono text-xs uppercase tracking-[0.25em] text-ink-soft">
+        <Reveal y={16} className="flex items-center justify-between py-6 font-mono text-xs uppercase tracking-[0.25em] text-ink-soft">
           <span>Showing {from}&ndash;{to} of {totalCount} sites</span>
           {recommendedSiteIds.length > 0 && (
             <span className="flex items-center gap-1 text-accent">
@@ -278,7 +278,7 @@ export default function ExploreClient({
               {recommendedSiteIds.length} recommended
             </span>
           )}
-        </div>
+        </Reveal>
 
         {isPending && (
           <div className="flex items-center justify-center gap-2 py-2 text-sm text-ink-soft">
@@ -288,7 +288,7 @@ export default function ExploreClient({
         )}
 
         {totalCount === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-ink/15 bg-parchment/30 px-8 py-20 text-center">
+          <Reveal className="rounded-2xl border-2 border-dashed border-ink/15 bg-parchment/30 px-8 py-20 text-center">
             <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
               <Search size={20} className="text-muted-foreground/70" />
             </div>
@@ -305,19 +305,14 @@ export default function ExploreClient({
                 Clear all filters
               </button>
             )}
-          </div>
+          </Reveal>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {initialData.sites.map((site: HeritageSite, i) => {
+            <Stagger className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {initialData.sites.map((site: HeritageSite) => {
                 const isRecommended = recommendedSet.has(site.id)
                 return (
-                  <motion.div
-                    key={site.id}
-                    initial={{ opacity: 0, y: 24 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                  >
+                  <StaggerItem key={site.id} y={24}>
                     <Link
                       href={`/heritage/${site.id}`}
                       onClick={() => {
@@ -384,13 +379,13 @@ export default function ExploreClient({
                         </div>
                       </div>
                     </Link>
-                  </motion.div>
+                  </StaggerItem>
                 )
               })}
-            </div>
+            </Stagger>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-10 font-mono text-xs uppercase tracking-[0.25em] text-ink-soft">
+              <Reveal y={16} className="flex items-center justify-between pt-10 font-mono text-xs uppercase tracking-[0.25em] text-ink-soft">
                 <button
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page <= 1}
@@ -427,7 +422,7 @@ export default function ExploreClient({
                 >
                   Next <ChevronRight size={12} />
                 </button>
-              </div>
+              </Reveal>
             )}
           </>
         )}

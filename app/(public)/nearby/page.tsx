@@ -15,6 +15,7 @@ import {
   EmptyState,
   NearbyLoading,
 } from "@/features/nearby/components"
+import { Reveal } from "@/components/animations/reveal"
 import { WALKING_RADII, DRIVING_RADII } from "@/features/nearby/constants"
 
 export default function NearbyPage() {
@@ -154,12 +155,12 @@ export default function NearbyPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-12 md:px-6 lg:px-10">
-      <div className="mb-8">
+      <Reveal className="mb-8">
         <h1 className="text-display text-2xl text-ink">Nearby Attractions</h1>
         <p className="mt-1 text-sm text-ink-soft">
           Discover heritage sites closest to you in the First District of Batangas.
         </p>
-      </div>
+      </Reveal>
 
       {effectiveShowFallback && !hasLocation ? (
         <LocationFallback
@@ -174,26 +175,30 @@ export default function NearbyPage() {
       ) : (
         <>
           {hasLocation && (
-            <LocationHeader
-              latitude={lat}
-              longitude={long}
-              locationLabel={locationLabel}
-              mode={mode}
-              onModeChange={handleModeChange}
-              onChangeLocation={() => setShowFallbackUI(true)}
-              onRefresh={manualLocation ? () => { setManualLocation(null); geo.refresh() } : geo.refresh}
-            />
+            <Reveal>
+              <LocationHeader
+                latitude={lat}
+                longitude={long}
+                locationLabel={locationLabel}
+                mode={mode}
+                onModeChange={handleModeChange}
+                onChangeLocation={() => setShowFallbackUI(true)}
+                onRefresh={manualLocation ? () => { setManualLocation(null); geo.refresh() } : geo.refresh}
+              />
+            </Reveal>
           )}
 
           {isLoading ? (
             <NearbyLoading />
           ) : (
             <>
-              <MapPreview
-                latitude={lat!}
-                longitude={long!}
-                sites={sites}
-              />
+              <Reveal>
+                <MapPreview
+                  latitude={lat!}
+                  longitude={long!}
+                  sites={sites}
+                />
+              </Reveal>
 
               <FilterBar
                 mode={mode}
@@ -206,10 +211,12 @@ export default function NearbyPage() {
               />
 
               {sites.length === 0 ? (
-                <EmptyState
-                  radius={radius}
-                  onExpandRadius={handleExpandRadius}
-                />
+                <Reveal>
+                  <EmptyState
+                    radius={radius}
+                    onExpandRadius={handleExpandRadius}
+                  />
+                </Reveal>
               ) : (
                 <NearbySitesList sites={sites} mode={mode} />
               )}

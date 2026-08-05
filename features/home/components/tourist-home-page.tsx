@@ -3,7 +3,8 @@
 import { useRef, useCallback, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { motion, useScroll, useTransform, type Variants } from "motion/react"
+import { motion, useScroll, useTransform } from "motion/react"
+import { fadeUp } from "@/lib/motion-variants"
 import {
   ArrowRight,
   ChevronLeft,
@@ -24,15 +25,6 @@ import type { HomePagePayload, TrendingSource } from "@/features/home/types"
 import type { RecommendationResult } from "@/types/recommendation"
 
 const CATEGORIES_PER_PAGE = 4
-
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 32 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] as const },
-  },
-}
 
 function truncate(text: string, max: number): string {
   const t = text.trim()

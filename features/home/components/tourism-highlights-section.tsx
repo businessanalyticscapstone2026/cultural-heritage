@@ -1,19 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { motion, type Variants } from "motion/react"
+import { motion } from "motion/react"
+import { fadeUp } from "@/lib/motion-variants"
 import { ArrowRight, BookOpen, Map as MapIcon, MapPin } from "lucide-react"
 import { HighlightsMapPreview } from "@/features/home/components/highlights-map-preview"
 import type { HomeEditorialHighlight } from "@/features/home/types"
-
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 32 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] as const },
-  },
-}
 
 function truncate(text: string, max: number): string {
   const t = text.trim()

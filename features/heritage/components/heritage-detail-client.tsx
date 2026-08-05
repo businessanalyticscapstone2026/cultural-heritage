@@ -21,6 +21,7 @@ import {
   Camera,
 } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
+import { Reveal } from "@/components/animations/reveal"
 import type { HeritageSite, HeritageSiteTag, HeritageSiteReferenceLink } from "../types"
 import Breadcrumb from "./breadcrumb"
 import { BookmarkButton } from "./bookmark-button"
@@ -295,7 +296,7 @@ export default function HeritageDetailClient({
           {/* ── MAIN CONTENT ── */}
           <div className="space-y-10">
             {/* Title row + actions */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <Reveal className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               {site.shortDescription && (
                 <p className="text-base leading-relaxed text-body">{site.shortDescription}</p>
               )}
@@ -325,7 +326,7 @@ export default function HeritageDetailClient({
                   )}
                 </div>
               </div>
-            </div>
+            </Reveal>
 
             {heroImageCount > 1 && (
               <div className="flex flex-wrap gap-2">
@@ -358,7 +359,8 @@ export default function HeritageDetailClient({
 
             {/* ── HISTORY SECTION ── */}
             {hasHistory && (
-              <section aria-labelledby="history-heading">
+              <Reveal>
+                <section aria-labelledby="history-heading">
                 <h2 id="history-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
                   <Building className="h-5 w-5 text-secondary" />
                   History
@@ -397,12 +399,14 @@ export default function HeritageDetailClient({
                     )}
                   </div>
                 </div>
-              </section>
+                </section>
+              </Reveal>
             )}
 
             {/* ── SIGNIFICANCE SECTION ── */}
             {hasSignificance && (
-              <section aria-labelledby="significance-heading">
+              <Reveal>
+                <section aria-labelledby="significance-heading">
                 <h2 id="significance-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
                   <Landmark className="h-5 w-5 text-secondary" />
                   Significance
@@ -421,12 +425,14 @@ export default function HeritageDetailClient({
                     </div>
                   )}
                 </div>
-              </section>
+                </section>
+              </Reveal>
             )}
 
             {/* ── IMAGE GALLERY ── */}
             {images.length > 1 && (
-              <section aria-labelledby="gallery-heading">
+              <Reveal>
+                <section aria-labelledby="gallery-heading">
                 <h2 id="gallery-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
                   <Camera className="h-5 w-5 text-secondary" />
                   Photo Gallery
@@ -451,12 +457,14 @@ export default function HeritageDetailClient({
                     </button>
                   ))}
                 </div>
-              </section>
+                </section>
+              </Reveal>
             )}
 
             {/* ── ACCESSIBILITY ── */}
             {site.accessibilityInfo && (
-              <section aria-labelledby="accessibility-heading">
+              <Reveal>
+                <section aria-labelledby="accessibility-heading">
                 <h2 id="accessibility-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
                   <Accessibility className="h-5 w-5 text-secondary" />
                   Accessibility
@@ -464,12 +472,14 @@ export default function HeritageDetailClient({
                 <div className="mt-4 rounded-lg border border-secondary/20 bg-secondary/5 p-4">
                   <p className="whitespace-pre-line text-sm leading-relaxed text-body">{site.accessibilityInfo}</p>
                 </div>
-              </section>
+                </section>
+              </Reveal>
             )}
 
             {/* ── OPERATING HOURS ── */}
             {site.operatingHours && (
-              <section aria-labelledby="hours-heading">
+              <Reveal>
+                <section aria-labelledby="hours-heading">
                 <h2 id="hours-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
                   <Clock className="h-5 w-5 text-secondary" />
                   Operating Hours
@@ -478,12 +488,14 @@ export default function HeritageDetailClient({
                   <Clock className="h-5 w-5 shrink-0 text-muted-foreground" />
                   <p className="text-sm text-body">{site.operatingHours}</p>
                 </div>
-              </section>
+                </section>
+              </Reveal>
             )}
 
             {/* ── TAGS & REFERENCE LINKS ── */}
             {(site.tags.length > 0 || (site.referenceLinks?.length ?? 0) > 0) && (
-              <section aria-labelledby="metadata-heading">
+              <Reveal>
+                <section aria-labelledby="metadata-heading">
                 <h2 id="metadata-heading" className="flex items-center gap-2 font-heading text-xl font-semibold text-heading">
                   <Tag className="h-5 w-5 text-secondary" />
                   Destination Info
@@ -524,30 +536,35 @@ export default function HeritageDetailClient({
                     </div>
                   )}
                 </div>
-              </section>
+                </section>
+              </Reveal>
             )}
 
             {/* ── NEARBY ATTRACTIONS ── */}
             {nearbySites.length > 0 && (
-              <NearbySitesSidebar
-                sites={nearbySites}
-                mode={nearbyMode}
-                onModeChange={setNearbyMode}
-                selectedSiteId={selectedNearbyId}
-                onSiteSelect={setSelectedNearbyId}
-              />
+              <Reveal>
+                <NearbySitesSidebar
+                  sites={nearbySites}
+                  mode={nearbyMode}
+                  onModeChange={setNearbyMode}
+                  selectedSiteId={selectedNearbyId}
+                  onSiteSelect={setSelectedNearbyId}
+                />
+              </Reveal>
             )}
 
             {/* ── FEEDBACK & REVIEWS ── */}
-            <section aria-labelledby="reviews-heading">
-              <ReviewsSection siteId={site.id} />
-            </section>
+            <Reveal>
+              <section aria-labelledby="reviews-heading">
+                <ReviewsSection siteId={site.id} />
+              </section>
+            </Reveal>
           </div>
 
           {/* ── SIDEBAR ── */}
           <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
             {/* Location Card */}
-            <div className="rounded-xl border border-border bg-card p-5">
+            <Reveal className="rounded-xl border border-border bg-card p-5">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
                   <MapPin className="h-4 w-4 text-primary" />
@@ -603,11 +620,11 @@ export default function HeritageDetailClient({
                   <p className="text-xs text-muted-foreground">Location not available</p>
                 </div>
               )}
-            </div>
+            </Reveal>
 
             {/* Quick Facts */}
             {(site.designation || site.entranceFee) && (
-              <div className="rounded-xl border border-border bg-card p-5">
+              <Reveal className="rounded-xl border border-border bg-card p-5">
                 <h3 className="font-heading text-base font-semibold text-heading">Quick Facts</h3>
                 <div className="mt-3 space-y-3">
                   {site.designation && (
@@ -629,20 +646,22 @@ export default function HeritageDetailClient({
                     </div>
                   )}
                 </div>
-              </div>
+              </Reveal>
             )}
 
             {/* Plan My Trip CTA */}
             {hasCoordinates && (
-              <RestrictedLink
-                href={`/map?planRoute=${site.id}`}
-                title="Sign in to plan your trip"
-                description="Create a free account to build optimized heritage tour routes across Batangas."
-                className="flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
-              >
-                <Route className="h-4 w-4" />
-                Plan My Trip
-              </RestrictedLink>
+              <Reveal>
+                <RestrictedLink
+                  href={`/map?planRoute=${site.id}`}
+                  title="Sign in to plan your trip"
+                  description="Create a free account to build optimized heritage tour routes across Batangas."
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                >
+                  <Route className="h-4 w-4" />
+                  Plan My Trip
+                </RestrictedLink>
+              </Reveal>
             )}
           </aside>
         </div>

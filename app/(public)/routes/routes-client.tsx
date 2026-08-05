@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
 import RouteVisualization from "@/features/route-optimization/components/route-visualization"
 import type { OptimizedRoute } from "@/features/route-optimization/types"
 import { useCreateRoute, useRoutes } from "@/features/route-optimization/hooks"
@@ -60,33 +61,38 @@ export default function RoutesClient({ initialRoutes }: RoutesClientProps) {
 
   return (
     <div className="space-y-4">
-      <Card size="sm" className="border-dashed border-accent/30 bg-accent/5">
-        <CardContent className="flex items-center justify-between px-4 py-3">
-          <div>
-            <CardTitle className="text-sm">Plan a new route</CardTitle>
-            <CardDescription className="text-xs">
-              Select heritage sites from your bookmarks or recommendations to build an optimized itinerary.
-            </CardDescription>
-          </div>
-          <Button size="sm" onClick={() => setShowNewRoute(true)}>
-            <Plus className="mr-1 h-4 w-4" />
-            New Route
-          </Button>
-        </CardContent>
-      </Card>
-
-      {displayRoutes.length === 0 ? (
-        <Card size="sm">
-          <CardContent className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-            <Map className="h-8 w-8 text-ink-soft/40" />
-            <p className="text-sm text-ink-soft">No routes yet</p>
+      <Reveal>
+        <Card size="sm" className="border-dashed border-accent/30 bg-accent/5">
+          <CardContent className="flex items-center justify-between px-4 py-3">
+            <div>
+              <CardTitle className="text-sm">Plan a new route</CardTitle>
+              <CardDescription className="text-xs">
+                Select heritage sites from your bookmarks or recommendations to build an optimized itinerary.
+              </CardDescription>
+            </div>
+            <Button size="sm" onClick={() => setShowNewRoute(true)}>
+              <Plus className="mr-1 h-4 w-4" />
+              New Route
+            </Button>
           </CardContent>
         </Card>
+      </Reveal>
+
+      {displayRoutes.length === 0 ? (
+        <Reveal>
+          <Card size="sm">
+            <CardContent className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+              <Map className="h-8 w-8 text-ink-soft/40" />
+              <p className="text-sm text-ink-soft">No routes yet</p>
+            </CardContent>
+          </Card>
+        </Reveal>
       ) : (
-        <div className="space-y-3">
+        <Stagger className="space-y-3">
           <h2 className="text-sm font-medium text-ink">Your Routes</h2>
           {displayRoutes.map((route) => (
-            <Card key={route.id} size="sm">
+            <StaggerItem key={route.id}>
+              <Card size="sm">
               <CardContent className="flex items-center justify-between px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -131,8 +137,9 @@ export default function RoutesClient({ initialRoutes }: RoutesClientProps) {
                 </div>
               </CardContent>
             </Card>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       )}
     </div>
   )

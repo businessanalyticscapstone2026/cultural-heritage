@@ -12,6 +12,7 @@ import {
   getGovernanceHistory,
   getGovernanceStats,
 } from "../services"
+import { revokeQrCodesForSite } from "@/features/qr-code/services/qr-management"
 
 export async function submitForReviewAction(heritageSiteId: string, heritageSiteVersionId: string) {
   const review = await submitForReview(heritageSiteId, heritageSiteVersionId)
@@ -54,9 +55,11 @@ export async function rejectSubmissionAction(reviewId: string, comment: string) 
 
 export async function archiveRecordAction(heritageSiteId: string, comment: string) {
   const review = await archiveRecord(heritageSiteId, comment)
+  await revokeQrCodesForSite(heritageSiteId)
   revalidatePath("/admin/data-governance")
   revalidatePath("/admin/heritage-repository")
   revalidatePath("/mto/heritage-sites")
+  revalidatePath("/mto/qr-codes")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
   return review

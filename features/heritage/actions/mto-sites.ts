@@ -19,7 +19,7 @@ import type { SiteWithDetails } from "../services/mto-sites"
 import { mtoHeritageSiteSchema } from "../schemas/mto-heritage-site"
 import { findDuplicateHeritageSiteByName } from "../services/sites"
 import type { DuplicateSiteMatch } from "../services/sites"
-import { autoGenerateQrForSite } from "@/features/qr-code/services/qr-management"
+import { autoGenerateQrForSite, revokeQrCodesForSite } from "@/features/qr-code/services/qr-management"
 
 async function getAuthContext() {
   const cookieStore = await cookies()
@@ -221,7 +221,9 @@ export async function saveMtoSiteAction(json: string) {
 export async function archiveMtoSiteAction(siteId: string) {
   const { municipalityId } = await getAuthContext()
   await archiveMtoSite(siteId, municipalityId)
+  await revokeQrCodesForSite(siteId)
   revalidatePath("/mto/heritage-sites")
+  revalidatePath("/mto/qr-codes")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
 }

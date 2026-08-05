@@ -82,6 +82,7 @@ export async function generateQrCodeAction(siteId: string): Promise<QRCodeWithSi
     .select("id, municipality_id")
     .eq("id", siteId)
     .eq("municipality_id", municipalityId)
+    .neq("publication_status", "archived")
     .maybeSingle()
 
   if (!site) throw new Error("Site not found in your municipality")

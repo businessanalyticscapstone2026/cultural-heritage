@@ -50,3 +50,22 @@ export interface IntegrationInfo {
   apiKeyMasked: string | null
   config: Record<string, unknown> | null
 }
+
+export interface BoundaryGeometry {
+  type: "Polygon" | "MultiPolygon"
+  coordinates: number[][][] | number[][][][]
+}
+
+export interface BoundaryGeoJSON {
+  type: "Feature"
+  geometry: BoundaryGeometry
+  properties: Record<string, unknown>
+}
+
+export interface MunicipalBoundary {
+  id: string
+  municipalityId: string
+  boundaryGeojson: BoundaryGeoJSON
+  createdAt: string
+  updatedAt: string
+}

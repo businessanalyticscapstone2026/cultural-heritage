@@ -6,4 +6,7 @@ export type {
   GisConfig,
   HeritageCategoryWithStatus,
   IntegrationInfo,
+  BoundaryGeometry,
+  BoundaryGeoJSON,
+  MunicipalBoundary,
 } from "@/types/gis"

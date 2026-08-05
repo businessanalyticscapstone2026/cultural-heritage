@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { SaveIcon, Loader2Icon } from "lucide-react"
+import { SaveIcon, Loader2Icon, ArrowLeftIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -82,6 +82,15 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
           <span className="text-muted-foreground/60">/</span>
           <span className="text-foreground font-medium">{category ? "Edit Category" : "Add New Category"}</span>
         </nav>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2 mb-2"
+          onClick={() => router.back()}
+        >
+          <ArrowLeftIcon className="size-4 mr-1" />
+          Back to Categories
+        </Button>
         <h1 className="text-2xl font-bold tracking-tight">
           {category ? "Edit Category" : "Add New Category"}
         </h1>

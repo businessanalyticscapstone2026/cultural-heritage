@@ -1,16 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { motion, useReducedMotion } from "motion/react"
 import { getVisitsByMunicipalityAction } from "../actions/analytics"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts"
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
+import { ChartTooltip } from "@/components/charts/chart-tooltip"
+import { cn } from "@/lib/utils"
 import type { MunicipalityVisit, AnalyticsFilters } from "../types"
 
 export default function VisitsByMunicipalityPanel({
@@ -18,8 +15,10 @@ export default function VisitsByMunicipalityPanel({
 }: {
   filters: AnalyticsFilters
 }) {
+  const prefersReducedMotion = useReducedMotion()
   const [data, setData] = useState<MunicipalityVisit[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   const filterKey = JSON.stringify(filters)
 
@@ -60,9 +59,18 @@ export default function VisitsByMunicipalityPanel({
                     innerRadius={50}
                     outerRadius={90}
                     paddingAngle={2}
+                    strokeWidth={0}
+                    onMouseLeave={() => setActiveIndex(null)}
                   >
                     {data.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} stroke="none" />
+                      <Cell
+                        key={entry.municipalityId}
+                        fill={entry.color}
+                        stroke="none"
+                        opacity={activeIndex === null || activeIndex === i ? 1 : 0.35}
+                        onMouseEnter={() => setActiveIndex(i)}
+                        className="cursor-pointer transition-opacity"
+                      />
                     ))}
                   </Pie>
                   <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-base font-bold">
@@ -72,26 +80,44 @@ export default function VisitsByMunicipalityPanel({
                     Total Visits
                   </text>
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                    }}
+                    content={
+                      <ChartTooltip
+                        valueFormatter={(value) => `${value.toLocaleString()} visits`}
+                      />
+                    }
                   />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="w-full space-y-1.5 md:w-1/2">
-              {data.map((muni) => (
-                <div key={muni.municipalityId} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: muni.color }} />
-                    <span>{muni.municipalityName}</span>
+            <div className="w-full space-y-2 md:w-1/2">
+              {data.map((muni, i) => (
+                <div
+                  key={muni.municipalityId}
+                  className={cn(
+                    "cursor-default rounded-md px-1.5 py-1 transition-colors",
+                    activeIndex === i && "bg-muted"
+                  )}
+                  onMouseEnter={() => setActiveIndex(i)}
+                  onMouseLeave={() => setActiveIndex(null)}
+                >
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: muni.color }} />
+                      <span>{muni.municipalityName}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium tabular-nums">{muni.visits.toLocaleString()}</span>
+                      <span className="w-10 text-right text-xs text-muted-foreground">{muni.percentage}%</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{muni.visits.toLocaleString()}</span>
-                    <span className="w-10 text-right text-xs text-muted-foreground">{muni.percentage}%</span>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: muni.color }}
+                      initial={prefersReducedMotion ? undefined : { width: 0 }}
+                      animate={{ width: `${muni.percentage}%` }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                    />
                   </div>
                 </div>
               ))}

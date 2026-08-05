@@ -12,8 +12,10 @@ export interface RoleResolveResult {
 
 export function mapRoleNameToUserRole(roleName: string | undefined): UserRole | null {
   if (!roleName) return null
-  if (roleName === "PTCAO Administrator") return "ptcao_admin"
   if (roleName === "MTO Staff") return "mto"
+  // The seeded PTCAO role is "PTCAO Admin"; "PTCAO Administrator" is kept for
+  // compatibility with older setups.
+  if (roleName === "PTCAO Administrator" || roleName === "PTCAO Admin") return "ptcao_admin"
   return null
 }
 

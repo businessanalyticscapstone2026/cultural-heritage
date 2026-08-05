@@ -11,16 +11,32 @@ import {
   Settings,
   Database,
   ArrowUpRight,
+  Sparkles,
+  MousePointerClick,
+  Route,
+  Star,
+  Clock,
+  ShieldCheck,
 } from "lucide-react"
 import { getDashboardData } from "@/features/dashboard/services"
 import { DonutChart } from "@/components/dashboard/donut-chart"
 import { VisitsLineChart } from "@/components/dashboard/visits-line-chart"
 import { HeritageMap } from "@/components/dashboard/heritage-map"
+import { KpiCard } from "@/components/dashboard/kpi-card"
+import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
 
 export default async function AdminDashboardPage() {
   const data = await getDashboardData()
   const totalCategoryCount = data.categoryBreakdown.reduce((acc, c) => acc + c.count, 0)
   const totalVisits = data.visitOverview.reduce((acc, v) => acc + v.count, 0)
+
+  const heritageDelta = data.kpis.heritageSites.value - data.kpis.heritageSites.previous
+  const municipalityDelta =
+    data.kpis.activeMunicipalities.value - data.kpis.activeMunicipalities.previous
+  const usersDelta = data.kpis.registeredUsers.value - data.kpis.registeredUsers.previous
+
+  const monthlyFootnote = (delta: number) =>
+    delta > 0 ? `+${delta} this month` : delta < 0 ? `${delta} this month` : "No change this month"
 
   return (
     <div className="space-y-6">
@@ -31,192 +47,205 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          icon={Landmark}
-          label="Total Heritage Sites"
-          value={data.kpis.totalHeritageSites}
-        />
-        <KpiCard
-          icon={Building2}
-          label="Municipalities"
-          value={data.kpis.totalMunicipalities}
-        />
-        <KpiCard
-          icon={Users}
-          label="Registered Users"
-          value={data.kpis.totalRegisteredUsers}
-        />
-        <KpiCard
-          icon={CalendarCheck}
-          label="Visitors This Month"
-          value={data.kpis.totalVisitsThisMonth}
-        />
-      </div>
+      <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StaggerItem>
+          <KpiCard
+            icon={<Landmark className="size-4" />}
+            label="Total Heritage Sites"
+            value={data.kpis.heritageSites.value}
+            previous={data.kpis.heritageSites.previous}
+            accent="primary"
+            footnote={monthlyFootnote(heritageDelta)}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <KpiCard
+            icon={<Building2 className="size-4" />}
+            label="Active Municipalities"
+            value={data.kpis.activeMunicipalities.value}
+            previous={data.kpis.activeMunicipalities.previous}
+            accent="secondary"
+            footnote={monthlyFootnote(municipalityDelta)}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <KpiCard
+            icon={<Users className="size-4" />}
+            label="Registered Users"
+            value={data.kpis.registeredUsers.value}
+            previous={data.kpis.registeredUsers.previous}
+            accent="success"
+            footnote={monthlyFootnote(usersDelta)}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <KpiCard
+            icon={<CalendarCheck className="size-4" />}
+            label="Visitors This Month"
+            value={data.kpis.visitsThisMonth.value}
+            previous={data.kpis.visitsThisMonth.previous}
+            accent="warning"
+            sparkline={data.visitOverview}
+            footnote={`Last month: ${data.kpis.visitsThisMonth.previous.toLocaleString()}`}
+          />
+        </StaggerItem>
+      </Stagger>
 
       {/* Quick Actions */}
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">Quick Actions</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <QuickActionButton icon={PlusCircle} label="Add Heritage Site" href="/admin/heritage-repository" />
-          <QuickActionButton icon={UserCog} label="Manage Users" href="/admin/users" />
-          <QuickActionButton icon={Map} label="GIS Map Editor" href="/admin/gis-admin" />
-          <QuickActionButton icon={FileText} label="Generate Reports" href="/admin/decision-support" />
-          <QuickActionButton icon={Settings} label="System Settings" href="/admin/settings" />
-          <QuickActionButton icon={Database} label="Backup Now" href="/admin/settings" />
+      <Reveal>
+        <div>
+          <h2 className="mb-3 text-lg font-semibold">Quick Actions</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <QuickActionButton icon={PlusCircle} label="Add Heritage Site" href="/admin/heritage-repository" />
+            <QuickActionButton icon={UserCog} label="Manage Users" href="/admin/users" />
+            <QuickActionButton icon={Map} label="GIS Map Editor" href="/admin/gis-admin" />
+            <QuickActionButton icon={FileText} label="Generate Reports" href="/admin/decision-support" />
+            <QuickActionButton icon={Settings} label="System Settings" href="/admin/settings" />
+            <QuickActionButton icon={Database} label="Backup Now" href="/admin/settings" />
+          </div>
         </div>
-      </div>
+      </Reveal>
 
       {/* Three-column Widget Row */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Heritage Sites by Category (Donut Chart) */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="mb-4 font-semibold">Heritage Sites by Category</h3>
-          <DonutChart data={data.categoryBreakdown} total={totalCategoryCount} />
-          <div className="mt-4 space-y-1.5">
-            {data.categoryBreakdown
-              .filter((c) => c.count > 0)
-              .map((c) => (
-                <div key={c.id} className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2">
-                    <span
-                      className="inline-block size-2.5 rounded-full"
-                      style={{ backgroundColor: c.color }}
-                    />
-                    {c.name}
-                  </span>
-                  <span className="font-medium tabular-nums">{c.count}</span>
-                </div>
-              ))}
+      <Reveal>
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Heritage Sites by Category (Donut Chart) */}
+          <div className="rounded-xl border bg-card p-5">
+            <h3 className="mb-4 font-semibold">Heritage Sites by Category</h3>
+            <DonutChart data={data.categoryBreakdown} total={totalCategoryCount} />
+          </div>
+
+          {/* Recently Added Heritage Sites */}
+          <div className="rounded-xl border bg-card p-5">
+            <h3 className="mb-4 font-semibold">Recently Added</h3>
+            {data.recentSites.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No heritage sites yet</p>
+            ) : (
+              <ul className="space-y-3">
+                {data.recentSites.map((site) => (
+                  <li key={site.id} className="border-border border-b pb-3 last:border-0 last:pb-0">
+                    <p className="truncate font-medium text-sm">{site.siteName}</p>
+                    <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      <span>{site.municipalityName}</span>
+                      <span>{site.categoryName}</span>
+                      <span>{new Date(site.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Tourist Visits Overview */}
+          <div className="rounded-xl border bg-card p-5">
+            <h3 className="mb-4 font-semibold">Tourist Visits</h3>
+            <VisitsLineChart data={data.visitOverview} total={totalVisits} />
           </div>
         </div>
-
-        {/* Recently Added Heritage Sites */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="mb-4 font-semibold">Recently Added</h3>
-          {data.recentSites.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No heritage sites yet</p>
-          ) : (
-            <ul className="space-y-3">
-              {data.recentSites.map((site) => (
-                <li key={site.id} className="border-border border-b pb-3 last:border-0 last:pb-0">
-                  <p className="truncate font-medium text-sm">{site.siteName}</p>
-                  <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                    <span>{site.municipalityName}</span>
-                    <span>{site.categoryName}</span>
-                    <span>{new Date(site.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Tourist Visits Overview */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="mb-4 font-semibold">Tourist Visits</h3>
-          <VisitsLineChart data={data.visitOverview} total={totalVisits} />
-        </div>
-      </div>
+      </Reveal>
 
       {/* Bottom Row (3 columns) */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Heritage Sites Map */}
-        <div className="rounded-xl border bg-card lg:col-span-1">
-          <div className="p-5 pb-3">
-            <h3 className="font-semibold">Heritage Sites Map</h3>
+      <Reveal>
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Heritage Sites Map */}
+          <div className="rounded-xl border bg-card lg:col-span-1">
+            <div className="p-5 pb-3">
+              <h3 className="font-semibold">Heritage Sites Map</h3>
+            </div>
+            <div className="h-80">
+              <HeritageMap markers={data.mapMarkers} />
+            </div>
           </div>
-          <div className="h-80">
-            <HeritageMap markers={data.mapMarkers} />
-          </div>
-        </div>
 
-        {/* Recommendation Performance */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="mb-4 font-semibold">Recommendation Performance</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <MetricBox
-              label="Recommendations"
-              value={data.recommendationPerformance.totalRecommendations}
-            />
-            <MetricBox
-              label="Click-through Rate"
-              value={`${data.recommendationPerformance.clickThroughRate}%`}
-            />
-            <MetricBox
-              label="Route Plans"
-              value={data.recommendationPerformance.routePlansCreated}
-            />
-            <MetricBox
-              label="User Satisfaction"
-              value="—"
-            />
+          {/* Recommendation Performance */}
+          <div className="rounded-xl border bg-card p-5">
+            <h3 className="mb-4 font-semibold">Recommendation Performance</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <MetricBox
+                icon={Sparkles}
+                label="Recommendations"
+                value={data.recommendationPerformance.totalRecommendations}
+              />
+              <MetricBox
+                icon={MousePointerClick}
+                label="Click-through Rate"
+                value={`${data.recommendationPerformance.clickThroughRate}%`}
+                progress={data.recommendationPerformance.clickThroughRate}
+                progressTone="success"
+              />
+              <MetricBox
+                icon={Route}
+                label="Route Plans"
+                value={data.recommendationPerformance.routePlansCreated}
+              />
+              <MetricBox
+                icon={Star}
+                label="User Satisfaction"
+                value="—"
+                progress={0}
+              />
+            </div>
+            {/* TODO: User Satisfaction uses AVG(rating) from reviews table.
+                 The reviews table has rating, but tying it to recommendations
+                 specifically would require a join on site_id or tourist_id
+                 within the current month. No direct link exists between
+                 recommendations and reviews — stubbed for now. */}
           </div>
-          {/* TODO: User Satisfaction uses AVG(rating) from reviews table.
-               The reviews table has rating, but tying it to recommendations
-               specifically would require a join on site_id or tourist_id
-               within the current month. No direct link exists between
-               recommendations and reviews — stubbed for now. */}
-        </div>
 
-        {/* System Health */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="mb-4 font-semibold">System Health</h3>
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Last Backup</p>
-              {data.systemHealth.lastBackupAt ? (
-                <p className="mt-0.5 font-medium text-sm">
-                  {new Date(data.systemHealth.lastBackupAt).toLocaleString()}
-                </p>
-              ) : (
-                <p className="mt-0.5 text-sm italic text-muted-foreground">
-                  {/* TODO: no schema field for this yet — no backup has been recorded */}
-                  No backups recorded
-                </p>
-              )}
-              {data.systemHealth.lastBackupStatus && (
-                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                  <span className="inline-block size-1.5 rounded-full bg-current" />
-                  {data.systemHealth.lastBackupStatus}
+          {/* System Health */}
+          <div className="rounded-xl border bg-card p-5">
+            <h3 className="mb-4 font-semibold">System Health</h3>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Clock className="size-4" />
                 </span>
-              )}
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">System Version</p>
-              <p className="mt-0.5 font-medium text-sm">
-                {data.systemHealth.systemVersion ?? "—"}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Last Backup Type</p>
-              <p className="mt-0.5 font-medium text-sm">
-                {data.systemHealth.lastBackupType ?? "—"}
-              </p>
+                <div>
+                  <p className="text-xs text-muted-foreground">Last Backup</p>
+                  {data.systemHealth.lastBackupAt ? (
+                    <p className="mt-0.5 font-medium text-sm">
+                      {new Date(data.systemHealth.lastBackupAt).toLocaleString()}
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-sm italic text-muted-foreground">
+                      {/* TODO: no schema field for this yet — no backup has been recorded */}
+                      No backups recorded
+                    </p>
+                  )}
+                  {data.systemHealth.lastBackupStatus && (
+                    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                      <span className="inline-block size-1.5 rounded-full bg-current" />
+                      {data.systemHealth.lastBackupStatus}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <ShieldCheck className="size-4" />
+                </span>
+                <div>
+                  <p className="text-xs text-muted-foreground">System Version</p>
+                  <p className="mt-0.5 font-medium text-sm">
+                    {data.systemHealth.systemVersion ?? "—"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Database className="size-4" />
+                </span>
+                <div>
+                  <p className="text-xs text-muted-foreground">Last Backup Type</p>
+                  <p className="mt-0.5 font-medium text-sm">
+                    {data.systemHealth.lastBackupType ?? "—"}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
-
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: number
-}) {
-  return (
-    <div className="rounded-xl border bg-card p-5">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-        <Icon className="size-4 text-muted-foreground" />
-      </div>
-      <p className="mt-2 text-3xl font-bold tabular-nums">{value.toLocaleString()}</p>
+      </Reveal>
     </div>
   )
 }
@@ -242,11 +271,40 @@ function QuickActionButton({
   )
 }
 
-function MetricBox({ label, value }: { label: string; value: number | string }) {
+function MetricBox({
+  icon: Icon,
+  label,
+  value,
+  progress,
+  progressTone = "secondary",
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: number | string
+  progress?: number
+  progressTone?: "success" | "secondary"
+}) {
   return (
-    <div className="rounded-lg border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-xl font-bold tabular-nums">{value}</p>
+    <div className="rounded-lg border bg-muted/30 p-3">
+      <div className="flex items-center gap-2">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon className="size-3.5" />
+        </span>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </div>
+      <p className="mt-2 text-xl font-bold tabular-nums">{value}</p>
+      {progress != null && (
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border/60">
+          <div
+            className={
+              progressTone === "success"
+                ? "h-full rounded-full bg-success"
+                : "h-full rounded-full bg-secondary"
+            }
+            style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}
+          />
+        </div>
+      )}
     </div>
   )
 }

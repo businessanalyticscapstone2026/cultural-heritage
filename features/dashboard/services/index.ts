@@ -20,11 +20,25 @@ type SupabaseServer = SupabaseClient
 // ---------------------------------------------------------------------------
 
 async function fetchKpiData(supabase: SupabaseServer): Promise<KpiData> {
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0]
+
+  // Each KPI exposes both its current value and the value at the start of the
+  // current month (or previous full month for visits), so the UI can show
+  // trend indicators / % change without changing how metrics are computed.
   const { count: totalHeritageSites, error: errSites } = await supabase
     .from("heritage_sites")
     .select("*", { count: "exact", head: true })
 
   if (errSites) throw new Error(`Failed to count heritage_sites: ${errSites.message}`)
+
+  const { count: prevHeritageSites, error: errSitesPrev } = await supabase
+    .from("heritage_sites")
+    .select("*", { count: "exact", head: true })
+    .lt("created_at", monthStart)
+
+  if (errSitesPrev) throw new Error(`Failed to count prior heritage_sites: ${errSitesPrev.message}`)
 
   const { count: totalMunicipalities, error: errMuns } = await supabase
     .from("municipalities")
@@ -32,6 +46,14 @@ async function fetchKpiData(supabase: SupabaseServer): Promise<KpiData> {
     .eq("status", "active")
 
   if (errMuns) throw new Error(`Failed to count municipalities: ${JSON.stringify(errMuns)}`)
+
+  const { count: prevMunicipalities, error: errMunsPrev } = await supabase
+    .from("municipalities")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "active")
+    .lt("created_at", monthStart)
+
+  if (errMunsPrev) throw new Error(`Failed to count prior municipalities: ${JSON.stringify(errMunsPrev)}`)
 
   // "Registered Users" means both staff and tourist profile counts combined
   // since the schema has no unified users table. Two separate COUNT queries
@@ -48,10 +70,19 @@ async function fetchKpiData(supabase: SupabaseServer): Promise<KpiData> {
 
   if (errTourist) throw new Error(`Failed to count tourist_profiles: ${errTourist.message}`)
 
-  const totalRegisteredUsers = (staffCount ?? 0) + (touristCount ?? 0)
+  const { count: prevStaffCount, error: errStaffPrev } = await supabase
+    .from("staff_profiles")
+    .select("*", { count: "exact", head: true })
+    .lt("created_at", monthStart)
 
-  const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
+  if (errStaffPrev) throw new Error(`Failed to count prior staff_profiles: ${errStaffPrev.message}`)
+
+  const { count: prevTouristCount, error: errTouristPrev } = await supabase
+    .from("tourist_profiles")
+    .select("*", { count: "exact", head: true })
+    .lt("created_at", monthStart)
+
+  if (errTouristPrev) throw new Error(`Failed to count prior tourist_profiles: ${errTouristPrev.message}`)
 
   const { count: totalVisitsThisMonth, error: errVisits } = await supabase
     .from("qr_scan_logs")
@@ -60,11 +91,22 @@ async function fetchKpiData(supabase: SupabaseServer): Promise<KpiData> {
 
   if (errVisits) throw new Error(`Failed to count qr_scan_logs: ${errVisits.message}`)
 
+  const { count: prevVisits, error: errVisitsPrev } = await supabase
+    .from("qr_scan_logs")
+    .select("*", { count: "exact", head: true })
+    .gte("scanned_at", prevMonthStart)
+    .lt("scanned_at", monthStart)
+
+  if (errVisitsPrev) throw new Error(`Failed to count prior qr_scan_logs: ${errVisitsPrev.message}`)
+
   return {
-    totalHeritageSites: totalHeritageSites ?? 0,
-    totalMunicipalities: totalMunicipalities ?? 0,
-    totalRegisteredUsers,
-    totalVisitsThisMonth: totalVisitsThisMonth ?? 0,
+    heritageSites: { value: totalHeritageSites ?? 0, previous: prevHeritageSites ?? 0 },
+    activeMunicipalities: { value: totalMunicipalities ?? 0, previous: prevMunicipalities ?? 0 },
+    registeredUsers: {
+      value: (staffCount ?? 0) + (touristCount ?? 0),
+      previous: (prevStaffCount ?? 0) + (prevTouristCount ?? 0),
+    },
+    visitsThisMonth: { value: totalVisitsThisMonth ?? 0, previous: prevVisits ?? 0 },
   }
 }
 

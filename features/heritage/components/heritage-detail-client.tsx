@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
 import { Reveal } from "@/components/animations/reveal"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 import type { HeritageSite, HeritageSiteTag, HeritageSiteReferenceLink } from "../types"
 import Breadcrumb from "./breadcrumb"
 import { BookmarkButton } from "./bookmark-button"
@@ -367,9 +368,12 @@ export default function HeritageDetailClient({
                 </h2>
                 <div className="mt-4 space-y-4">
                   {site.detailedDescription && (
-                    <p className="whitespace-pre-line text-justify text-sm leading-relaxed text-body hyphens-auto">
-                      {site.detailedDescription}
-                    </p>
+                    <div
+                      className="whitespace-pre-line text-justify text-sm leading-relaxed text-body hyphens-auto [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 [&_a]:text-accent [&_a]:underline"
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeHtml(site.detailedDescription),
+                      }}
+                    />
                   )}
 
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

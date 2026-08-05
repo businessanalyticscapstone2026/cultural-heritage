@@ -3,6 +3,24 @@ import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { requirePermission } from "@/lib/permissions"
+import { z } from "zod"
+
+const createStaffSchema = z.object({
+  email: z.email("Invalid email"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  first_name: z.string().min(1, "First name is required"),
+  last_name: z.string().min(1, "Last name is required"),
+  username: z.string().min(1, "Username is required"),
+  role_id: z.string().min(1, "Role is required"),
+  municipality_id: z.string().optional(),
+})
+
+const STAFF_RELATIONS_SELECT = `
+  *,
+  role:role_id (id, name),
+  municipality:municipality_id (id, name),
+  creator:created_by (id, first_name, last_name)
+`
 
 export async function GET() {
   try {
@@ -16,12 +34,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("staff_profiles")
-    .select(`
-      *,
-      role:role_id (id, name),
-      municipality:municipality_id (id, name),
-      creator:created_by (id, first_name, last_name)
-    `)
+    .select(STAFF_RELATIONS_SELECT)
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -49,11 +62,27 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { email, password, first_name, last_name, username, role_id, municipality_id } = body
 
-  if (!email || !password || !first_name || !last_name || !username || !role_id) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+  const parsed = createStaffSchema.safeParse(body)
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message ?? "Invalid input"
+    return NextResponse.json({ error: message }, { status: 400 })
   }
+
+  const {
+    email,
+    password,
+    first_name,
+    last_name,
+    username,
+    role_id,
+    municipality_id,
+  } = parsed.data
+
+  const finalMunicipalityId =
+    typeof municipality_id === "string" && municipality_id.trim() === ""
+      ? null
+      : (municipality_id ?? null)
 
   const { data: role } = await supabase
     .from("roles")
@@ -61,9 +90,22 @@ export async function POST(request: Request) {
     .eq("id", role_id)
     .maybeSingle()
 
-  if (role?.name === "MTO Staff" && !municipality_id) {
+  if (role?.name === "MTO Staff" && !finalMunicipalityId) {
     return NextResponse.json(
       { error: "Municipality is required for MTO Staff accounts" },
+      { status: 400 }
+    )
+  }
+
+  const { data: existingUsername } = await supabase
+    .from("staff_profiles")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle()
+
+  if (existingUsername) {
+    return NextResponse.json(
+      { error: `Username "${username}" is already taken` },
       { status: 400 }
     )
   }
@@ -90,6 +132,12 @@ export async function POST(request: Request) {
     authUserId = authData.user.id
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create auth user"
+    if (/already registered/i.test(message)) {
+      return NextResponse.json(
+        { error: `Email "${email}" is already registered` },
+        { status: 400 }
+      )
+    }
     return NextResponse.json({ error: message }, { status: 500 })
   }
 
@@ -107,19 +155,22 @@ export async function POST(request: Request) {
       last_name,
       username,
       role_id,
-      municipality_id: municipality_id || null,
+      municipality_id: finalMunicipalityId,
       account_status: "active",
       created_by: createdByProfile?.id ?? currentUser.id,
     })
-    .select(`
-      *,
-      role:role_id (id, name),
-      municipality:municipality_id (id, name),
-      creator:created_by (id, first_name, last_name)
-    `)
+    .select(STAFF_RELATIONS_SELECT)
     .single()
 
   if (profileError) {
+    // The auth user was already created above; remove it so a retry doesn't
+    // fail with "already registered" while leaving an orphan account behind.
+    try {
+      const adminClient = createAdminClient()
+      await adminClient.auth.admin.deleteUser(authUserId)
+    } catch {
+      // Best effort — surface the original insert error regardless.
+    }
     return NextResponse.json({ error: profileError.message }, { status: 500 })
   }
 

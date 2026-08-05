@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import ConfirmDialog from "@/components/confirm-dialog"
 import type { HeritageCategory } from "@/types/heritage"
+import CategoryIcon from "./category-icon"
 
 interface CategoryWithSiteCount extends HeritageCategory {
   siteCount: number
@@ -178,14 +179,20 @@ export default function MtoCategoriesListClient({
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      {cat.icon && <span className="text-lg">{cat.icon}</span>}
+                      {cat.icon && <CategoryIcon name={cat.icon} className="text-lg" />}
                       <span className="font-medium">{cat.name}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">
                     {cat.description || "—"}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{cat.icon || "—"}</td>
+                  <td className="px-4 py-3">
+                    {cat.icon ? (
+                      <CategoryIcon name={cat.icon} className="size-4 text-muted-foreground" />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {cat.color ? (
                       <div className="flex items-center gap-2">
@@ -320,8 +327,8 @@ export default function MtoCategoriesListClient({
                 {/* Icon + Name */}
                 <div className="flex items-center gap-4">
                   {selectedCategory.icon && (
-                    <div className="size-14 rounded-xl bg-muted flex items-center justify-center text-2xl">
-                      {selectedCategory.icon}
+                    <div className="size-14 rounded-xl bg-muted flex items-center justify-center">
+                      <CategoryIcon name={selectedCategory.icon} className="size-6" />
                     </div>
                   )}
                   <div>
@@ -362,7 +369,14 @@ export default function MtoCategoriesListClient({
 
                 {/* Dates */}
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>Icon: {selectedCategory.icon || "—"}</p>
+                  <p>
+                    Icon:{" "}
+                    {selectedCategory.icon ? (
+                      <CategoryIcon name={selectedCategory.icon} className="inline size-4 align-text-bottom" />
+                    ) : (
+                      "—"
+                    )}
+                  </p>
                   <p>Created: —</p>
                   <p>Last Updated: —</p>
                 </div>

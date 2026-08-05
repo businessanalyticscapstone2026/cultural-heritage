@@ -13,6 +13,7 @@ async function getMunicipalitySiteIds(municipalityId: string): Promise<string[]>
     .from("heritage_sites")
     .select("id")
     .eq("municipality_id", municipalityId)
+    .neq("publication_status", "archived")
 
   return (data ?? []).map((s) => s.id)
 }
@@ -246,6 +247,7 @@ export async function getMtoSitesForQrGeneration(municipalityId: string): Promis
     .from("heritage_sites")
     .select("id, site_name")
     .eq("municipality_id", municipalityId)
+    .neq("publication_status", "archived")
     .order("site_name", { ascending: true })
 
   if (error) throw error
@@ -503,6 +505,23 @@ export async function updateQrCodeStatus(
     .in("site_id", siteIds)
 
   if (error) throw new Error(`Failed to update QR code status: ${error.message}`)
+}
+
+/**
+ * Revoke all QR codes for a heritage site. Called when a site is archived so
+ * its QR code is disabled. Best-effort: failures are logged, never rethrown,
+ * so archiving the site is never blocked by a QR update.
+ */
+export async function revokeQrCodesForSite(siteId: string): Promise<void> {
+  const supabase = await getSupabase()
+  const { error } = await supabase
+    .from("qr_codes")
+    .update({ status: "revoked" })
+    .eq("site_id", siteId)
+
+  if (error) {
+    console.error(`Failed to revoke QR code for site ${siteId}:`, error.message)
+  }
 }
 
 /** Generate QR code SVG data URL */

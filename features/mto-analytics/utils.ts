@@ -1,15 +1,7 @@
+import { CHART_PALETTE } from "@/lib/chart-colors"
 import type { MTOAnalyticsFilters } from "./types"
 
-export const ATTRACTION_COLORS = [
-  "#2E5BFF",
-  "#0F2747",
-  "#F59E0B",
-  "#10B981",
-  "#EF4444",
-  "#8B5CF6",
-  "#EC4899",
-  "#06B6D4",
-]
+export const ATTRACTION_COLORS = CHART_PALETTE
 
 function getDefaultDateFrom(): string {
   const now = new Date()

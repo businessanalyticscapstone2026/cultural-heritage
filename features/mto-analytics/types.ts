@@ -50,6 +50,23 @@ export interface RecommendationFunnel {
   conversions: number
 }
 
+export interface WeekdayVisits {
+  day: string
+  visits: number
+}
+
+export interface ComparisonPoint {
+  period: string
+  current: number
+  prior: number
+}
+
+export interface ScanDevicePoint {
+  device: string
+  count: number
+  color: string
+}
+
 export interface MTOAnalyticsFilters {
   dateFrom: string
   dateTo: string

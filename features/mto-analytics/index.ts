@@ -7,6 +7,9 @@ export type {
   VisitorTypeBreakdown,
   TopVisitedSite,
   RecommendationFunnel,
+  WeekdayVisits,
+  ComparisonPoint,
+  ScanDevicePoint,
   MTOAnalyticsFilters,
 } from "./types"
 

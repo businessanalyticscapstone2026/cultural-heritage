@@ -1,6 +1,8 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { ATTRACTION_COLORS, computeChange } from "../utils"
+import { normalizeDeviceType } from "@/lib/device-type"
+import { CHART_PALETTE } from "@/lib/chart-colors"
 import type {
   MTOMetric,
   VisitorTrendPoint,
@@ -10,6 +12,9 @@ import type {
   VisitorTypeBreakdown,
   TopVisitedSite,
   RecommendationFunnel,
+  WeekdayVisits,
+  ComparisonPoint,
+  ScanDevicePoint,
   MTOAnalyticsFilters,
 } from "../types"
 
@@ -175,6 +180,64 @@ export async function getSummaryMetrics(
   ]
 }
 
+function bucketByGranularity(
+  rows: { visit_date: string | null }[],
+  granularity: TrendGranularity
+): Map<string, number> {
+  const buckets = new Map<string, number>()
+  for (const row of rows) {
+    const d = new Date(row.visit_date as string)
+    let key: string
+    if (granularity === "monthly") {
+      key = d.toLocaleString("en", { month: "short", year: "numeric" })
+    } else if (granularity === "weekly") {
+      const weekStart = new Date(d)
+      weekStart.setDate(d.getDate() - d.getDay())
+      key = weekStart.toLocaleString("en", { month: "short", day: "numeric" })
+    } else {
+      key = d.toLocaleString("en", { month: "short", day: "numeric" })
+    }
+    buckets.set(key, (buckets.get(key) ?? 0) + 1)
+  }
+  return buckets
+}
+
+function sortBucketKeys(buckets: Map<string, number>): string[] {
+  return Array.from(buckets.keys()).sort((a, b) => {
+    const da = new Date(a)
+    const db = new Date(b)
+    return da.getTime() - db.getTime()
+  })
+}
+
+async function fetchVisitRows(
+  supabase: ReturnType<typeof createClient>,
+  siteIds: string[],
+  filters: MTOAnalyticsFilters,
+  dateFrom: string,
+  dateTo: string
+): Promise<{ visit_date: string | null }[]> {
+  let query = supabase
+    .from("tourist_visits")
+    .select("visit_date")
+    .in("site_id", siteIds)
+    .gte("visit_date", dateFrom)
+    .lte("visit_date", dateTo)
+
+  if (filters.categoryId) {
+    const { data: catSites } = await supabase
+      .from("heritage_sites")
+      .select("id")
+      .eq("category_id", filters.categoryId)
+    const catSiteIds = catSites?.map((s) => s.id as string) ?? []
+    if (catSiteIds.length === 0) return []
+    query = query.in("site_id", catSiteIds)
+  }
+
+  const { data } = await query
+  return (data ?? []) as { visit_date: string | null }[]
+}
+
 /**
  * Visitor Trend (line chart) — daily/weekly/monthly granularity.
  * Scoped to municipality via site_ids.
@@ -190,50 +253,12 @@ export async function getVisitorTrend(
   const siteIds = await getSiteIds(supabase, municipalityId)
   if (siteIds.length === 0) return []
 
-  let query = supabase
-    .from("tourist_visits")
-    .select("visit_date")
-    .in("site_id", siteIds)
-    .gte("visit_date", filters.dateFrom)
-    .lte("visit_date", filters.dateTo)
+  const visitRows = await fetchVisitRows(supabase, siteIds, filters, filters.dateFrom, filters.dateTo)
+  if (visitRows.length === 0) return []
 
-  if (filters.categoryId) {
-    const { data: catSites } = await supabase
-      .from("heritage_sites")
-      .select("id")
-      .eq("category_id", filters.categoryId)
-    const catSiteIds = catSites?.map((s) => s.id as string) ?? []
-    if (catSiteIds.length === 0) return []
-    query = query.in("site_id", catSiteIds)
-  }
+  const buckets = bucketByGranularity(visitRows, granularity)
 
-  const { data } = await query
-  if (!data || data.length === 0) return []
-
-  const buckets = new Map<string, number>()
-
-  for (const row of data) {
-    const d = new Date(row.visit_date as string)
-    let key: string
-    if (granularity === "monthly") {
-      key = d.toLocaleString("en", { month: "short", year: "numeric" })
-    } else if (granularity === "weekly") {
-      const weekStart = new Date(d)
-      weekStart.setDate(d.getDate() - d.getDay())
-      key = weekStart.toLocaleString("en", { month: "short", day: "numeric" })
-    } else {
-      key = d.toLocaleString("en", { month: "short", day: "numeric" })
-    }
-    buckets.set(key, (buckets.get(key) ?? 0) + 1)
-  }
-
-  const sortedKeys = Array.from(buckets.keys()).sort((a, b) => {
-    const da = new Date(a)
-    const db = new Date(b)
-    return da.getTime() - db.getTime()
-  })
-
-  return sortedKeys.map((period) => ({
+  return sortBucketKeys(buckets).map((period) => ({
     period,
     visitors: buckets.get(period) ?? 0,
   }))
@@ -505,4 +530,121 @@ export async function getRecommendationPerformance(
     routePlans: routePlans.count ?? 0,
     conversions: routePlans.count ?? 0,
   }
+}
+
+const WEEKDAY_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+/**
+ * Visits by Day of Week (bar chart) — aggregates the weekday pattern.
+ */
+export async function getVisitsByWeekday(
+  municipalityId: string,
+  filters: MTOAnalyticsFilters
+): Promise<WeekdayVisits[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const siteIds = await getSiteIds(supabase, municipalityId)
+  if (siteIds.length === 0) return []
+
+  const rows = await fetchVisitRows(supabase, siteIds, filters, filters.dateFrom, filters.dateTo)
+  if (rows.length === 0) return WEEKDAY_KEYS.map((day) => ({ day, visits: 0 }))
+
+  const counts = new Map<string, number>(WEEKDAY_KEYS.map((day) => [day, 0]))
+  for (const row of rows) {
+    const d = new Date(row.visit_date as string)
+    const dow = d.getDay()
+    const key = WEEKDAY_KEYS[(dow + 6) % 7]
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+
+  return WEEKDAY_KEYS.map((day) => ({ day, visits: counts.get(day) ?? 0 }))
+}
+
+/**
+ * Current vs Prior Period (comparison chart) — overlays the selected window
+ * against the same-length preceding window.
+ */
+export async function getVisitorTrendComparison(
+  municipalityId: string,
+  filters: MTOAnalyticsFilters,
+  granularity: TrendGranularity
+): Promise<ComparisonPoint[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const siteIds = await getSiteIds(supabase, municipalityId)
+  if (siteIds.length === 0) return []
+
+  const priorStart = getPriorPeriodStart(filters.dateFrom, filters.dateTo)
+  const priorEnd = getPriorPeriodEnd(filters.dateFrom)
+
+  const [currentRows, priorRows] = await Promise.all([
+    fetchVisitRows(supabase, siteIds, filters, filters.dateFrom, filters.dateTo),
+    fetchVisitRows(supabase, siteIds, filters, priorStart, priorEnd),
+  ])
+
+  const currentBuckets = bucketByGranularity(currentRows, granularity)
+  const priorBuckets = bucketByGranularity(priorRows, granularity)
+
+  const allKeys = new Set([...currentBuckets.keys(), ...priorBuckets.keys()])
+  const sortedKeys = Array.from(allKeys).sort((a, b) => {
+    const da = new Date(a)
+    const db = new Date(b)
+    return da.getTime() - db.getTime()
+  })
+
+  return sortedKeys.map((period) => ({
+    period,
+    current: currentBuckets.get(period) ?? 0,
+    prior: priorBuckets.get(period) ?? 0,
+  }))
+}
+
+/**
+ * Scans by Device Type (donut chart) — scoped to the filtered date range.
+ */
+export async function getScanDeviceBreakdown(
+  municipalityId: string,
+  filters: MTOAnalyticsFilters
+): Promise<ScanDevicePoint[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const qrCodeIds = (
+    await supabase
+      .from("qr_codes")
+      .select("id")
+      .in(
+        "site_id",
+        (
+          await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
+        ).data?.map((s) => s.id as string) ?? []
+      )
+  ).data?.map((q) => q.id as string) ?? []
+
+  if (qrCodeIds.length === 0) return []
+
+  const { data: scans } = await supabase
+    .from("qr_scan_logs")
+    .select("device_type")
+    .in("qr_code_id", qrCodeIds)
+    .gte("scanned_at", filters.dateFrom + "T00:00:00")
+    .lte("scanned_at", filters.dateTo + "T23:59:59")
+
+  if (!scans || scans.length === 0) return []
+
+  const deviceCounts = new Map<string, number>()
+  for (const scan of scans) {
+    const device = normalizeDeviceType(scan.device_type as string | null)
+    deviceCounts.set(device, (deviceCounts.get(device) ?? 0) + 1)
+  }
+
+  return Array.from(deviceCounts.entries())
+    .map(([device, count], i) => ({
+      device,
+      count,
+      color: CHART_PALETTE[i % CHART_PALETTE.length],
+    }))
+    .sort((a, b) => b.count - a.count)
 }

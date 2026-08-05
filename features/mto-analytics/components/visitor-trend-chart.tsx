@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getVisitorTrendAction } from "../actions/analytics"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import ChartCard from "@/components/charts/chart-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   LineChart,
   Line,
@@ -14,7 +15,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
-import { cn } from "@/lib/utils"
+import { CHART_PRIMARY } from "@/lib/chart-colors"
 import type { VisitorTrendPoint, TrendGranularity, MTOAnalyticsFilters } from "../types"
 
 const GRANULARITIES: { label: string; value: TrendGranularity }[] = [
@@ -48,70 +49,63 @@ export default function VisitorTrendChart({
     return () => { cancelled = true }
   }, [filterKey, granKey])
 
-  const setGranularity = (g: TrendGranularity) => {
+  const setGranularity = (g: string | null) => {
+    if (!g) return
     const params = new URLSearchParams(searchParams.toString())
     params.set("granularity", g)
     router.push(`?${params.toString()}`)
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Visitor Trend</CardTitle>
-        <div className="flex gap-1">
-          {GRANULARITIES.map((g) => (
-            <button
-              key={g.value}
-              type="button"
-              onClick={() => setGranularity(g.value)}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                granularity === g.value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted"
-              )}
-            >
-              {g.label}
-            </button>
-          ))}
+    <ChartCard
+      title="Visitor Trend"
+      description="Visits over the selected period"
+      action={
+        <Tabs value={granularity} onValueChange={setGranularity}>
+          <TabsList>
+            {GRANULARITIES.map((g) => (
+              <TabsTrigger key={g.value} value={g.value}>
+                {g.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      }
+    >
+      {error && (
+        <div className="text-sm text-destructive">
+          <p>{error}</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <div className="text-sm text-destructive">
-            <p>{error}</p>
-          </div>
-        )}
-        {!data && !error && <Skeleton className="h-[300px] w-full" />}
-        {data && data.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">No visitor data for this period</p>
-        )}
-        {data && data.length > 0 && (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="period" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="visitors"
-                stroke="#2E5BFF"
-                strokeWidth={2}
-                name="Visitors"
-                dot={{ fill: "#2E5BFF", r: 3 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </CardContent>
-    </Card>
+      )}
+      {!data && !error && <Skeleton className="h-[300px] w-full" />}
+      {data && data.length === 0 && (
+        <p className="py-8 text-center text-sm text-muted-foreground">No visitor data for this period</p>
+      )}
+      {data && data.length > 0 && (
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="period" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+            <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "8px",
+                fontSize: "12px",
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey="visitors"
+              stroke={CHART_PRIMARY}
+              strokeWidth={2}
+              name="Visitors"
+              dot={{ fill: CHART_PRIMARY, r: 3 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
   )
 }

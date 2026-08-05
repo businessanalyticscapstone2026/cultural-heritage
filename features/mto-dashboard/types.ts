@@ -8,4 +8,9 @@ export type {
   TouristActivity,
   VisitorStats,
   RecentScan,
+  TopAttraction,
+  ScanDeviceBreakdownPoint,
+  CategoryDistributionPoint,
+  InsightTone,
+  DashboardInsight,
 } from "@/types/mto-dashboard"

@@ -8,6 +8,9 @@ import {
   getDemographics,
   getTopSites,
   getRecommendationPerformance,
+  getVisitsByWeekday,
+  getVisitorTrendComparison,
+  getScanDeviceBreakdown,
 } from "../services"
 import { parseMTOFiltersFromSearchParams } from "../utils"
 import type { TrendGranularity, MTOAnalyticsFilters } from "../types"
@@ -63,4 +66,29 @@ export async function getRecommendationPerformanceAction(
   const municipalityId = await resolveMunicipalityId()
   const filters = parseFilters(searchParams)
   return getRecommendationPerformance(municipalityId, filters)
+}
+
+export async function getVisitsByWeekdayAction(
+  searchParams: Record<string, string | undefined>
+) {
+  const municipalityId = await resolveMunicipalityId()
+  const filters = parseFilters(searchParams)
+  return getVisitsByWeekday(municipalityId, filters)
+}
+
+export async function getVisitorTrendComparisonAction(
+  searchParams: Record<string, string | undefined>,
+  granularity: TrendGranularity
+) {
+  const municipalityId = await resolveMunicipalityId()
+  const filters = parseFilters(searchParams)
+  return getVisitorTrendComparison(municipalityId, filters, granularity)
+}
+
+export async function getScanDeviceBreakdownAction(
+  searchParams: Record<string, string | undefined>
+) {
+  const municipalityId = await resolveMunicipalityId()
+  const filters = parseFilters(searchParams)
+  return getScanDeviceBreakdown(municipalityId, filters)
 }

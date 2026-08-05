@@ -71,7 +71,7 @@ export default function AdminSidebar() {
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar">
       <div className="flex items-center gap-2.5 border-b px-4 py-4">
-        <BrandLogo variant="light" className="size-8" />
+        <BrandLogo variant="white" className="size-8" />
         <div className="min-w-0">
           <p className="text-sm font-bold leading-tight tracking-tight text-sidebar-foreground">PTCAO PORTAL</p>
           <p className="text-[10px] leading-tight text-sidebar-foreground/60">Provincial Tourism Office</p>

@@ -75,7 +75,7 @@ export function HighlightsMapPreview({ sites, className }: HighlightsMapPreviewP
       className={`overflow-hidden rounded-2xl border border-ink/10 ${className ?? ""}`}
       aria-label="Map preview of highlighted heritage sites"
     >
-      <Map center={center ?? DISTRICT_CENTER} zoom={zoom} className="h-full w-full">
+      <Map center={center ?? DISTRICT_CENTER} zoom={zoom} className="h-full w-full" theme="light">
         {withCoords.map((site) => (
           <MapMarker
             key={site.id}

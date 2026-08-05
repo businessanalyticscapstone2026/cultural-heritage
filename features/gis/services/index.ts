@@ -1,6 +1,14 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
-import type { GeoFeatureCollection, MapViewport, GisConfig, HeritageCategoryWithStatus, IntegrationInfo } from "../types"
+import type {
+  GeoFeatureCollection,
+  MapViewport,
+  GisConfig,
+  HeritageCategoryWithStatus,
+  IntegrationInfo,
+  BoundaryGeoJSON,
+  MunicipalBoundary,
+} from "../types"
 
 export type MapSite = {
   id: string
@@ -316,6 +324,52 @@ export function buildSiteGeoJSON(sites: MapSite[]): GeoFeatureCollection {
         },
       })),
   }
+}
+
+/** Replaces any existing boundary for the municipality (UNIQUE municipality_id → upsert). */
+export async function upsertMunicipalBoundary(
+  municipalityId: string,
+  boundaryGeojson: BoundaryGeoJSON,
+): Promise<MunicipalBoundary> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("municipal_boundaries")
+    .upsert(
+      { municipality_id: municipalityId, boundary_geojson: boundaryGeojson },
+      { onConflict: "municipality_id" },
+    )
+    .select("id, municipality_id, boundary_geojson, created_at, updated_at")
+    .single()
+
+  if (error) throw new Error(`Failed to save municipal boundary: ${error.message}`)
+
+  return {
+    id: data.id as string,
+    municipalityId: data.municipality_id as string,
+    boundaryGeojson: data.boundary_geojson as BoundaryGeoJSON,
+    createdAt: data.created_at as string,
+    updatedAt: data.updated_at as string,
+  }
+}
+
+/** Lightweight status map (no geometry payload) for showing which municipalities already have a boundary uploaded. */
+export async function getMunicipalBoundaryStatuses(): Promise<Record<string, string>> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("municipal_boundaries")
+    .select("municipality_id, updated_at")
+
+  if (error) throw new Error(`Failed to fetch boundary statuses: ${error.message}`)
+
+  const statuses: Record<string, string> = {}
+  for (const row of data ?? []) {
+    statuses[row.municipality_id as string] = row.updated_at as string
+  }
+  return statuses
 }
 
 const GOOGLE_MAPS_INTEGRATION_NAME = "Google Maps Platform"

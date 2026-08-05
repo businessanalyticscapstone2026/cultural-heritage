@@ -5,21 +5,30 @@ import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { toast } from "sonner"
 import {
   Eye,
   EyeOff,
   Map as MapIcon,
   Crosshair,
-  AlertTriangle,
   Save,
   Globe,
   Lock,
   Info,
   Settings as SettingsIcon,
+  Upload,
+  CheckCircle2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import UploadZone from "@/features/media/components/upload-zone"
 import type { GisConfig, HeritageCategoryWithStatus, IntegrationInfo } from "../types"
 import type { MapSite } from "../services"
+import {
+  MAX_BOUNDARY_FILE_BYTES,
+  BOUNDARY_ACCEPTED_EXTENSIONS,
+  formatBoundaryFileSize,
+  getBoundaryFileExtension,
+} from "../constants"
 import type { StyleSpecification } from "maplibre-gl"
 
 const MapPreview = dynamic(
@@ -115,6 +124,8 @@ type GisAdminPanelProps = {
   googleMapsIntegration: IntegrationInfo | null
   googleMapsApiKeyConfigured: boolean
   sites: MapSite[]
+  municipalities: { id: string; name: string }[]
+  boundaryStatuses: Record<string, string>
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -136,6 +147,8 @@ export default function GisAdminPanel({
   googleMapsIntegration,
   googleMapsApiKeyConfigured,
   sites,
+  municipalities,
+  boundaryStatuses,
 }: GisAdminPanelProps) {
   const [layerSaving, setLayerSaving] = useState(false)
   const [basemapSaving, setBasemapSaving] = useState(false)
@@ -143,6 +156,51 @@ export default function GisAdminPanel({
   const [layerMessage, setLayerMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [basemapMessage, setBasemapMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [centerMessage, setCenterMessage] = useState<{ text: string; error: boolean } | null>(null)
+
+  const [boundaryMunicipalityId, setBoundaryMunicipalityId] = useState(municipalities[0]?.id ?? "")
+  const [boundaryUploading, setBoundaryUploading] = useState(false)
+  const [boundaryStatusOverrides, setBoundaryStatusOverrides] = useState<Record<string, string>>({})
+  const mergedBoundaryStatuses = { ...boundaryStatuses, ...boundaryStatusOverrides }
+
+  async function handleBoundaryFilesSelected(files: File[]) {
+    const file = files[0]
+    if (!file) return
+
+    if (!boundaryMunicipalityId) {
+      toast.error("Select a municipality before uploading.")
+      return
+    }
+
+    const extension = getBoundaryFileExtension(file.name)
+    if (!BOUNDARY_ACCEPTED_EXTENSIONS.includes(extension)) {
+      toast.error(`Unsupported file type "${extension || "unknown"}". Upload a .geojson, .json, or .kml file.`)
+      return
+    }
+    if (file.size > MAX_BOUNDARY_FILE_BYTES) {
+      toast.error(
+        `File is ${formatBoundaryFileSize(file.size)}; the limit is ${formatBoundaryFileSize(MAX_BOUNDARY_FILE_BYTES)}.`,
+      )
+      return
+    }
+
+    setBoundaryUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("municipalityId", boundaryMunicipalityId)
+      formData.append("file", file)
+
+      const { uploadMunicipalBoundaryAction } = await import("../actions")
+      const boundary = await uploadMunicipalBoundaryAction(formData)
+
+      setBoundaryStatusOverrides((prev) => ({ ...prev, [boundaryMunicipalityId]: boundary.updatedAt }))
+      const municipalityName = municipalities.find((m) => m.id === boundaryMunicipalityId)?.name ?? "municipality"
+      toast.success(`Boundary uploaded for ${municipalityName}.`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to upload boundary file.")
+    } finally {
+      setBoundaryUploading(false)
+    }
+  }
 
   const layerForm = useForm<z.infer<typeof visibleCategoryIdsSchema>>({
     defaultValues: {
@@ -592,36 +650,58 @@ export default function GisAdminPanel({
             <MapIcon className="size-5 text-muted-foreground" />
             <h2 className="font-semibold">Municipal Boundaries</h2>
           </div>
+          <p className="mb-4 mt-1 text-xs text-muted-foreground">
+            Upload a GeoJSON or KML boundary file for a municipality. Re-uploading replaces the
+            existing boundary. Max {formatBoundaryFileSize(MAX_BOUNDARY_FILE_BYTES)}.
+          </p>
 
-          <div className="mt-4 space-y-3">
-            <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-4">
-              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning" />
+          {municipalities.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">No active municipalities found.</p>
+          ) : (
+            <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-foreground">Schema gap — no polygon storage</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  The municipalities table has no geometry column. Boundary rendering on the map
-                  requires either:
-                </p>
-                <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-muted-foreground">
-                  <li>Adding a polygon/GeoJSON column to municipalities, or</li>
-                  <li>Storing boundary GeoJSON file paths in system_settings, or</li>
-                  <li>Creating a dedicated municipal_boundaries table</li>
-                </ul>
+                <label
+                  htmlFor="boundary-municipality"
+                  className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                >
+                  Municipality
+                </label>
+                <select
+                  id="boundary-municipality"
+                  value={boundaryMunicipalityId}
+                  onChange={(e) => setBoundaryMunicipalityId(e.target.value)}
+                  disabled={boundaryUploading}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  {municipalities.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+                {boundaryMunicipalityId && mergedBoundaryStatuses[boundaryMunicipalityId] && (
+                  <p className="mt-1.5 flex items-center gap-1 text-xs text-success">
+                    <CheckCircle2 className="size-3.5" />
+                    Boundary on file — last updated{" "}
+                    {new Date(mergedBoundaryStatuses[boundaryMunicipalityId]).toLocaleDateString()}
+                  </p>
+                )}
               </div>
-            </div>
 
-            <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-center">
-              <MapIcon className="mx-auto size-8 text-muted-foreground/70" />
-              <p className="mt-2 text-xs text-muted-foreground">
-                TODO: Upload GeoJSON or KML boundary files here once schema supports it.
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Currently referencing boundary files is stored as
-                <code className="mx-1 rounded bg-muted px-1 font-mono">gis_config.municipalityBoundarySource</code>
-                (null / not implemented).
-              </p>
+              <UploadZone
+                onFilesSelected={handleBoundaryFilesSelected}
+                acceptedTypes={BOUNDARY_ACCEPTED_EXTENSIONS}
+                disabled={boundaryUploading || !boundaryMunicipalityId}
+              />
+
+              {boundaryUploading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Upload className="size-3.5 animate-pulse" />
+                  Validating and saving boundary...
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

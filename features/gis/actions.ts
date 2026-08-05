@@ -5,9 +5,17 @@ import { createClient } from "@/utils/supabase/server"
 import { revalidatePath, revalidateTag } from "next/cache"
 import { CACHE_TAGS, CACHE_REVALIDATE_SECONDS } from "@/lib/cache-tags"
 import { z } from "zod"
-import type { GisConfig } from "./types"
-import { getMtoMapSites, getMtoSiteDetail, updateSiteLocation, buildSiteGeoJSON } from "./services"
+import type { GisConfig, MunicipalBoundary } from "./types"
+import {
+  getMtoMapSites,
+  getMtoSiteDetail,
+  updateSiteLocation,
+  buildSiteGeoJSON,
+  upsertMunicipalBoundary,
+} from "./services"
 import type { MapSite, MapSiteDetail } from "./services"
+import { parseBoundaryGeoJSON, parseBoundaryKML } from "./services/boundary-parser"
+import { MAX_BOUNDARY_FILE_BYTES, BOUNDARY_ACCEPTED_EXTENSIONS, formatBoundaryFileSize, getBoundaryFileExtension } from "./constants"
 
 async function getMtoAuthContext() {
   const cookieStore = await cookies()
@@ -161,4 +169,43 @@ export async function updateSiteCoordinatesJSON(json: string) {
   revalidatePath("/mto/gis")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+}
+
+/**
+ * Upload/replace a municipality's boundary file (GeoJSON or KML).
+ * Authorization is enforced by the `municipal_boundaries` RLS policy
+ * ("PTCAO admin can manage boundaries" — any role except MTO Staff); this
+ * action does not duplicate that check.
+ */
+export async function uploadMunicipalBoundaryAction(formData: FormData): Promise<MunicipalBoundary> {
+  const municipalityId = formData.get("municipalityId")
+  if (typeof municipalityId !== "string" || !municipalityId) {
+    throw new Error("Select a municipality before uploading.")
+  }
+
+  const file = formData.get("file")
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("No file selected.")
+  }
+
+  if (file.size > MAX_BOUNDARY_FILE_BYTES) {
+    throw new Error(
+      `File is ${formatBoundaryFileSize(file.size)}; the limit is ${formatBoundaryFileSize(MAX_BOUNDARY_FILE_BYTES)}.`,
+    )
+  }
+
+  const extension = getBoundaryFileExtension(file.name)
+  if (!BOUNDARY_ACCEPTED_EXTENSIONS.includes(extension)) {
+    throw new Error(
+      `Unsupported file type "${extension || "unknown"}". Upload a .geojson, .json, or .kml file.`,
+    )
+  }
+
+  const text = await file.text()
+  const boundaryGeojson = extension === ".kml" ? parseBoundaryKML(text) : parseBoundaryGeoJSON(text)
+
+  const boundary = await upsertMunicipalBoundary(municipalityId, boundaryGeojson)
+
+  revalidatePath("/admin/gis-admin")
+  return boundary
 }

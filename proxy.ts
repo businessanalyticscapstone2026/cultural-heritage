@@ -139,14 +139,21 @@ export async function proxy(request: NextRequest) {
 
   // Staff trying to access tourist-specific routes or onboarding
   if (isStaff) {
+    const dest = isMTO ? "/mto/dashboard" : "/admin/dashboard"
+
     if (pathname === "/onboarding") {
-      const dest = isMTO ? "/mto/dashboard" : "/admin/dashboard"
       return NextResponse.redirect(new URL(dest, request.url))
     }
 
-    // Allow staff on public pages or login/register redirect
     if (pathname === "/login" || pathname === "/signup" || pathname === "/register") {
-      const dest = isMTO ? "/mto/dashboard" : "/admin/dashboard"
+      return NextResponse.redirect(new URL(dest, request.url))
+    }
+
+    // Staff aren't tourists: the tourist home/landing pages generate
+    // recommendations keyed to tourist_profiles, which staff accounts
+    // don't have (violates recommendations_tourist_id_fkey). Send them
+    // straight to their own dashboard instead.
+    if (pathname === "/" || pathname === "/home") {
       return NextResponse.redirect(new URL(dest, request.url))
     }
 

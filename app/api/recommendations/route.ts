@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       homeLatitude: latParam ? Number(latParam) : undefined,
       homeLongitude: lngParam ? Number(lngParam) : undefined,
       limit: limitParam ? Number(limitParam) : 20,
-      touristId: user?.id ?? null,
+      touristId: null,
     }
 
     if (user) {
@@ -38,6 +38,9 @@ export async function GET(request: NextRequest) {
         .maybeSingle()
 
       if (profile) {
+        // Only a real tourist_profiles row satisfies recommendations_tourist_id_fkey —
+        // a logged-in staff/admin account has no such row and must not be persisted as tourist_id.
+        preferences.touristId = user.id
         preferences.interests = (profile.interests as string[]) ?? []
         preferences.preferredCategoryIds = (profile.preferred_category_ids as string[]) ?? []
         if (!preferences.homeLatitude && profile.home_latitude) {

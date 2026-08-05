@@ -17,7 +17,7 @@ export async function getRecommendationsAction(
   const prefs: UserPreferences = {
     ...preferences,
     sessionId: preferences.sessionId ?? (user ? undefined : await ensureSessionId()),
-    touristId: user?.id ?? null,
+    touristId: null,
   }
 
   if (user) {
@@ -28,6 +28,9 @@ export async function getRecommendationsAction(
       .maybeSingle()
 
     if (profile) {
+      // Only a real tourist_profiles row satisfies recommendations_tourist_id_fkey —
+      // a logged-in staff/admin account has no such row and must not be persisted as tourist_id.
+      prefs.touristId = user.id
       prefs.interests = (profile.interests as string[]) ?? preferences.interests ?? []
       prefs.preferredCategoryIds = (profile.preferred_category_ids as string[]) ?? preferences.preferredCategoryIds ?? []
       if (!preferences.homeLatitude && profile.home_latitude) {

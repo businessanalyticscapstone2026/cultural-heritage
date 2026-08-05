@@ -352,7 +352,7 @@ async function getRecommendedSites(
     interests: [],
     preferredCategoryIds: [],
     limit: RECOMMENDED_LIMIT,
-    touristId: user?.id ?? null,
+    touristId: null,
     sessionId: user ? undefined : ((await readSessionId()) ?? undefined),
   }
 
@@ -368,6 +368,9 @@ async function getRecommendedSites(
       .maybeSingle()
 
     if (profile) {
+      // Only a real tourist_profiles row satisfies recommendations_tourist_id_fkey —
+      // a logged-in staff/admin account has no such row and must not be persisted as tourist_id.
+      preferences.touristId = user.id
       preferences.interests = (profile.interests as string[]) ?? []
       preferences.preferredCategoryIds = (profile.preferred_category_ids as string[]) ?? []
       if (profile.home_latitude) preferences.homeLatitude = Number(profile.home_latitude)

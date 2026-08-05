@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { requirePermission } from "@/lib/permissions"
+import { logAuditEvent } from "@/features/audit/services"
 import { z } from "zod"
 
 const updateStaffSchema = z.object({
@@ -136,6 +137,16 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  try {
+    await logAuditEvent({
+      category: "user_management",
+      action: "staff_updated",
+      targetType: "staff_profile",
+      targetId: id,
+      detail: allowedFields,
+    })
+  } catch {}
+
   return NextResponse.json(data)
 }
 
@@ -196,6 +207,15 @@ export async function DELETE(
       console.error("Failed to delete auth user after profile deletion:", err)
     }
   }
+
+  try {
+    await logAuditEvent({
+      category: "user_management",
+      action: "staff_deleted",
+      targetType: "staff_profile",
+      targetId: id,
+    })
+  } catch {}
 
   return NextResponse.json({ success: true })
 }

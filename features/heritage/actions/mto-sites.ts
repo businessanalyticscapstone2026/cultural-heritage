@@ -20,6 +20,7 @@ import { mtoHeritageSiteSchema } from "../schemas/mto-heritage-site"
 import { findDuplicateHeritageSiteByName } from "../services/sites"
 import type { DuplicateSiteMatch } from "../services/sites"
 import { autoGenerateQrForSite, revokeQrCodesForSite } from "@/features/qr-code/services/qr-management"
+import { logAuditEvent } from "@/features/audit/services"
 
 async function getAuthContext() {
   const cookieStore = await cookies()
@@ -115,6 +116,17 @@ export async function createMtoSiteAction(formData: FormData) {
   revalidatePath("/mto/heritage-sites")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_site_created",
+      targetType: "heritage_site",
+      targetId: site.id,
+      detail: { siteName: site.siteName },
+    })
+  } catch {}
+
   return site
 }
 
@@ -172,6 +184,17 @@ export async function updateMtoSiteAction(siteId: string, formData: FormData) {
   revalidatePath("/mto/heritage-sites")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_site_updated",
+      targetType: "heritage_site",
+      targetId: site.id,
+      detail: { siteName: site.siteName },
+    })
+  } catch {}
+
   return site
 }
 
@@ -191,11 +214,23 @@ export async function saveMtoSiteAction(json: string) {
   const referenceLinks = parsed.referenceLinks ?? []
 
   if (parsed.id) {
-    return updateMtoSite(parsed.id, municipalityId, {
+    const site = await updateMtoSite(parsed.id, municipalityId, {
       ...validated,
       tags,
       referenceLinks,
     })
+
+    try {
+      await logAuditEvent({
+        category: "heritage",
+        action: "heritage_site_updated",
+        targetType: "heritage_site",
+        targetId: site.id,
+        detail: { siteName: site.siteName },
+      })
+    } catch {}
+
+    return site
   }
 
   const site = await createMtoSite(
@@ -214,6 +249,16 @@ export async function saveMtoSiteAction(json: string) {
     console.error(`Failed to auto-generate QR code for site ${site.id}:`, err)
   }
 
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_site_created",
+      targetType: "heritage_site",
+      targetId: site.id,
+      detail: { siteName: site.siteName },
+    })
+  } catch {}
+
   return site
 }
 
@@ -226,6 +271,15 @@ export async function archiveMtoSiteAction(siteId: string) {
   revalidatePath("/mto/qr-codes")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_site_archived",
+      targetType: "heritage_site",
+      targetId: siteId,
+    })
+  } catch {}
 }
 
 /** Restore an archived site back to draft */
@@ -235,6 +289,15 @@ export async function restoreMtoSiteAction(siteId: string) {
   revalidatePath("/mto/heritage-sites")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_site_restored",
+      targetType: "heritage_site",
+      targetId: siteId,
+    })
+  } catch {}
 }
 
 /** Permanently delete an archived site */
@@ -245,6 +308,15 @@ export async function deleteMtoSiteAction(siteId: string) {
   revalidatePath("/mto/heritage-sites")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_site_deleted",
+      targetType: "heritage_site",
+      targetId: siteId,
+    })
+  } catch {}
 }
 
 /** Get the current staff profile */

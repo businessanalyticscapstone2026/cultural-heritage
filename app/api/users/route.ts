@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { requirePermission } from "@/lib/permissions"
+import { logAuditEvent } from "@/features/audit/services"
 import { z } from "zod"
 
 const createStaffSchema = z.object({
@@ -173,6 +174,16 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ error: profileError.message }, { status: 500 })
   }
+
+  try {
+    await logAuditEvent({
+      category: "user_management",
+      action: "staff_created",
+      targetType: "staff_profile",
+      targetId: staffProfile.id,
+      detail: { email, username, role_id, municipality_id: finalMunicipalityId },
+    })
+  } catch {}
 
   return NextResponse.json(staffProfile, { status: 201 })
 }

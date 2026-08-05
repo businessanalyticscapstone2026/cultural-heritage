@@ -3,6 +3,7 @@
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
+import { logAuditEvent } from "@/features/audit/services"
 import { z } from "zod"
 import type { GlobalSettings, RecommendationWeights, RoutingConfig } from "./types"
 
@@ -80,6 +81,11 @@ export async function updateGlobalSettings(settings: GlobalSettings) {
     )
 
   if (error) throw new Error(`Failed to update global settings: ${error.message}`)
+
+  try {
+    await logAuditEvent({ category: "settings", action: "global_settings_updated" })
+  } catch {}
+
   revalidatePath("/admin/settings")
 }
 
@@ -107,6 +113,11 @@ export async function updateRecommendationWeights(weights: RecommendationWeights
     )
 
   if (error) throw new Error(`Failed to update recommendation weights: ${error.message}`)
+
+  try {
+    await logAuditEvent({ category: "settings", action: "recommendation_weights_updated" })
+  } catch {}
+
   revalidatePath("/admin/settings")
 }
 
@@ -134,6 +145,11 @@ export async function updateRoutingConfig(config: RoutingConfig) {
     )
 
   if (error) throw new Error(`Failed to update routing config: ${error.message}`)
+
+  try {
+    await logAuditEvent({ category: "settings", action: "routing_config_updated" })
+  } catch {}
+
   revalidatePath("/admin/settings")
 }
 
@@ -159,6 +175,11 @@ export async function updateMaintenanceMode(enabled: boolean) {
     )
 
   if (error) throw new Error(`Failed to update maintenance mode: ${error.message}`)
+
+  try {
+    await logAuditEvent({ category: "settings", action: "maintenance_mode_changed", detail: { enabled } })
+  } catch {}
+
   revalidatePath("/admin/settings")
 }
 
@@ -184,6 +205,11 @@ export async function updateAllowUserRegistration(enabled: boolean) {
     )
 
   if (error) throw new Error(`Failed to update allow user registration: ${error.message}`)
+
+  try {
+    await logAuditEvent({ category: "settings", action: "user_registration_changed", detail: { enabled } })
+  } catch {}
+
   revalidatePath("/admin/settings")
 }
 
@@ -211,6 +237,16 @@ export async function updateIntegrationAction(
     .eq("id", id)
 
   if (error) throw new Error(`Failed to update integration: ${error.message}`)
+
+  try {
+    await logAuditEvent({
+      category: "settings",
+      action: "integration_updated",
+      targetType: "integration",
+      targetId: id,
+    })
+  } catch {}
+
   revalidatePath("/admin/settings")
 }
 
@@ -240,6 +276,16 @@ export async function createIntegrationAction(data: {
     })
 
   if (error) throw new Error(`Failed to create integration: ${error.message}`)
+
+  try {
+    await logAuditEvent({
+      category: "settings",
+      action: "integration_created",
+      targetType: "integration",
+      detail: { name: parsed.data.name },
+    })
+  } catch {}
+
   revalidatePath("/admin/settings")
 }
 
@@ -253,6 +299,16 @@ export async function deleteIntegrationAction(id: string) {
     .eq("id", id)
 
   if (error) throw new Error(`Failed to delete integration: ${error.message}`)
+
+  try {
+    await logAuditEvent({
+      category: "settings",
+      action: "integration_deleted",
+      targetType: "integration",
+      targetId: id,
+    })
+  } catch {}
+
   revalidatePath("/admin/settings")
 }
 

@@ -8,6 +8,7 @@ import {
   updateMunicipalityStatus as updateMunicipalityStatusService,
   getMunicipalityAuditLog as getMunicipalityAuditLogService,
 } from "../services"
+import { logAuditEvent } from "@/features/audit/services"
 import type { MunicipalityStatus } from "../types"
 
 export async function listMunicipalitiesAction(statusFilter?: MunicipalityStatus) {
@@ -22,18 +23,54 @@ export async function createMunicipalityAction(input: {
   name: string
   default_map_center?: { lat: number; long: number }
 }) {
-  return createMunicipalityService(input)
+  const municipality = await createMunicipalityService(input)
+
+  try {
+    await logAuditEvent({
+      category: "municipality",
+      action: "municipality_created",
+      targetType: "municipality",
+      targetId: municipality.id,
+      detail: { name: municipality.name, status: municipality.status },
+    })
+  } catch {}
+
+  return municipality
 }
 
 export async function updateMunicipalityAction(
   id: string,
   input: { name?: string; default_map_center?: { lat: number; long: number } }
 ) {
-  return updateMunicipalityService(id, input)
+  const municipality = await updateMunicipalityService(id, input)
+
+  try {
+    await logAuditEvent({
+      category: "municipality",
+      action: "municipality_updated",
+      targetType: "municipality",
+      targetId: municipality.id,
+      detail: { name: municipality.name },
+    })
+  } catch {}
+
+  return municipality
 }
 
 export async function updateMunicipalityStatusAction(id: string, status: MunicipalityStatus) {
-  return updateMunicipalityStatusService(id, status)
+  const municipality = await updateMunicipalityStatusService(id, status)
+
+  try {
+    await logAuditEvent({
+      category: "municipality",
+      action: "municipality_status_changed",
+      targetType: "municipality",
+      targetId: municipality.id,
+      detail: { status: municipality.status },
+    })
+  } catch {}
+
+  return municipality
 }
 
 export async function getMunicipalityAuditLogAction(municipalityId: string) {

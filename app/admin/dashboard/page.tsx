@@ -262,7 +262,7 @@ function QuickActionButton({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3 rounded-xl border bg-card p-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+      className="group flex items-center gap-3 rounded-xl border bg-card p-4 text-sm font-medium transition-colors hover:bg-sidebar hover:text-accent-foreground"
     >
       <Icon className="size-5 shrink-0 text-muted-foreground transition-colors group-hover:text-accent-foreground" />
       <span className="flex-1">{label}</span>

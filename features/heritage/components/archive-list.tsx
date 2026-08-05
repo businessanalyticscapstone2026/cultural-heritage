@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import ConfirmDialog from "@/components/confirm-dialog"
+import HeritageDetailPanel from "./heritage-detail-panel"
 import type { HeritageSite } from "../types"
 
 interface ArchiveListProps {
@@ -22,6 +23,7 @@ export default function ArchiveList({ sites, onRestore, onDelete }: ArchiveListP
   const [restoreTarget, setRestoreTarget] = useState<HeritageSite | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<HeritageSite | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [viewTarget, setViewTarget] = useState<HeritageSite | null>(null)
 
   const filtered = sites.filter((site) =>
     site.siteName.toLowerCase().includes(search.toLowerCase()) ||
@@ -108,6 +110,7 @@ export default function ArchiveList({ sites, onRestore, onDelete }: ArchiveListP
                         variant="ghost"
                         size="icon-xs"
                         title="View"
+                        onClick={() => setViewTarget(site)}
                       >
                         <EyeIcon className="h-3.5 w-3.5" />
                       </Button>
@@ -178,6 +181,14 @@ export default function ArchiveList({ sites, onRestore, onDelete }: ArchiveListP
         isConfirming={deletingId !== null}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* View (Read-only) */}
+      <HeritageDetailPanel
+        site={viewTarget}
+        open={viewTarget !== null}
+        onClose={() => setViewTarget(null)}
+        readOnly
       />
     </div>
   )

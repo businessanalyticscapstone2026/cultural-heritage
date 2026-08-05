@@ -11,8 +11,9 @@ interface HeritageDetailPanelProps {
   site: SiteWithDetails | null
   open: boolean
   onClose: () => void
-  onEdit: (site: SiteWithDetails) => void
-  onArchive: (site: SiteWithDetails) => void
+  onEdit?: (site: SiteWithDetails) => void
+  onArchive?: (site: SiteWithDetails) => void
+  readOnly?: boolean
 }
 
 export default function HeritageDetailPanel({
@@ -21,6 +22,7 @@ export default function HeritageDetailPanel({
   onClose,
   onEdit,
   onArchive,
+  readOnly = false,
 }: HeritageDetailPanelProps) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -57,7 +59,9 @@ export default function HeritageDetailPanel({
         <div className="flex h-full flex-col">
           {/* Header */}
           <div className="flex items-center justify-between border-b px-5 py-3">
-            <h2 className="text-base font-semibold">Site Details</h2>
+            <h2 className="text-base font-semibold">
+              Site Details{readOnly && <span className="ml-2 text-xs font-normal text-muted-foreground">(Read-only)</span>}
+            </h2>
             <button
               type="button"
               onClick={onClose}
@@ -172,34 +176,36 @@ export default function HeritageDetailPanel({
                 </div>
 
                 {/* Quick Actions */}
-                <div className="pt-2">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Quick Actions</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" onClick={() => onEdit(site)}>
-                      <EditIcon className="size-3.5 mr-1.5" />
-                      Edit Site
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <UploadIcon className="size-3.5 mr-1.5" />
-                      Upload Media
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <QrCodeIcon className="size-3.5 mr-1.5" />
-                      Generate QR
-                    </Button>
-                    {site.publicationStatus !== "archived" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onArchive(site)}
-                        className="text-destructive hover:bg-destructive/10"
-                      >
-                        <ArchiveIcon className="size-3.5 mr-1.5" />
-                        Archive Site
+                {!readOnly && (
+                  <div className="pt-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Quick Actions</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" size="sm" onClick={() => onEdit?.(site)}>
+                        <EditIcon className="size-3.5 mr-1.5" />
+                        Edit Site
                       </Button>
-                    )}
+                      <Button variant="outline" size="sm">
+                        <UploadIcon className="size-3.5 mr-1.5" />
+                        Upload Media
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <QrCodeIcon className="size-3.5 mr-1.5" />
+                        Generate QR
+                      </Button>
+                      {site.publicationStatus !== "archived" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onArchive?.(site)}
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <ArchiveIcon className="size-3.5 mr-1.5" />
+                          Archive Site
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Footer Metadata */}
                 <div className="border-t pt-3 space-y-1 text-xs text-muted-foreground">

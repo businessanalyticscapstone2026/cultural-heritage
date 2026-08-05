@@ -2,10 +2,17 @@
 "use client"
 
 import { useEffect, useCallback, useState } from "react"
-import { XIcon, QrCodeIcon, RefreshCwIcon, DownloadIcon, BanIcon, CheckCircleIcon, ExternalLinkIcon } from "lucide-react"
+import { XIcon, QrCodeIcon, RefreshCwIcon, DownloadIcon, BanIcon, CheckCircleIcon, ExternalLinkIcon, ChevronDownIcon, Loader2Icon } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import ConfirmDialog from "@/components/confirm-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { QRCodeWithSite, QRCodeStatus } from "../types"
 
 interface QRCodeDetailPanelProps {
@@ -39,6 +46,7 @@ export default function QRCodeDetailPanel({
   const [togglingStatus, setTogglingStatus] = useState(false)
   const [toggleError, setToggleError] = useState<string | null>(null)
   const [deactivateConfirm, setDeactivateConfirm] = useState(false)
+  const [downloading, setDownloading] = useState(false)
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -78,15 +86,24 @@ export default function QRCodeDetailPanel({
     }
   }, [qrCode, togglingStatus, onStatusChange])
 
-  const handleDownload = useCallback(() => {
-    if (!qrSvgUrl || !qrCode) return
-    const link = document.createElement("a")
-    link.href = qrSvgUrl
-    link.download = `qr-${qrCode.siteName.replace(/\s+/g, "-").toLowerCase()}.svg`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }, [qrSvgUrl, qrCode])
+  const handleDownload = useCallback(async (format: "png" | "svg") => {
+    if (!qrCode || downloading) return
+    setDownloading(true)
+    try {
+      const { generateQrCodeDownloadAction } = await import("../actions/qr-management")
+      const { dataUrl, extension } = await generateQrCodeDownloadAction(qrCode.codeValue, format)
+      const link = document.createElement("a")
+      link.href = dataUrl
+      link.download = `qr-${qrCode.siteName.replace(/\s+/g, "-").toLowerCase()}.${extension}`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch {
+      toast.error("Failed to generate download. Please try again.")
+    } finally {
+      setDownloading(false)
+    }
+  }, [qrCode, downloading])
 
   const handleViewSite = useCallback(() => {
     if (!qrCode) return
@@ -195,15 +212,45 @@ export default function QRCodeDetailPanel({
                   <RefreshCwIcon className="size-3.5 mr-1.5" />
                   Regenerate
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownload}
-                  disabled={!qrSvgUrl}
-                >
-                  <DownloadIcon className="size-3.5 mr-1.5" />
-                  Download
-                </Button>
+                <div className="flex">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 rounded-r-none"
+                    onClick={() => handleDownload("png")}
+                    disabled={downloading}
+                  >
+                    {downloading ? (
+                      <Loader2Icon className="size-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <DownloadIcon className="size-3.5 mr-1.5" />
+                    )}
+                    Download
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-l-none border-l-0 px-2"
+                          aria-label="Download QR code as"
+                          disabled={downloading}
+                        >
+                          <ChevronDownIcon className="size-3.5" />
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => handleDownload("png")}>
+                        <DownloadIcon className="size-3.5" /> PNG (Recommended)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownload("svg")}>
+                        <DownloadIcon className="size-3.5" /> SVG
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
                 {qrCode.status === "active" ? (
                   <Button
                     variant="outline"

@@ -13,6 +13,7 @@ import {
   regenerateQrCode,
   updateQrCodeStatus,
   generateQrSvgDataUrl,
+  generateQrPngDataUrl,
 } from "../services/qr-management"
 import type { QRCodeWithSite, QRKpiCounts, QRScanLogEntry, QRCodeStatus, SiteOption } from "../types"
 
@@ -131,4 +132,15 @@ export async function updateQrCodeStatusAction(
 /** Generate a QR code SVG data URL for display in the detail panel */
 export async function generateQrCodePreviewAction(codeValue: string): Promise<string> {
   return generateQrSvgDataUrl(codeValue)
+}
+
+/** Generate a QR code in a downloadable format. PNG is the default download format. */
+export async function generateQrCodeDownloadAction(
+  codeValue: string,
+  format: "png" | "svg",
+): Promise<{ dataUrl: string; extension: string }> {
+  if (format === "svg") {
+    return { dataUrl: await generateQrSvgDataUrl(codeValue), extension: "svg" }
+  }
+  return { dataUrl: await generateQrPngDataUrl(codeValue), extension: "png" }
 }

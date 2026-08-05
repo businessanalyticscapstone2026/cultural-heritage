@@ -519,3 +519,20 @@ export async function generateQrSvgDataUrl(content: string): Promise<string> {
   })
   return `data:image/svg+xml;base64,${Buffer.from(svgString).toString("base64")}`
 }
+
+/**
+ * Generate QR code PNG data URL at high resolution for printing.
+ * 1024px yields ~3.4" at 300 DPI while preserving scan reliability.
+ */
+export async function generateQrPngDataUrl(content: string, size = 1024): Promise<string> {
+  const QRCode = await import("qrcode")
+  return QRCode.toDataURL(content, {
+    type: "image/png",
+    width: size,
+    margin: 2,
+    color: {
+      dark: "#1e3a5f",
+      light: "#ffffff",
+    },
+  })
+}

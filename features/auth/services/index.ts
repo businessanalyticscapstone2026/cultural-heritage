@@ -5,14 +5,16 @@ export type UserRole = "ptcao_admin" | "mto" | "tourist"
 
 export interface RoleResolveResult {
   role: UserRole | null
+  roleName: string | null
   profile: Record<string, unknown> | null
   status: "active" | "inactive" | "suspended" | null
 }
 
 export function mapRoleNameToUserRole(roleName: string | undefined): UserRole | null {
   if (!roleName) return null
+  if (roleName === "PTCAO Administrator") return "ptcao_admin"
   if (roleName === "MTO Staff") return "mto"
-  return "ptcao_admin"
+  return null
 }
 
 export async function signIn(credentials: LoginCredentials) {
@@ -41,6 +43,7 @@ export async function resolveUserRole(userId: string): Promise<RoleResolveResult
     const roleName = mapRoleNameToUserRole(staffProfile.roles?.name)
     return {
       role: roleName,
+      roleName: (staffProfile.roles?.name as string) ?? null,
       profile: staffProfile,
       status: staffProfile.account_status ?? null,
     }
@@ -55,12 +58,13 @@ export async function resolveUserRole(userId: string): Promise<RoleResolveResult
   if (!touristError && touristProfile) {
     return {
       role: "tourist",
+      roleName: null,
       profile: touristProfile,
       status: touristProfile.account_status ?? "active",
     }
   }
 
-  return { role: null, profile: null, status: null }
+  return { role: null, roleName: null, profile: null, status: null }
 }
 
 export async function signOut() {

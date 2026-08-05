@@ -37,7 +37,11 @@ async function getSiteIdsForMunicipality(
   municipalityId: string,
   categoryId?: string | null
 ): Promise<string[]> {
-  let query = supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
+  let query = supabase
+    .from("heritage_sites")
+    .select("id")
+    .eq("municipality_id", municipalityId)
+    .eq("publication_status", "published")
 
   if (categoryId) {
     query = query.eq("category_id", categoryId)
@@ -471,6 +475,7 @@ export async function getMonitoringSites(municipalityId: string): Promise<Monito
     .from("heritage_sites")
     .select("id, site_name")
     .eq("municipality_id", municipalityId)
+    .eq("publication_status", "published")
     .order("site_name", { ascending: true })
 
   return data?.map((s) => ({ id: s.id as string, name: s.site_name as string })) ?? []

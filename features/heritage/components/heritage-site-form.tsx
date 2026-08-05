@@ -3,11 +3,13 @@
 import { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
 import {
   ChevronRightIcon,
   ChevronLeftIcon,
   CheckIcon,
   Loader2Icon,
+  AlertCircleIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,9 +27,7 @@ import {
   heritageSiteHistoricalSchema,
   heritageSiteLocationSchema,
   heritageSiteReviewSchema,
-  type BasicInfoFormValues,
   type HistoricalFormValues,
-  type LocationFormValues,
   type ReviewFormValues,
 } from "../schemas/heritage-site"
 import type { HeritageSite, HeritageCategory } from "../types"
@@ -53,8 +53,9 @@ export default function HeritageSiteForm({
 }: HeritageSiteFormProps) {
   const [step, setStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const basicForm = useForm<BasicInfoFormValues>({
+  const basicForm = useForm({
     resolver: zodResolver(heritageSiteBasicInfoSchema),
     defaultValues: {
       siteName: site?.siteName ?? "",
@@ -81,7 +82,7 @@ export default function HeritageSiteForm({
     },
   })
 
-  const locationForm = useForm<LocationFormValues>({
+  const locationForm = useForm({
     resolver: zodResolver(heritageSiteLocationSchema),
     defaultValues: {
       latitude: site?.latitude ?? null,
@@ -106,6 +107,7 @@ export default function HeritageSiteForm({
   useEffect(() => {
     if (open) {
       setStep(0)
+      setSubmitError(null)
       basicForm.reset({
         siteName: site?.siteName ?? "",
         alternativeName: site?.alternativeName ?? null,
@@ -169,22 +171,26 @@ export default function HeritageSiteForm({
   }, [step])
 
   const handleSubmit = useCallback(async () => {
+    setSubmitError(null)
     setIsSubmitting(true)
     try {
-      const allData: Partial<HeritageSite> = {
+      const allData = {
         ...basicForm.getValues(),
         ...historicalForm.getValues(),
         ...locationForm.getValues(),
         ...reviewForm.getValues(),
-      }
+      } as Partial<HeritageSite>
       await onSubmit(allData)
+      toast.success(site ? "Heritage site updated." : "Heritage site added successfully.")
       onOpenChange(false)
-    } catch {
-      // Error handled by parent
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save heritage site. Please try again."
+      setSubmitError(message)
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }
-  }, [basicForm, historicalForm, locationForm, reviewForm, onSubmit, onOpenChange])
+  }, [basicForm, historicalForm, locationForm, reviewForm, onSubmit, onOpenChange, site])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -247,6 +253,9 @@ export default function HeritageSiteForm({
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
                   </select>
+                  {basicForm.formState.errors.categoryId && (
+                    <p className="text-xs text-destructive">{basicForm.formState.errors.categoryId.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Municipality *</Label>
@@ -325,14 +334,14 @@ export default function HeritageSiteForm({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="latitude">Latitude</Label>
-                  <Input id="latitude" type="number" step="any" {...locationForm.register("latitude")} placeholder="e.g., 13.8833" />
+                  <Input id="latitude" type="number" step="any" {...locationForm.register("latitude", { valueAsNumber: true })} placeholder="e.g., 13.8833" />
                   {locationForm.formState.errors.latitude && (
                     <p className="text-xs text-destructive">{locationForm.formState.errors.latitude.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="longitude">Longitude</Label>
-                  <Input id="longitude" type="number" step="any" {...locationForm.register("longitude")} placeholder="e.g., 120.9239" />
+                  <Input id="longitude" type="number" step="any" {...locationForm.register("longitude", { valueAsNumber: true })} placeholder="e.g., 120.9239" />
                   {locationForm.formState.errors.longitude && (
                     <p className="text-xs text-destructive">{locationForm.formState.errors.longitude.message}</p>
                   )}
@@ -341,7 +350,7 @@ export default function HeritageSiteForm({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="elevation">Elevation (m)</Label>
-                  <Input id="elevation" type="number" step="any" {...locationForm.register("elevation")} placeholder="Meters above sea level" />
+                  <Input id="elevation" type="number" step="any" {...locationForm.register("elevation", { valueAsNumber: true })} placeholder="Meters above sea level" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="geoAccuracy">Geo Accuracy</Label>
@@ -414,8 +423,15 @@ export default function HeritageSiteForm({
           )}
         </div>
 
+        {submitError && (
+          <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertCircleIcon className="size-4 shrink-0" />
+            <span>{submitError}</span>
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
           <div className="flex gap-2">

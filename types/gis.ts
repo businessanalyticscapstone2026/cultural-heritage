@@ -45,6 +45,7 @@ export interface HeritageCategoryWithStatus {
 export interface IntegrationInfo {
   id: string
   name: string
+  category: string | null
   status: "active" | "inactive" | "error"
   apiKeyMasked: string | null
   config: Record<string, unknown> | null

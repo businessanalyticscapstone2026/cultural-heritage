@@ -1,5 +1,6 @@
 "use client"
 
+import { useSearchParams } from "next/navigation"
 import { Settings, Sliders, Plug } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import GlobalSettingsForm from "./global-settings-form"
@@ -11,7 +12,13 @@ type SystemSettingsPanelProps = {
   data: SettingsData
 }
 
+const VALID_TABS = ["general", "thresholds", "integrations"] as const
+
 export default function SystemSettingsPanel({ data }: SystemSettingsPanelProps) {
+  const searchParams = useSearchParams()
+  const requestedTab = searchParams.get("tab")
+  const defaultTab = VALID_TABS.find((tab) => tab === requestedTab) ?? "general"
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl bg-primary p-6 text-primary-foreground">
@@ -21,7 +28,7 @@ export default function SystemSettingsPanel({ data }: SystemSettingsPanelProps) 
         </p>
       </div>
 
-      <Tabs defaultValue="general">
+      <Tabs defaultValue={defaultTab}>
         <TabsList variant="line" className="w-full justify-start">
           <TabsTrigger value="general">
             <Settings className="size-4" />

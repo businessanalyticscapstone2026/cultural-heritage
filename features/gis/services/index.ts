@@ -318,14 +318,25 @@ export function buildSiteGeoJSON(sites: MapSite[]): GeoFeatureCollection {
   }
 }
 
+const GOOGLE_MAPS_INTEGRATION_NAME = "Google Maps Platform"
+
+/**
+ * Matches by name only, case-insensitively. Category is user-editable free text in the
+ * Integrations UI (defaults to "Other"), so filtering on it here would silently break the
+ * lookup for anyone who added the row without picking "Maps & Geolocation".
+ * `.limit(1)` (rather than `.maybeSingle()` on an unbounded query) keeps a duplicate-named
+ * row from throwing a raw Postgrest "multiple rows returned" error instead of resolving.
+ */
 export async function getGoogleMapsIntegration(): Promise<IntegrationInfo | null> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
   const { data, error } = await supabase
     .from("integrations")
-    .select("id, name, status, api_key_masked, config")
-    .eq("name", "Google Maps Platform")
+    .select("id, name, category, status, api_key_masked, config")
+    .ilike("name", GOOGLE_MAPS_INTEGRATION_NAME)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle()
 
   if (error) throw new Error(`Failed to fetch Google Maps integration: ${error.message}`)
@@ -335,8 +346,18 @@ export async function getGoogleMapsIntegration(): Promise<IntegrationInfo | null
   return {
     id: data.id,
     name: data.name,
+    category: data.category,
     status: data.status as "active" | "inactive" | "error",
     apiKeyMasked: data.api_key_masked,
     config: data.config as Record<string, unknown> | null,
   }
+}
+
+/**
+ * The `integrations` table only ever stores a masked display value — never the real key.
+ * The live key is expected to come from a server-only env var so it's never persisted in the
+ * DB or sent to the client.
+ */
+export function hasGoogleMapsServerApiKey(): boolean {
+  return Boolean(process.env.GOOGLE_MAPS_API_KEY)
 }

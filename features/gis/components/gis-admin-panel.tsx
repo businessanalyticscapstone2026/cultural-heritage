@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import dynamic from "next/dynamic"
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import {
@@ -14,6 +15,7 @@ import {
   Globe,
   Lock,
   Info,
+  Settings as SettingsIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { GisConfig, HeritageCategoryWithStatus, IntegrationInfo } from "../types"
@@ -52,23 +54,42 @@ const OSM_RASTER_STYLE: StyleSpecification = {
   layers: [{ id: "osm", type: "raster", source: "osm" }],
 }
 
+type GoogleMapsSetupState =
+  | "ready"
+  | "not_configured"
+  | "not_active"
+  | "missing_server_key"
+
+function resolveGoogleMapsSetupState(
+  integration: IntegrationInfo | null,
+  apiKeyConfigured: boolean,
+): GoogleMapsSetupState {
+  if (!integration) return "not_configured"
+  if (integration.status !== "active") return "not_active"
+  if (!apiKeyConfigured) return "missing_server_key"
+  return "ready"
+}
+
+const GOOGLE_MAPS_SETUP_MESSAGES: Record<GoogleMapsSetupState, string> = {
+  ready: "Google Maps rendering isn't wired up yet — showing the default basemap.",
+  not_configured: "No active Google Maps Platform integration found. Configure one in Settings → Integrations to enable this provider.",
+  not_active: "The Google Maps Platform integration exists but isn't active. Activate it in Settings → Integrations.",
+  missing_server_key: "Google Maps Platform integration is active, but no server API key is configured. Ask a system administrator to set GOOGLE_MAPS_API_KEY.",
+}
+
 /**
  * Google Maps tile rendering isn't implemented yet (separate integration ticket).
  * Fall back to the default basemap instead of crashing or leaving the preview blank.
  */
 function resolvePreviewBasemap(
   provider: GisConfig["basemapProvider"],
-  googleMapsIntegration: IntegrationInfo | null,
+  setupState: GoogleMapsSetupState,
 ): { styles?: { light: StyleSpecification; dark: StyleSpecification }; notice: string | null } {
   if (provider === "openstreetmap") {
     return { styles: { light: OSM_RASTER_STYLE, dark: OSM_RASTER_STYLE }, notice: null }
   }
   if (provider === "google_maps") {
-    return {
-      notice: googleMapsIntegration?.status === "active"
-        ? "Google Maps rendering isn't wired up yet — showing the default basemap."
-        : "Google Maps Platform isn't configured — showing the default basemap.",
-    }
+    return { notice: GOOGLE_MAPS_SETUP_MESSAGES[setupState] }
   }
   return { notice: null }
 }
@@ -92,6 +113,7 @@ type GisAdminPanelProps = {
   gisConfig: GisConfig
   categories: HeritageCategoryWithStatus[]
   googleMapsIntegration: IntegrationInfo | null
+  googleMapsApiKeyConfigured: boolean
   sites: MapSite[]
 }
 
@@ -112,6 +134,7 @@ export default function GisAdminPanel({
   gisConfig,
   categories,
   googleMapsIntegration,
+  googleMapsApiKeyConfigured,
   sites,
 }: GisAdminPanelProps) {
   const [layerSaving, setLayerSaving] = useState(false)
@@ -145,7 +168,8 @@ export default function GisAdminPanel({
   const selectedProvider = basemapForm.watch("provider")
 
   const mappableSites = sites.filter((s) => s.latitude != null && s.longitude != null)
-  const previewBasemap = resolvePreviewBasemap(selectedProvider, googleMapsIntegration)
+  const googleMapsSetupState = resolveGoogleMapsSetupState(googleMapsIntegration, googleMapsApiKeyConfigured)
+  const previewBasemap = resolvePreviewBasemap(selectedProvider, googleMapsSetupState)
   const previewCenter = gisConfig.defaultMapCenter
 
   async function onSaveLayerToggles(values: z.infer<typeof visibleCategoryIdsSchema>) {
@@ -410,9 +434,33 @@ export default function GisAdminPanel({
                         </span>
                       </div>
                     ) : (
-                      <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
-                        No Google Maps Platform integration found in integrations table.
-                      </p>
+                      <div className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                        <p>{GOOGLE_MAPS_SETUP_MESSAGES.not_configured}</p>
+                        <Link
+                          href="/admin/settings?tab=integrations"
+                          className="mt-2 inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                        >
+                          <SettingsIcon className="size-3" />
+                          Go to Settings → Integrations
+                        </Link>
+                      </div>
+                    )}
+                    {googleMapsIntegration && googleMapsSetupState !== "ready" && (
+                      <div className="mt-2 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground">
+                        <Info className="mt-0.5 size-3.5 shrink-0 text-warning" />
+                        <div>
+                          <p>{GOOGLE_MAPS_SETUP_MESSAGES[googleMapsSetupState]}</p>
+                          {googleMapsSetupState === "not_active" && (
+                            <Link
+                              href="/admin/settings?tab=integrations"
+                              className="mt-1 inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                            >
+                              <SettingsIcon className="size-3" />
+                              Go to Settings → Integrations
+                            </Link>
+                          )}
+                        </div>
+                      </div>
                     )}
                     <p className="mt-1 text-xs text-muted-foreground">
                       Masked key displayed. Manage the full key in System Settings.

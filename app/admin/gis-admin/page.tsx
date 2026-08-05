@@ -1,4 +1,10 @@
-import { getGisConfig, getHeritageCategories, getGoogleMapsIntegration, getAllMapSites } from "@/features/gis/services"
+import {
+  getGisConfig,
+  getHeritageCategories,
+  getGoogleMapsIntegration,
+  getAllMapSites,
+  hasGoogleMapsServerApiKey,
+} from "@/features/gis/services"
 import GisAdminPanel from "@/features/gis/components/gis-admin-panel"
 
 export default async function GISAdminPage() {
@@ -14,6 +20,7 @@ export default async function GISAdminPage() {
       gisConfig={gisConfig}
       categories={categories}
       googleMapsIntegration={googleMapsIntegration}
+      googleMapsApiKeyConfigured={hasGoogleMapsServerApiKey()}
       sites={sites}
     />
   )

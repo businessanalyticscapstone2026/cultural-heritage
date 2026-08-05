@@ -1,14 +1,19 @@
 "use client"
 
+import { useState, useCallback } from "react"
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
+import { toast } from "sonner"
 import { getAllDashboardDataAction } from "../actions/dashboard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Eye, Pencil, Landmark } from "lucide-react"
+import { Eye, Pencil, Landmark, Loader2 } from "lucide-react"
 import type { RecentSite } from "@/types/mto-dashboard"
 import { ROUTES } from "@/lib/constants"
+import HeritageDetailPanel from "@/features/heritage/components/heritage-detail-panel"
+import ConfirmDialog from "@/components/confirm-dialog"
+import type { SiteWithDetails } from "@/features/heritage/services/mto-sites"
 
 const statusStyles: Record<string, string> = {
   draft: "bg-yellow-100 text-yellow-800",
@@ -35,6 +40,62 @@ export default function RecentSitesTable({ municipalityId }: { municipalityId: s
     select: selectData,
     staleTime: 60_000,
   })
+
+  const [selectedSite, setSelectedSite] = useState<SiteWithDetails | null>(null)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [archiveTarget, setArchiveTarget] = useState<SiteWithDetails | null>(null)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
+
+  const openDetailPanel = useCallback(async (site: RecentSite) => {
+    setLoadingId(site.id)
+    try {
+      const { getMtoSiteByIdAction } = await import("@/features/heritage/actions/mto-sites")
+      const detail = await getMtoSiteByIdAction(site.id)
+      if (!detail) {
+        toast.error("Site details could not be loaded.")
+        return
+      }
+      setSelectedSite(detail)
+      setPanelOpen(true)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load site details.")
+    } finally {
+      setLoadingId(null)
+    }
+  }, [])
+
+  const closeDetailPanel = useCallback(() => {
+    setPanelOpen(false)
+    setSelectedSite(null)
+  }, [])
+
+  const handleEdit = useCallback((site: SiteWithDetails) => {
+    window.location.href = `/mto/heritage-sites/${site.id}/edit`
+  }, [])
+
+  const handleArchive = useCallback((site: SiteWithDetails) => {
+    setPanelOpen(false)
+    setArchiveTarget(site)
+  }, [])
+
+  const confirmArchive = useCallback(async () => {
+    if (!archiveTarget) return
+    const site = archiveTarget
+    setArchivingId(site.id)
+
+    try {
+      const { archiveMtoSiteAction } = await import("@/features/heritage/actions/mto-sites")
+      await archiveMtoSiteAction(site.id)
+      await refetch()
+      toast.warning(`"${site.siteName}" has been archived.`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to archive site. Please try again.")
+    } finally {
+      setArchivingId(null)
+      setArchiveTarget(null)
+    }
+  }, [archiveTarget, refetch])
 
   return (
     <Card>
@@ -116,13 +177,19 @@ export default function RecentSitesTable({ municipalityId }: { municipalityId: s
                     </td>
                     <td className="py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Link
-                          href={`${ROUTES.MTO.SITES}/${site.id}`}
+                        <button
+                          type="button"
+                          onClick={() => openDetailPanel(site)}
                           className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                           aria-label={`View ${site.siteName}`}
+                          disabled={loadingId === site.id}
                         >
-                          <Eye className="size-3.5" />
-                        </Link>
+                          {loadingId === site.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Eye className="size-3.5" />
+                          )}
+                        </button>
                         <Link
                           href={`${ROUTES.MTO.SITES}/${site.id}/edit`}
                           className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -139,6 +206,37 @@ export default function RecentSitesTable({ municipalityId }: { municipalityId: s
           </div>
         )}
       </CardContent>
+
+      {/* Slide-in Detail Panel */}
+      <HeritageDetailPanel
+        site={selectedSite}
+        open={panelOpen}
+        onClose={closeDetailPanel}
+        onEdit={handleEdit}
+        onArchive={handleArchive}
+      />
+
+      {/* Archive Confirmation */}
+      <ConfirmDialog
+        open={archiveTarget !== null}
+        title="Archive heritage site?"
+        description={
+          archiveTarget ? (
+            <>
+              &ldquo;{archiveTarget.siteName}&rdquo; will be moved to the archive. You can restore
+              it later from the Archive page.
+            </>
+          ) : null
+        }
+        confirmLabel="Archive"
+        variant="destructive"
+        isConfirming={archivingId !== null}
+        onConfirm={confirmArchive}
+        onCancel={() => {
+          setArchiveTarget(null)
+          setArchivingId(null)
+        }}
+      />
     </Card>
   )
 }

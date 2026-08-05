@@ -401,6 +401,7 @@ export default function MTOGISPanel({
       <div className="relative flex-1">
         <Map
           className="h-full w-full"
+          theme="light"
           viewport={{
             center: [municipalityCenter.lng, municipalityCenter.lat],
             zoom: 12,

@@ -8,7 +8,10 @@ import { Printer } from "lucide-react"
 const SECTIONS = [
   { id: "summary-metrics", label: "Summary Metrics" },
   { id: "visitor-trend", label: "Visitor Trend" },
+  { id: "visitor-trend-comparison", label: "Current vs Prior Period" },
+  { id: "weekday", label: "Visits by Day of Week" },
   { id: "visits-by-attraction", label: "Visitors by Attraction" },
+  { id: "scan-device", label: "Scans by Device" },
   { id: "demographics", label: "Demographics" },
   { id: "top-sites", label: "Top Sites" },
   { id: "recommendation-funnel", label: "Recommendation Funnel" },

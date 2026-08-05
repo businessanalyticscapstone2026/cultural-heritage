@@ -3,11 +3,7 @@ import { cookies } from "next/headers"
 import { parseMTOFiltersFromSearchParams } from "@/features/mto-analytics"
 import FilterBar from "@/features/mto-analytics/components/filter-bar"
 import SummaryMetricsRow from "@/features/mto-analytics/components/summary-metrics-row"
-import VisitorTrendChart from "@/features/mto-analytics/components/visitor-trend-chart"
-import VisitsByAttractionPanel from "@/features/mto-analytics/components/visits-by-attraction-panel"
-import DemographicsRow from "@/features/mto-analytics/components/demographics-row"
-import TopSitesTable from "@/features/mto-analytics/components/top-sites-table"
-import RecommendationFunnel from "@/features/mto-analytics/components/recommendation-funnel"
+import AnalyticsVisualizations from "@/features/mto-analytics/components/analytics-visualizations"
 import ExportPanel from "@/features/mto-analytics/components/export-panel"
 
 export default async function MTOAnalyticsPage({
@@ -51,24 +47,7 @@ export default async function MTOAnalyticsPage({
             <SummaryMetricsRow key={`metrics-${filterKey}`} searchParams={params} />
           </div>
 
-          <div id="visitor-trend">
-            <VisitorTrendChart key={`trend-${filterKey}`} filters={filters} />
-          </div>
-
-          <div id="visits-by-attraction" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <VisitsByAttractionPanel key={`attraction-${filterKey}`} filters={filters} />
-            <div id="recommendation-funnel">
-              <RecommendationFunnel key={`funnel-${filterKey}`} filters={filters} />
-            </div>
-          </div>
-
-          <div id="demographics">
-            <DemographicsRow key={`demo-${filterKey}`} filters={filters} />
-          </div>
-
-          <div id="top-sites">
-            <TopSitesTable key={`sites-${filterKey}`} filters={filters} />
-          </div>
+          <AnalyticsVisualizations filters={filters} filterKey={filterKey} />
         </div>
 
         <aside className="hidden xl:block">
@@ -76,6 +55,10 @@ export default async function MTOAnalyticsPage({
             <ExportPanel />
           </div>
         </aside>
+      </div>
+
+      <div className="xl:hidden">
+        <ExportPanel />
       </div>
     </div>
   )

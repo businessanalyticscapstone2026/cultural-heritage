@@ -2,6 +2,17 @@
 
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCallback } from "react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { RotateCcw } from "lucide-react"
 
 interface FilterBarProps {
   categories: { id: string; name: string }[]
@@ -24,42 +35,70 @@ export default function FilterBar({ categories }: FilterBarProps) {
     [router, searchParams]
   )
 
+  const reset = useCallback(() => {
+    router.push("?")
+  }, [router])
+
+  const hasFilters = [
+    searchParams.get("dateFrom"),
+    searchParams.get("dateTo"),
+    searchParams.get("category"),
+    searchParams.get("granularity"),
+  ].some(Boolean)
+
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <div className="space-y-1">
-        <label htmlFor="dateFrom" className="text-xs font-medium text-muted-foreground">From</label>
-        <input
+      <div className="space-y-1.5">
+        <Label htmlFor="dateFrom" className="text-xs font-medium text-muted-foreground">
+          From
+        </Label>
+        <Input
           id="dateFrom"
           type="date"
           value={searchParams.get("dateFrom") ?? ""}
           onChange={(e) => update("dateFrom", e.target.value)}
-          className="h-9 rounded-md border bg-card px-3 text-sm"
+          className="w-40"
         />
       </div>
-      <div className="space-y-1">
-        <label htmlFor="dateTo" className="text-xs font-medium text-muted-foreground">To</label>
-        <input
+      <div className="space-y-1.5">
+        <Label htmlFor="dateTo" className="text-xs font-medium text-muted-foreground">
+          To
+        </Label>
+        <Input
           id="dateTo"
           type="date"
           value={searchParams.get("dateTo") ?? ""}
           onChange={(e) => update("dateTo", e.target.value)}
-          className="h-9 rounded-md border bg-card px-3 text-sm"
+          className="w-40"
         />
       </div>
-      <div className="space-y-1">
-        <label htmlFor="category" className="text-xs font-medium text-muted-foreground">Category</label>
-        <select
-          id="category"
+      <div className="space-y-1.5">
+        <Label htmlFor="category" className="text-xs font-medium text-muted-foreground">
+          Category
+        </Label>
+        <Select
           value={searchParams.get("category") ?? ""}
-          onChange={(e) => update("category", e.target.value)}
-          className="h-9 rounded-md border bg-card px-3 text-sm"
+          onValueChange={(v) => update("category", v ?? "")}
         >
-          <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
-          ))}
-        </select>
+          <SelectTrigger id="category" className="w-48">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Categories</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>
+                {cat.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+      {hasFilters && (
+        <Button variant="ghost" size="sm" onClick={reset} className="h-8 text-xs">
+          <RotateCcw className="mr-1.5 size-3.5" />
+          Reset
+        </Button>
+      )}
     </div>
   )
 }

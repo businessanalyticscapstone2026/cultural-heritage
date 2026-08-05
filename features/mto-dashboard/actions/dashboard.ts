@@ -12,6 +12,10 @@ import {
   getMTOVisitorStats,
   getMTORecentScans,
   getMTOTodayScanCount,
+  getMTOTopAttractions,
+  getMTOScanDeviceBreakdown,
+  getMTOCategoryDistribution,
+  deriveMTODashboardInsights,
 } from "../services"
 
 async function resolveMunicipalityId(): Promise<string> {
@@ -81,7 +85,7 @@ export async function getResolvedMunicipalityId(): Promise<string> {
 export async function getAllDashboardDataAction(
   municipalityId: string
 ): Promise<DashboardData> {
-  const [stats, visitsOverview, visitsByCategory, recentSites, recentActivity, visitorStats, recentScans, todayScanCount] =
+  const [stats, visitsOverview, visitsByCategory, recentSites, recentActivity, visitorStats, recentScans, todayScanCount, topAttractions, scanDeviceBreakdown, categoryDistribution] =
     await Promise.all([
       getMTODashboardStats(municipalityId),
       getMTOVisitsOverview(municipalityId),
@@ -91,7 +95,32 @@ export async function getAllDashboardDataAction(
       getMTOVisitorStats(municipalityId),
       getMTORecentScans(municipalityId),
       getMTOTodayScanCount(municipalityId),
+      getMTOTopAttractions(municipalityId),
+      getMTOScanDeviceBreakdown(municipalityId),
+      getMTOCategoryDistribution(municipalityId),
     ])
 
-  return { stats, visitsOverview, visitsByCategory, recentSites, recentActivity, visitorStats, recentScans, todayScanCount }
+  const insights = deriveMTODashboardInsights({
+    stats,
+    visitsOverview,
+    topAttractions,
+    categoryDistribution,
+    scanDeviceBreakdown,
+    visitorStats,
+  })
+
+  return {
+    stats,
+    visitsOverview,
+    visitsByCategory,
+    recentSites,
+    recentActivity,
+    visitorStats,
+    recentScans,
+    todayScanCount,
+    topAttractions,
+    scanDeviceBreakdown,
+    categoryDistribution,
+    insights,
+  }
 }

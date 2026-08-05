@@ -30,6 +30,9 @@ export default function GreetingHeader() {
         {greeting}, {name}
       </h1>
       <p className="text-sm text-muted-foreground">{date}</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Municipal tourism overview — this month vs last month
+      </p>
     </div>
   )
 }

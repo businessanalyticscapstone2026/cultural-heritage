@@ -1,5 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { CHART_PALETTE } from "@/lib/chart-colors"
+import { normalizeDeviceType } from "@/lib/device-type"
 import type {
   DashboardStat,
   MonthlyVisitsPoint,
@@ -8,6 +10,10 @@ import type {
   TouristActivity,
   VisitorStats,
   RecentScan,
+  TopAttraction,
+  ScanDeviceBreakdownPoint,
+  CategoryDistributionPoint,
+  DashboardInsight,
 } from "@/types/mto-dashboard"
 
 const CATEGORY_COLORS = [
@@ -528,4 +534,205 @@ export async function getMTOTodayScanCount(municipalityId: string): Promise<numb
 
   if (error) throw error
   return count ?? 0
+}
+
+export async function getMTOTopAttractions(municipalityId: string, limit = 5): Promise<TopAttraction[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const siteIds = (
+    await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
+  ).data?.map((s) => s.id as string) ?? []
+
+  if (siteIds.length === 0) return []
+
+  const thisMonth = getMonthBounds(0)
+
+  const { data: visits } = await supabase
+    .from("tourist_visits")
+    .select("site_id")
+    .in("site_id", siteIds)
+    .gte("visit_date", thisMonth.start)
+    .lte("visit_date", thisMonth.end)
+
+  if (!visits || visits.length === 0) return []
+
+  const siteCounts = new Map<string, number>()
+  for (const visit of visits) {
+    const sid = visit.site_id as string
+    siteCounts.set(sid, (siteCounts.get(sid) ?? 0) + 1)
+  }
+
+  const topSiteIds = Array.from(siteCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id]) => id)
+
+  const { data: siteData } = await supabase
+    .from("heritage_sites")
+    .select("id, site_name")
+    .in("id", topSiteIds)
+
+  const siteNameMap = new Map<string, string>()
+  for (const site of siteData ?? []) {
+    siteNameMap.set(site.id as string, site.site_name as string)
+  }
+
+  const totalVisits = visits.length
+
+  return topSiteIds.map((id) => ({
+    siteId: id,
+    siteName: siteNameMap.get(id) ?? "Unknown",
+    visits: siteCounts.get(id) ?? 0,
+    percentage: Math.round(((siteCounts.get(id) ?? 0) / totalVisits) * 100),
+  }))
+}
+
+export async function getMTOScanDeviceBreakdown(municipalityId: string): Promise<ScanDeviceBreakdownPoint[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const qrCodeIds = (
+    await supabase
+      .from("qr_codes")
+      .select("id")
+      .in(
+        "site_id",
+        (
+          await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
+        ).data?.map((s) => s.id as string) ?? []
+      )
+  ).data?.map((q) => q.id as string) ?? []
+
+  if (qrCodeIds.length === 0) return []
+
+  const thisMonth = getMonthBounds(0)
+
+  const { data: scans } = await supabase
+    .from("qr_scan_logs")
+    .select("device_type")
+    .in("qr_code_id", qrCodeIds)
+    .gte("scanned_at", thisMonth.start)
+    .lte("scanned_at", thisMonth.end)
+
+  if (!scans || scans.length === 0) return []
+
+  const deviceCounts = new Map<string, number>()
+  for (const scan of scans) {
+    const device = normalizeDeviceType(scan.device_type as string | null)
+    deviceCounts.set(device, (deviceCounts.get(device) ?? 0) + 1)
+  }
+
+  return Array.from(deviceCounts.entries())
+    .map(([device, count], i) => ({
+      device,
+      count,
+      color: CHART_PALETTE[i % CHART_PALETTE.length],
+    }))
+    .sort((a, b) => b.count - a.count)
+}
+
+export async function getMTOCategoryDistribution(municipalityId: string): Promise<CategoryDistributionPoint[]> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data: sites } = await supabase
+    .from("heritage_sites")
+    .select("id, category_id, category:heritage_categories(name)")
+    .eq("municipality_id", municipalityId)
+
+  if (!sites || sites.length === 0) return []
+
+  const categoryCounts = new Map<string, number>()
+  for (const site of sites) {
+    const catArr = site.category as unknown as { name: string }[] | null
+    const cat = Array.isArray(catArr) ? catArr[0] : null
+    const name = cat?.name ?? "Uncategorized"
+    categoryCounts.set(name, (categoryCounts.get(name) ?? 0) + 1)
+  }
+
+  const total = sites.length
+
+  return Array.from(categoryCounts.entries())
+    .map(([name, count], i) => ({
+      name,
+      count,
+      percentage: Math.round((count / total) * 100),
+      color: CHART_PALETTE[i % CHART_PALETTE.length],
+    }))
+    .sort((a, b) => b.count - a.count)
+}
+
+export function deriveMTODashboardInsights(deps: {
+  stats: DashboardStat[]
+  visitsOverview: MonthlyVisitsPoint[]
+  topAttractions: TopAttraction[]
+  categoryDistribution: CategoryDistributionPoint[]
+  scanDeviceBreakdown: ScanDeviceBreakdownPoint[]
+  visitorStats: VisitorStats
+}): DashboardInsight[] {
+  const insights: DashboardInsight[] = []
+
+  const scansStat = deps.stats.find((s) => s.label === "QR Scans")
+  if (scansStat && scansStat.changeDirection !== "stable") {
+    const rising = scansStat.changeDirection === "up"
+    insights.push({
+      id: "scans-momentum",
+      label: "QR Scans",
+      value: `${rising ? "+" : "-"}${scansStat.changePercent}%`,
+      detail: rising ? "Scans are up vs last month" : "Scans are down vs last month",
+      tone: rising ? "positive" : "negative",
+      icon: "ScanLine",
+    })
+  } else if (scansStat) {
+    insights.push({
+      id: "scans-momentum",
+      label: "QR Scans",
+      value: "Flat",
+      detail: "Scan volume is steady vs last month",
+      tone: "neutral",
+      icon: "ScanLine",
+    })
+  }
+
+  const top = deps.topAttractions[0]
+  if (top) {
+    insights.push({
+      id: "top-attraction",
+      label: "Top Attraction",
+      value: top.siteName,
+      detail: `${top.visits.toLocaleString()} visits this month (${top.percentage}% of all)`,
+      tone: "info",
+      icon: "Trophy",
+    })
+  }
+
+  const topCategory = deps.categoryDistribution[0]
+  if (topCategory) {
+    insights.push({
+      id: "top-category",
+      label: "Top Category",
+      value: topCategory.name,
+      detail: `${topCategory.count} site${topCategory.count === 1 ? "" : "s"} · ${topCategory.percentage}% of your heritage sites`,
+      tone: "info",
+      icon: "LayoutGrid",
+    })
+  }
+
+  const totalVisitors = deps.visitorStats.local + deps.visitorStats.domestic + deps.visitorStats.international
+  if (totalVisitors > 0) {
+    const foreignShare = Math.round(
+      ((deps.visitorStats.domestic + deps.visitorStats.international) / totalVisitors) * 100
+    )
+    insights.push({
+      id: "foreign-share",
+      label: "Foreign Visitors",
+      value: `${foreignShare}%`,
+      detail: `${(deps.visitorStats.domestic + deps.visitorStats.international).toLocaleString()} of ${totalVisitors.toLocaleString()} visits this year`,
+      tone: "info",
+      icon: "Globe",
+    })
+  }
+
+  return insights
 }

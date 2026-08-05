@@ -10,6 +10,7 @@ import {
   TrendingDown,
   Minus,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { DashboardStat } from "@/types/mto-dashboard"
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -23,6 +24,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function StatCard({ stat }: { stat: DashboardStat }) {
   const Icon = iconMap[stat.icon] ?? Landmark
+  const rising = stat.changeDirection === "up"
+  const falling = stat.changeDirection === "down"
 
   return (
     <Card className="gap-3 py-4">
@@ -30,34 +33,40 @@ export default function StatCard({ stat }: { stat: DashboardStat }) {
         <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
           <Icon className="size-4 text-primary" />
         </div>
-        <div className="flex items-center gap-1 text-xs">
-          {stat.changeDirection === "up" && stat.changePercent !== null && (
+        <div
+          className={cn(
+            "flex items-center gap-1 text-xs font-medium",
+            rising ? "text-success" : falling ? "text-destructive" : "text-muted-foreground"
+          )}
+        >
+          {rising && stat.changePercent !== null && (
             <>
-              <TrendingUp className="size-3 text-green-600" />
-              <span className="text-green-600">+{stat.changePercent}%</span>
+              <TrendingUp className="size-3" />
+              <span>+{stat.changePercent}%</span>
             </>
           )}
-          {stat.changeDirection === "down" && stat.changePercent !== null && (
+          {falling && stat.changePercent !== null && (
             <>
-              <TrendingDown className="size-3 text-red-600" />
-              <span className="text-red-600">-{stat.changePercent}%</span>
+              <TrendingDown className="size-3" />
+              <span>-{stat.changePercent}%</span>
             </>
           )}
           {stat.changeDirection === "stable" && (
             <>
-              <Minus className="size-3 text-muted-foreground" />
-              <span className="text-muted-foreground">0%</span>
+              <Minus className="size-3" />
+              <span>0%</span>
             </>
           )}
         </div>
       </CardContent>
       <CardContent className="pt-0">
-        <p className="text-2xl font-bold tracking-tight text-foreground">
+        <p className="text-3xl font-bold tracking-tight text-foreground">
           {stat.value.toLocaleString()}
         </p>
-        <p className="text-xs text-muted-foreground">{stat.label}</p>
+        <p className="mt-1 text-sm font-medium text-foreground">{stat.label}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{stat.description}</p>
       </CardContent>
     </Card>
   )
 }
+

@@ -48,17 +48,19 @@ const actions = [
 
 export default function QuickActionsRow() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
       {actions.map((action) => (
         <Link key={action.href} href={action.href}>
-          <Card className="transition-colors hover:bg-muted/50">
-            <CardContent className="flex items-start gap-3 py-4">
-              <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${action.iconBg}`}>
-                <action.icon className={`size-4 ${action.iconColor}`} />
+          <Card className="h-full transition-colors hover:bg-muted/50">
+            <CardContent className="flex flex-col items-center gap-2 py-4 text-center">
+              <div className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${action.iconBg}`}>
+                <action.icon className={`size-5 ${action.iconColor}`} />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold leading-tight">{action.label}</p>
-                <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{action.description}</p>
+                <p className="mt-0.5 hidden text-[11px] leading-snug text-muted-foreground lg:block">
+                  {action.description}
+                </p>
               </div>
             </CardContent>
           </Card>

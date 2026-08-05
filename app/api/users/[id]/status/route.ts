@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { requirePermission } from "@/lib/permissions"
+import { logAuditEvent } from "@/features/audit/services"
 
 export async function PATCH(
   _request: Request,
@@ -47,6 +48,16 @@ export async function PATCH(
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  try {
+    await logAuditEvent({
+      category: "user_management",
+      action: "staff_status_changed",
+      targetType: "staff_profile",
+      targetId: id,
+      detail: { previousStatus: current.account_status, newStatus },
+    })
+  } catch {}
 
   return NextResponse.json(data)
 }

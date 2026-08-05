@@ -2,6 +2,7 @@
 
 import { revalidatePath, revalidateTag } from "next/cache"
 import { CACHE_TAGS, CACHE_REVALIDATE_SECONDS } from "@/lib/cache-tags"
+import { logAuditEvent } from "@/features/audit/services"
 import {
   getAllCategories,
   getCategoriesWithSiteCount,
@@ -25,6 +26,17 @@ export async function createCategoryAction(data: { name: string; description?: s
   revalidatePath("/admin/heritage-repository")
   revalidateTag(CACHE_TAGS.heritageCategories, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardCategories, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_category_created",
+      targetType: "heritage_category",
+      targetId: category.id,
+      detail: { name: category.name },
+    })
+  } catch {}
+
   return category
 }
 
@@ -34,6 +46,17 @@ export async function updateCategoryAction(id: string, updates: Partial<Heritage
   revalidatePath("/admin/heritage-repository")
   revalidateTag(CACHE_TAGS.heritageCategories, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardCategories, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_category_updated",
+      targetType: "heritage_category",
+      targetId: category.id,
+      detail: { name: category.name },
+    })
+  } catch {}
+
   return category
 }
 
@@ -43,4 +66,13 @@ export async function deleteCategoryAction(id: string) {
   revalidatePath("/admin/heritage-repository")
   revalidateTag(CACHE_TAGS.heritageCategories, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardCategories, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_category_deleted",
+      targetType: "heritage_category",
+      targetId: id,
+    })
+  } catch {}
 }

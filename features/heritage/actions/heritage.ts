@@ -5,6 +5,7 @@ import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
 import { autoGenerateQrForSite } from "@/features/qr-code/services/qr-management"
 import { CACHE_TAGS, CACHE_REVALIDATE_SECONDS } from "@/lib/cache-tags"
+import { logAuditEvent } from "@/features/audit/services"
 import {
   createHeritageSite,
   updateHeritageSite,
@@ -61,6 +62,16 @@ export async function createHeritageSiteAction(data: Partial<HeritageSite>) {
     }
   }
 
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_site_created",
+      targetType: "heritage_site",
+      targetId: site.id,
+      detail: { siteName: site.siteName },
+    })
+  } catch {}
+
   return site
 }
 
@@ -70,6 +81,17 @@ export async function updateHeritageSiteAction(id: string, updates: Partial<Heri
   revalidatePath("/mto/heritage-sites")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_site_updated",
+      targetType: "heritage_site",
+      targetId: id,
+      detail: { siteName: site.siteName },
+    })
+  } catch {}
+
   return site
 }
 
@@ -79,6 +101,15 @@ export async function deleteHeritageSiteAction(id: string) {
   revalidatePath("/mto/heritage-sites")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "heritage_site_deleted",
+      targetType: "heritage_site",
+      targetId: id,
+    })
+  } catch {}
 }
 
 export async function getHeritageSiteVersionsAction(siteId: string) {
@@ -91,5 +122,16 @@ export async function restoreHeritageSiteVersionAction(versionId: string) {
   revalidatePath("/mto/heritage-sites")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+  try {
+    await logAuditEvent({
+      category: "heritage",
+      action: "version_restored",
+      targetType: "heritage_site",
+      targetId: site.id,
+      detail: { versionId },
+    })
+  } catch {}
+
   return site
 }

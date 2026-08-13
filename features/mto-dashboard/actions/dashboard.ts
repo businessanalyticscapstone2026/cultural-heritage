@@ -15,6 +15,7 @@ import {
   getMTOTopAttractions,
   getMTOScanDeviceBreakdown,
   getMTOCategoryDistribution,
+  getMTOSitesForMunicipality,
   deriveMTODashboardInsights,
 } from "../services"
 
@@ -85,19 +86,23 @@ export async function getResolvedMunicipalityId(): Promise<string> {
 export async function getAllDashboardDataAction(
   municipalityId: string
 ): Promise<DashboardData> {
-  const [stats, visitsOverview, visitsByCategory, recentSites, recentActivity, visitorStats, recentScans, todayScanCount, topAttractions, scanDeviceBreakdown, categoryDistribution] =
+  // Widgets on the dashboard only need site ids/categories, never recent
+  // activity or today's scan count (no widget renders those) — resolve the
+  // shared site list once instead of re-querying heritage_sites in every
+  // service function below.
+  const { siteIds, sites } = await getMTOSitesForMunicipality(municipalityId)
+
+  const [stats, visitsOverview, visitsByCategory, recentSites, visitorStats, recentScans, topAttractions, scanDeviceBreakdown, categoryDistribution] =
     await Promise.all([
-      getMTODashboardStats(municipalityId),
+      getMTODashboardStats(municipalityId, siteIds),
       getMTOVisitsOverview(municipalityId),
-      getMTOVisitsByCategory(municipalityId),
+      getMTOVisitsByCategory(municipalityId, sites),
       getMTORecentSites(municipalityId),
-      getMTORecentActivity(municipalityId),
-      getMTOVisitorStats(municipalityId),
+      getMTOVisitorStats(municipalityId, siteIds),
       getMTORecentScans(municipalityId),
-      getMTOTodayScanCount(municipalityId),
-      getMTOTopAttractions(municipalityId),
-      getMTOScanDeviceBreakdown(municipalityId),
-      getMTOCategoryDistribution(municipalityId),
+      getMTOTopAttractions(municipalityId, 5, siteIds),
+      getMTOScanDeviceBreakdown(municipalityId, siteIds),
+      getMTOCategoryDistribution(municipalityId, sites),
     ])
 
   const insights = deriveMTODashboardInsights({
@@ -114,10 +119,8 @@ export async function getAllDashboardDataAction(
     visitsOverview,
     visitsByCategory,
     recentSites,
-    recentActivity,
     visitorStats,
     recentScans,
-    todayScanCount,
     topAttractions,
     scanDeviceBreakdown,
     categoryDistribution,

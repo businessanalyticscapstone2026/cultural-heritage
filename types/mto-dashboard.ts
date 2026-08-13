@@ -89,10 +89,8 @@ export interface DashboardData {
   visitsOverview: MonthlyVisitsPoint[]
   visitsByCategory: CategoryBreakdownPoint[]
   recentSites: RecentSite[]
-  recentActivity: TouristActivity[]
   visitorStats: VisitorStats
   recentScans: RecentScan[]
-  todayScanCount: number
   topAttractions: TopAttraction[]
   scanDeviceBreakdown: ScanDeviceBreakdownPoint[]
   categoryDistribution: CategoryDistributionPoint[]

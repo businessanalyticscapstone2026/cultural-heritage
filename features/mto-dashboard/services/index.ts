@@ -47,12 +47,42 @@ function getMonthBounds(monthsAgo: number) {
   }
 }
 
-export async function getMTODashboardStats(municipalityId: string): Promise<DashboardStat[]> {
+async function resolveSiteIds(
+  supabase: ReturnType<typeof createClient>,
+  municipalityId: string,
+): Promise<string[]> {
+  const { data } = await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
+  return data?.map((s) => s.id as string) ?? []
+}
+
+type SiteWithCategory = { id: string; category_id: string | null; category: unknown }
+
+export async function getMTOSitesForMunicipality(
+  municipalityId: string,
+): Promise<{ siteIds: string[]; sites: SiteWithCategory[] }> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data } = await supabase
+    .from("heritage_sites")
+    .select("id, category_id, category:heritage_categories(name)")
+    .eq("municipality_id", municipalityId)
+
+  const sites = data ?? []
+  return { siteIds: sites.map((s) => s.id as string), sites }
+}
+
+export async function getMTODashboardStats(
+  municipalityId: string,
+  preloadedSiteIds?: string[],
+): Promise<DashboardStat[]> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
   const thisMonth = getMonthBounds(0)
   const lastMonth = getMonthBounds(1)
+
+  const siteIds = preloadedSiteIds ?? (await resolveSiteIds(supabase, municipalityId))
 
   const [sitesCount, sitesCountPrev] = await Promise.all([
     supabase
@@ -68,17 +98,10 @@ export async function getMTODashboardStats(municipalityId: string): Promise<Dash
       .lte("created_at", lastMonth.end),
   ])
 
-  const qrCodeIds = (
-    await supabase
-      .from("qr_codes")
-      .select("id")
-      .in(
-        "site_id",
-        (
-          await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-        ).data?.map((s) => s.id) ?? [],
-      )
-  ).data?.map((q) => q.id) ?? []
+  const qrCodeIds =
+    siteIds.length === 0
+      ? []
+      : (await supabase.from("qr_codes").select("id").in("site_id", siteIds)).data?.map((q) => q.id) ?? []
 
   const countScans = (start: string, end: string) =>
     qrCodeIds.length === 0
@@ -90,64 +113,47 @@ export async function getMTODashboardStats(municipalityId: string): Promise<Dash
           .gte("scanned_at", start)
           .lte("scanned_at", end)
 
-  const [visitsCount, visitsCountPrev] = await Promise.all([
-    countScans(thisMonth.start, thisMonth.end),
-    countScans(lastMonth.start, lastMonth.end),
-  ])
-
-  const [bookmarksCount, bookmarksCountPrev] = await Promise.all([
-    supabase
+  const countBookmarks = (end?: string) => {
+    if (siteIds.length === 0) return Promise.resolve({ count: 0, error: null })
+    const query = supabase
       .from("bookmarks")
       .select("id", { count: "exact", head: true })
-      .in("site_id", (
-        await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-      ).data?.map((s) => s.id) ?? []),
-    supabase
-      .from("bookmarks")
-      .select("id", { count: "exact", head: true })
-      .in("site_id", (
-        await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-      ).data?.map((s) => s.id) ?? [])
-      .lte("created_at", lastMonth.end),
-  ])
+      .in("site_id", siteIds)
+    return end ? query.lte("created_at", end) : query
+  }
 
-  const siteIds = (
-    await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-  ).data?.map((s) => s.id) ?? []
+  const countActiveQr = (end?: string) => {
+    if (siteIds.length === 0) return Promise.resolve({ count: 0, error: null })
+    const query = supabase
+      .from("qr_codes")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .in("site_id", siteIds)
+    return end ? query.lte("created_at", end) : query
+  }
 
   const countDistinctClickedSites = async (start: string, end: string) => {
     const { data } = await supabase
       .from("recommendations")
       .select("site_id")
+      .eq("municipality_id", municipalityId)
       .eq("was_clicked", true)
-      .in("site_id", siteIds)
       .gte("clicked_at", start)
       .lte("clicked_at", end)
     return new Set((data ?? []).map((r) => r.site_id as string)).size
   }
 
-  const [recsCount, recsCountPrev] = await Promise.all([
-    countDistinctClickedSites(thisMonth.start, thisMonth.end),
-    countDistinctClickedSites(lastMonth.start, lastMonth.end),
-  ])
-
-  const [qrCount, qrCountPrev] = await Promise.all([
-    supabase
-      .from("qr_codes")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "active")
-      .in("site_id", (
-        await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-      ).data?.map((s) => s.id) ?? []),
-    supabase
-      .from("qr_codes")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "active")
-      .in("site_id", (
-        await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-      ).data?.map((s) => s.id) ?? [])
-      .lte("created_at", lastMonth.end),
-  ])
+  const [visitsCount, visitsCountPrev, bookmarksCount, bookmarksCountPrev, recsCount, recsCountPrev, qrCount, qrCountPrev] =
+    await Promise.all([
+      countScans(thisMonth.start, thisMonth.end),
+      countScans(lastMonth.start, lastMonth.end),
+      countBookmarks(),
+      countBookmarks(lastMonth.end),
+      countDistinctClickedSites(thisMonth.start, thisMonth.end),
+      countDistinctClickedSites(lastMonth.start, lastMonth.end),
+      countActiveQr(),
+      countActiveQr(lastMonth.end),
+    ])
 
   const sitesChange = computeChange(sitesCount.count ?? 0, sitesCountPrev.count ?? 0)
   const visitsChange = computeChange(visitsCount.count ?? 0, visitsCountPrev.count ?? 0)
@@ -206,18 +212,6 @@ export async function getMTOVisitsOverview(municipalityId: string): Promise<Mont
   const currentYear = new Date().getFullYear()
   const priorYear = currentYear - 1
 
-  const siteIds = (
-    await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-  ).data?.map((s) => s.id) ?? []
-
-  if (siteIds.length === 0) {
-    return Array.from({ length: 12 }, (_, i) => ({
-      month: new Date(0, i).toLocaleString("en", { month: "short" }),
-      currentYear: 0,
-      priorYear: 0,
-    }))
-  }
-
   const yearBounds = (year: number) => ({
     start: `${year}-01-01T00:00:00.000Z`,
     end: `${year}-12-31T23:59:59.999Z`,
@@ -227,15 +221,15 @@ export async function getMTOVisitsOverview(municipalityId: string): Promise<Mont
     supabase
       .from("recommendations")
       .select("site_id, clicked_at")
+      .eq("municipality_id", municipalityId)
       .eq("was_clicked", true)
-      .in("site_id", siteIds)
       .gte("clicked_at", yearBounds(currentYear).start)
       .lte("clicked_at", yearBounds(currentYear).end),
     supabase
       .from("recommendations")
       .select("site_id, clicked_at")
+      .eq("municipality_id", municipalityId)
       .eq("was_clicked", true)
-      .in("site_id", siteIds)
       .gte("clicked_at", yearBounds(priorYear).start)
       .lte("clicked_at", yearBounds(priorYear).end),
   ])
@@ -259,14 +253,21 @@ export async function getMTOVisitsOverview(municipalityId: string): Promise<Mont
   }))
 }
 
-export async function getMTOVisitsByCategory(municipalityId: string): Promise<CategoryBreakdownPoint[]> {
+export async function getMTOVisitsByCategory(
+  municipalityId: string,
+  preloadedSites?: SiteWithCategory[],
+): Promise<CategoryBreakdownPoint[]> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const { data: sites } = await supabase
-    .from("heritage_sites")
-    .select("id, category_id, category:heritage_categories(name)")
-    .eq("municipality_id", municipalityId)
+  const sites =
+    preloadedSites ??
+    (
+      await supabase
+        .from("heritage_sites")
+        .select("id, category_id, category:heritage_categories(name)")
+        .eq("municipality_id", municipalityId)
+    ).data
 
   if (!sites || sites.length === 0) return []
 
@@ -440,13 +441,14 @@ export async function getMTORecentActivity(municipalityId: string): Promise<Tour
   return activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10)
 }
 
-export async function getMTOVisitorStats(municipalityId: string): Promise<VisitorStats> {
+export async function getMTOVisitorStats(
+  municipalityId: string,
+  preloadedSiteIds?: string[],
+): Promise<VisitorStats> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const siteIds = (
-    await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-  ).data?.map((s) => s.id) ?? []
+  const siteIds = preloadedSiteIds ?? (await resolveSiteIds(supabase, municipalityId))
 
   if (siteIds.length === 0) return { local: 0, domestic: 0, international: 0, priorYearTotal: 0 }
 
@@ -536,13 +538,15 @@ export async function getMTOTodayScanCount(municipalityId: string): Promise<numb
   return count ?? 0
 }
 
-export async function getMTOTopAttractions(municipalityId: string, limit = 5): Promise<TopAttraction[]> {
+export async function getMTOTopAttractions(
+  municipalityId: string,
+  limit = 5,
+  preloadedSiteIds?: string[],
+): Promise<TopAttraction[]> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const siteIds = (
-    await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-  ).data?.map((s) => s.id as string) ?? []
+  const siteIds = preloadedSiteIds ?? (await resolveSiteIds(supabase, municipalityId))
 
   if (siteIds.length === 0) return []
 
@@ -588,21 +592,19 @@ export async function getMTOTopAttractions(municipalityId: string, limit = 5): P
   }))
 }
 
-export async function getMTOScanDeviceBreakdown(municipalityId: string): Promise<ScanDeviceBreakdownPoint[]> {
+export async function getMTOScanDeviceBreakdown(
+  municipalityId: string,
+  preloadedSiteIds?: string[],
+): Promise<ScanDeviceBreakdownPoint[]> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const qrCodeIds = (
-    await supabase
-      .from("qr_codes")
-      .select("id")
-      .in(
-        "site_id",
-        (
-          await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-        ).data?.map((s) => s.id as string) ?? []
-      )
-  ).data?.map((q) => q.id as string) ?? []
+  const siteIds = preloadedSiteIds ?? (await resolveSiteIds(supabase, municipalityId))
+
+  const qrCodeIds =
+    siteIds.length === 0
+      ? []
+      : (await supabase.from("qr_codes").select("id").in("site_id", siteIds)).data?.map((q) => q.id as string) ?? []
 
   if (qrCodeIds.length === 0) return []
 
@@ -632,14 +634,21 @@ export async function getMTOScanDeviceBreakdown(municipalityId: string): Promise
     .sort((a, b) => b.count - a.count)
 }
 
-export async function getMTOCategoryDistribution(municipalityId: string): Promise<CategoryDistributionPoint[]> {
+export async function getMTOCategoryDistribution(
+  municipalityId: string,
+  preloadedSites?: SiteWithCategory[],
+): Promise<CategoryDistributionPoint[]> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const { data: sites } = await supabase
-    .from("heritage_sites")
-    .select("id, category_id, category:heritage_categories(name)")
-    .eq("municipality_id", municipalityId)
+  const sites =
+    preloadedSites ??
+    (
+      await supabase
+        .from("heritage_sites")
+        .select("id, category_id, category:heritage_categories(name)")
+        .eq("municipality_id", municipalityId)
+    ).data
 
   if (!sites || sites.length === 0) return []
 

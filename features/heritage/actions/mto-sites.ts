@@ -220,6 +220,10 @@ export async function saveMtoSiteAction(json: string) {
       referenceLinks,
     })
 
+    revalidatePath("/mto/heritage-sites")
+    revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+    revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
     try {
       await logAuditEvent({
         category: "heritage",

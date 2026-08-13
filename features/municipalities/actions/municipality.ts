@@ -58,7 +58,14 @@ export async function updateMunicipalityAction(
 }
 
 export async function updateMunicipalityStatusAction(id: string, status: MunicipalityStatus) {
-  const municipality = await updateMunicipalityStatusService(id, status)
+  let municipality
+  try {
+    municipality = await updateMunicipalityStatusService(id, status)
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to update municipality status. Please try again."
+    )
+  }
 
   try {
     await logAuditEvent({

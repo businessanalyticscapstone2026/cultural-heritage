@@ -198,7 +198,11 @@ export async function updateMunicipalityStatus(
 
   if (error) throw new Error(`Failed to update municipality status: ${error.message}`)
 
-  await writeAuditLog(supabase, id, "status_changed", userId, { status: existing.status }, { status })
+  try {
+    await writeAuditLog(supabase, id, "status_changed", userId, { status: existing.status }, { status })
+  } catch (auditError) {
+    console.error("Failed to write municipality status audit log:", auditError)
+  }
 
   return data as Municipality
 }

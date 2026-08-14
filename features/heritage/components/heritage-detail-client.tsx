@@ -24,7 +24,6 @@ import { motion, AnimatePresence } from "motion/react"
 import { Reveal } from "@/components/animations/reveal"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 import type { HeritageSite, HeritageSiteTag, HeritageSiteReferenceLink } from "../types"
-import Breadcrumb from "./breadcrumb"
 import { BookmarkButton } from "./bookmark-button"
 import NearbySitesSidebar from "./nearby-sites-sidebar"
 import { ReviewsSection } from "@/features/reviews/components"
@@ -150,20 +149,10 @@ export default function HeritageDetailClient({
 
   return (
     <div className="min-h-screen bg-warm-white">
-      {/* ── Breadcrumb ── */}
-      <div className="mx-auto max-w-7xl px-4 pt-6 md:px-6 lg:px-10">
-        <Breadcrumb
-          items={[
-            { label: "Explore", href: "/explore" },
-            { label: site.siteName },
-          ]}
-        />
-      </div>
-
       {/* ═══════════════════════════════════════════════════════
           1. HERO
-         ═══════════════════════════════════════════════════════ */}
-      <section className="mx-auto mt-4 max-w-7xl px-4 md:px-6 lg:px-10">
+          ═══════════════════════════════════════════════════════ */}
+      <section className="mx-auto max-w-7xl px-4 pt-10 md:px-6 lg:px-10">
         <div
           className="relative h-[320px] overflow-hidden rounded-xl sm:h-[420px] lg:h-[520px]"
           onMouseEnter={() => setHeroAutoplayPaused(true)}
@@ -212,20 +201,20 @@ export default function HeritageDetailClient({
             </div>
           )}
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/15 to-transparent" />
 
           {heroImageCount > 1 && (
             <>
               <button
                 onClick={heroPrev}
-                className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-colors hover:bg-black/50"
+                className="absolute left-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-colors hover:bg-black/50"
                 aria-label="Previous photo"
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
               <button
                 onClick={heroNext}
-                className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-colors hover:bg-black/50"
+                className="absolute right-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-colors hover:bg-black/50"
                 aria-label="Next photo"
               >
                 <ChevronRight className="h-5 w-5" />
@@ -235,7 +224,7 @@ export default function HeritageDetailClient({
                 {heroIndex + 1} / {heroImageCount}
               </div>
 
-              <div className="absolute bottom-24 left-1/2 flex -translate-x-1/2 items-center gap-1.5 sm:bottom-28">
+              <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5">
                 {images.map((img, i) => (
                   <button
                     key={img.id}
@@ -251,40 +240,68 @@ export default function HeritageDetailClient({
             </>
           )}
 
-          {site.category && (
-            <span
-              className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/30 px-3.5 py-1.5 text-xs font-medium uppercase tracking-wider text-white backdrop-blur-md"
-            >
-              {site.category.color && (
-                <span
-                  className="size-2 shrink-0 rounded-full ring-1 ring-white/40"
-                  style={{ backgroundColor: site.category.color }}
-                  aria-hidden="true"
-                />
-              )}
-              {site.category.icon && <Tag className="h-3 w-3" />}
-              {site.category.name}
-            </span>
-          )}
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
 
-          <div className="absolute bottom-6 left-6 right-6">
-            <h1 className="text-display text-3xl text-white md:text-4xl lg:text-5xl">
-              {site.siteName}
-            </h1>
-            {locationParts.length > 0 && (
-              <p className="mt-2 flex items-center gap-1.5 text-sm text-white/80">
-                <MapPin className="h-4 w-4" />
-                {locationParts.join(", ")}
-              </p>
-            )}
-            {site.reviewCount > 0 && (
-              <div className="mt-2 flex items-center gap-1.5">
-                <StarDisplay rating={site.averageRating} size="sm" />
-                <span className="text-sm text-white/80">
-                  {site.averageRating.toFixed(1)} &middot; {site.reviewCount} {site.reviewCount === 1 ? "review" : "reviews"}
-                </span>
-              </div>
-            )}
+          <div className="absolute bottom-0 left-0 right-0 p-6 pb-14 sm:p-8 sm:pb-14 lg:p-10 lg:pb-14">
+            <div className="max-w-3xl space-y-3">
+              {site.category && (
+                <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-white/90">
+                  {site.category.color && (
+                    <span
+                      className="size-2 shrink-0 rounded-full ring-1 ring-white/50"
+                      style={{ backgroundColor: site.category.color }}
+                      aria-hidden="true"
+                    />
+                  )}
+                  {site.category.name}
+                  <span className="text-white/50" aria-hidden="true">·</span>
+                  <span>Cultural Heritage</span>
+                </p>
+              )}
+
+              <div className="h-px w-12 bg-white/30" aria-hidden="true" />
+
+              <h1 className="font-heading text-4xl font-semibold leading-[1.05] tracking-tight text-white md:text-5xl lg:text-6xl [text-shadow:0_2px_24px_rgba(0,0,0,0.45)]">
+                {site.siteName}
+              </h1>
+
+              {(locationParts.length > 0 || site.reviewCount > 0 || site.yearEstablished || matchScore !== undefined) && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 text-sm text-white/90">
+                  {locationParts.length > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4" />
+                      {locationParts.join(", ")}
+                    </span>
+                  )}
+                  {site.reviewCount > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <StarDisplay rating={site.averageRating} size="sm" />
+                      <span>
+                        {site.averageRating.toFixed(1)} &middot; {site.reviewCount} {site.reviewCount === 1 ? "review" : "reviews"}
+                      </span>
+                    </span>
+                  )}
+                  {site.yearEstablished && (
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="h-4 w-4" />
+                      Est. {site.yearEstablished}
+                    </span>
+                  )}
+                  {matchScore !== undefined && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-success/25 px-2.5 py-1 text-xs font-medium text-white ring-1 ring-white/20 backdrop-blur-sm">
+                      <Star className="h-3 w-3 fill-white" />
+                      {matchScore}% Match
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {site.shortDescription && (
+                <p className="line-clamp-2 max-w-2xl pt-1 text-sm leading-relaxed text-white/85 [text-shadow:0_1px_8px_rgba(0,0,0,0.4)]">
+                  {site.shortDescription}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -297,19 +314,8 @@ export default function HeritageDetailClient({
           {/* ── MAIN CONTENT ── */}
           <div className="space-y-10">
             {/* Title row + actions */}
-            <Reveal className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              {site.shortDescription && (
-                <p className="text-base leading-relaxed text-body">{site.shortDescription}</p>
-              )}
-
-              <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
-                {matchScore !== undefined && (
-                  <span className="flex items-center gap-1 rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
-                    <Star className="h-3 w-3 fill-success" />
-                    {matchScore}% Match
-                  </span>
-                )}
-
+            <Reveal className="flex justify-end">
+              <div className="flex shrink-0 items-center gap-2">
                 <BookmarkButton siteId={site.id} initialIsBookmarked={initialIsBookmarked} />
 
                 <div className="relative">

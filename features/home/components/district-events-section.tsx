@@ -5,6 +5,7 @@ import Link from "next/link"
 import { motion } from "motion/react"
 import { fadeUp } from "@/lib/motion-variants"
 import { ArrowRight, Calendar, Megaphone } from "lucide-react"
+import { EmptyState } from "@/components/shared/empty-state"
 import { ParallaxImage } from "@/features/home/components/parallax-image"
 import type { HomeAnnouncement } from "@/features/home/types"
 import { useCardParallax } from "@/hooks/use-card-parallax"
@@ -161,13 +162,11 @@ export function DistrictEventsSection({ announcements }: DistrictEventsSectionPr
         </motion.div>
 
         {!featured ? (
-          <div className="rounded-3xl border border-dashed border-ink/15 bg-card/60 px-8 py-14 text-center">
-            <p className="text-display text-xl text-ink">No events yet</p>
-            <p className="mx-auto mt-2 max-w-lg text-sm text-ink-soft">
-              Upcoming festivals, heritage walks, and announcements will appear here as
-              they&rsquo;re published.
-            </p>
-          </div>
+          <EmptyState
+            icon={<Calendar size={24} strokeWidth={1.5} className="text-ink-soft/40" />}
+            title="No events yet"
+            description="Upcoming festivals, heritage walks, and announcements will appear here as they&rsquo;re published."
+          />
         ) : (
           <div
             className={`grid grid-cols-1 gap-6 ${

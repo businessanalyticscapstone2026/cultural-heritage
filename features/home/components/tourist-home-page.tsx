@@ -14,8 +14,13 @@ import {
   MapPin,
   Sparkles,
   Star,
+  Compass,
+  LayoutGrid,
+  Quote,
+  TrendingUp,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/shared/empty-state"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
 import { AtlasMapPreview } from "@/features/home/components/atlas-map-preview"
 import { getCategoryIcon } from "@/features/home/components/category-icon"
@@ -295,11 +300,11 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
         </motion.div>
 
         {featuredSites.length === 0 ? (
-          <EmptyPanel
+          <EmptyState
+            icon={<Sparkles size={24} strokeWidth={1.5} className="text-ink-soft/40" />}
             title="No featured sites yet"
             description="When heritage sites are marked as featured and published, they will appear here."
-            actionHref="/explore"
-            actionLabel="Browse all sites"
+            actions={[{ label: "Browse all sites", href: "/explore" }]}
           />
         ) : (
           <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
@@ -366,11 +371,11 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
         </motion.div>
 
         {categories.length === 0 ? (
-          <EmptyPanel
+          <EmptyState
+            icon={<LayoutGrid size={24} strokeWidth={1.5} className="text-ink-soft/40" />}
             title="No categories available"
             description="Heritage categories will appear here when configured by administrators."
-            actionHref="/explore"
-            actionLabel="Browse sites"
+            actions={[{ label: "Browse sites", href: "/explore" }]}
           />
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -457,11 +462,11 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
           </motion.div>
 
           {trendingSites.length === 0 ? (
-            <EmptyPanel
+            <EmptyState
+              icon={<TrendingUp size={24} strokeWidth={1.5} className="text-ink-soft/40" />}
               title="No trending sites yet"
               description="Visit and review activity will surface popular destinations here."
-              actionHref="/explore"
-              actionLabel="Start exploring"
+              actions={[{ label: "Start exploring", href: "/explore" }]}
             />
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -609,11 +614,11 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
         </motion.div>
 
         {recommendedSites.length === 0 ? (
-          <EmptyPanel
+          <EmptyState
+            icon={<Compass size={24} strokeWidth={1.5} className="text-ink-soft/40" />}
             title="No recommendations yet"
             description="Set your interests in your profile or start exploring to get personalized suggestions."
-            actionHref="/explore"
-            actionLabel="Explore sites"
+            actions={[{ label: "Explore sites", href: "/explore" }]}
           />
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -852,11 +857,11 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
           </motion.div>
 
           {testimonials.length === 0 ? (
-            <EmptyPanel
+            <EmptyState
+              icon={<Quote size={24} strokeWidth={1.5} className="text-ink-soft/40" />}
               title="No traveler stories yet"
               description="Approved reviews with a rating of 4 or higher will show up here. Be the first to share your visit."
-              actionHref="/explore"
-              actionLabel="Find a site to review"
+              actions={[{ label: "Find a site to review", href: "/explore" }]}
             />
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -954,31 +959,6 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
         </motion.div>
       </section>
     </>
-  )
-}
-
-function EmptyPanel({
-  title,
-  description,
-  actionHref,
-  actionLabel,
-}: {
-  title: string
-  description: string
-  actionHref: string
-  actionLabel: string
-}) {
-  return (
-    <div className="rounded-2xl border border-dashed border-ink/15 bg-card/50 px-8 py-14 text-center">
-      <p className="text-display text-xl text-ink">{title}</p>
-      <p className="mx-auto mt-2 max-w-md text-sm text-ink-soft">{description}</p>
-      <Link
-        href={actionHref}
-        className="mt-6 inline-flex items-center gap-1 text-sm text-accent transition-colors hover:text-ink"
-      >
-        {actionLabel} <ArrowRight size={14} />
-      </Link>
-    </div>
   )
 }
 

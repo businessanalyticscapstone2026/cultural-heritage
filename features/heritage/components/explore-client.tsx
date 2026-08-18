@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Search, X, SlidersHorizontal, Star, MapPin, Clock, ChevronRight, ChevronLeft, Sparkles } from "lucide-react"
+import { EmptyState } from "@/components/shared/empty-state"
 import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
 import { useDebounce } from "@/hooks/use-debounce"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
@@ -288,23 +289,23 @@ export default function ExploreClient({
         )}
 
         {totalCount === 0 ? (
-          <Reveal className="rounded-2xl border-2 border-dashed border-ink/15 bg-parchment/30 px-8 py-20 text-center">
-            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
-              <Search size={20} className="text-muted-foreground/70" />
-            </div>
-            <p className="text-lg font-medium text-ink">No sites found</p>
-            <p className="mt-1 max-w-sm mx-auto text-sm text-ink-soft">
-              No heritage sites match your current filters. Try adjusting your search terms, changing the municipality or category, or clearing all filters to browse all available sites.
-            </p>
-            {activeFilterCount > 0 && (
-              <button
-                onClick={clearAllFilters}
-                className="mt-6 inline-flex items-center gap-2 rounded-full bg-ink px-6 py-2.5 text-sm text-card transition-colors hover:bg-ink/90"
-              >
-                <X size={14} />
-                Clear all filters
-              </button>
-            )}
+          <Reveal>
+            <EmptyState
+              icon={<Search size={24} strokeWidth={1.5} className="text-ink-soft/40" />}
+              title="No sites found"
+              description="No heritage sites match your current filters. Try adjusting your search terms, changing the municipality or category, or clearing all filters to browse all available sites."
+              actions={
+                activeFilterCount > 0
+                  ? [
+                      {
+                        label: "Clear all filters",
+                        onClick: clearAllFilters,
+                        icon: <X size={14} />,
+                      },
+                    ]
+                  : undefined
+              }
+            />
           </Reveal>
         ) : (
           <>

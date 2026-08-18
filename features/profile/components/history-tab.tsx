@@ -3,6 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Clock, MapPin, Bookmark, ExternalLink } from "lucide-react"
+import { EmptyState } from "@/components/shared/empty-state"
 import { formatDistanceToNow } from "@/lib/format-time"
 import type { RecommendationHistoryItem } from "../types"
 
@@ -24,21 +25,12 @@ export default function HistoryTab({ items }: HistoryTabProps) {
           </p>
         </div>
 
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-ink/15 bg-parchment/30 px-8 py-16 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-ink/5">
-            <Clock size={24} strokeWidth={1.5} className="text-ink-soft/40" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-ink">No recommendations yet</p>
-          <p className="mt-1 max-w-xs text-xs text-ink-soft">
-            Start exploring heritage sites to get personalized recommendations.
-          </p>
-          <Link
-            href="/explore"
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-cream transition hover:bg-ink/90"
-          >
-            Explore Sites
-          </Link>
-        </div>
+        <EmptyState
+          icon={<Clock size={24} strokeWidth={1.5} className="text-ink-soft/40" />}
+          title="No recommendations yet"
+          description="Start exploring heritage sites to get personalized recommendations."
+          actions={[{ label: "Explore Sites", href: "/explore" }]}
+        />
       </div>
     )
   }

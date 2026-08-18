@@ -5,7 +5,9 @@ import Link from "next/link"
 import { motion } from "motion/react"
 import { fadeUp } from "@/lib/motion-variants"
 import { ArrowRight, Calendar, Megaphone } from "lucide-react"
+import { ParallaxImage } from "@/features/home/components/parallax-image"
 import type { HomeAnnouncement } from "@/features/home/types"
+import { useCardParallax } from "@/hooks/use-card-parallax"
 
 function truncate(text: string, max: number): string {
   const t = text.trim()
@@ -47,31 +49,6 @@ function CategoryPill({ category }: { category: string | null }) {
       <Icon size={10} />
       {label}
     </span>
-  )
-}
-
-function EventImage({
-  src,
-  alt,
-  className,
-}: {
-  src: string | null
-  alt: string
-  className?: string
-}) {
-  if (!src) {
-    return (
-      <div
-        className={`flex items-center justify-center bg-parchment ${className ?? ""}`}
-        aria-hidden
-      >
-        <Calendar className="h-10 w-10 text-ink/15" strokeWidth={1.25} />
-      </div>
-    )
-  }
-  return (
-    // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage / local asset URLs
-    <img src={src} alt={alt} className={className} loading="lazy" />
   )
 }
 
@@ -138,6 +115,25 @@ export function DistrictEventsSection({ announcements }: DistrictEventsSectionPr
   const [featured, second, third] = announcements
   const hasStack = Boolean(second || third)
 
+  const {
+    cardRef: featuredCardRef,
+    imageRef: featuredImageRef,
+    onPointerMove: featuredOnPointerMove,
+    onPointerLeave: featuredOnPointerLeave,
+  } = useCardParallax()
+  const {
+    cardRef: secondCardRef,
+    imageRef: secondImageRef,
+    onPointerMove: secondOnPointerMove,
+    onPointerLeave: secondOnPointerLeave,
+  } = useCardParallax()
+  const {
+    cardRef: thirdCardRef,
+    imageRef: thirdImageRef,
+    onPointerMove: thirdOnPointerMove,
+    onPointerLeave: thirdOnPointerLeave,
+  } = useCardParallax()
+
   return (
     <section
       id="whats-happening"
@@ -180,6 +176,9 @@ export function DistrictEventsSection({ announcements }: DistrictEventsSectionPr
           >
             {/* Featured event card */}
             <motion.article
+              ref={featuredCardRef}
+              onPointerMove={featuredOnPointerMove}
+              onPointerLeave={featuredOnPointerLeave}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -188,10 +187,12 @@ export function DistrictEventsSection({ announcements }: DistrictEventsSectionPr
                 hasStack ? "md:row-span-2" : ""
               }`}
             >
-              <EventImage
+              <ParallaxImage
                 src={featured.imageUrl}
                 alt={featured.title}
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-105"
+                imageRef={featuredImageRef}
+                className="absolute inset-0 h-full w-full"
+                placeholder={<Calendar className="h-10 w-10 text-ink/15" strokeWidth={1.25} />}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/55 to-ink/15" />
               <div className="relative flex h-full min-h-[380px] flex-col justify-end p-8 md:min-h-[480px] md:p-10">
@@ -212,16 +213,21 @@ export function DistrictEventsSection({ announcements }: DistrictEventsSectionPr
             {/* Stacked supporting cards */}
             {second && (
               <motion.article
+                ref={secondCardRef}
+                onPointerMove={secondOnPointerMove}
+                onPointerLeave={secondOnPointerLeave}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.7, delay: 0.1 }}
                 className="group relative min-h-[240px] overflow-hidden rounded-3xl bg-ink md:min-h-0 md:row-span-1"
               >
-                <EventImage
+                <ParallaxImage
                   src={second.imageUrl}
                   alt={second.title}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-105"
+                  imageRef={secondImageRef}
+                  className="absolute inset-0 h-full w-full"
+                  placeholder={<Calendar className="h-10 w-10 text-ink/15" strokeWidth={1.25} />}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/50 to-ink/10" />
                 <div className="relative flex h-full min-h-[240px] flex-col justify-end p-6 md:min-h-0 md:p-8">
@@ -234,16 +240,21 @@ export function DistrictEventsSection({ announcements }: DistrictEventsSectionPr
 
             {third && (
               <motion.article
+                ref={thirdCardRef}
+                onPointerMove={thirdOnPointerMove}
+                onPointerLeave={thirdOnPointerLeave}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.7, delay: 0.2 }}
                 className="group relative min-h-[240px] overflow-hidden rounded-3xl bg-ink md:min-h-0 md:row-span-1"
               >
-                <EventImage
+                <ParallaxImage
                   src={third.imageUrl}
                   alt={third.title}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-105"
+                  imageRef={thirdImageRef}
+                  className="absolute inset-0 h-full w-full"
+                  placeholder={<Calendar className="h-10 w-10 text-ink/15" strokeWidth={1.25} />}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/50 to-ink/10" />
                 <div className="relative flex h-full min-h-[240px] flex-col justify-end p-6 md:min-h-0 md:p-8">

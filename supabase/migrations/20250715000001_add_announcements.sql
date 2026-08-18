@@ -1,5 +1,5 @@
 -- REVIEW REQUIRED: This migration adds an `announcements` table to support
--- the tourist-facing home page "Upcoming Events & Announcements" section.
+-- the tourist-facing home page "What's happening in the district" section.
 -- It has NOT been reviewed or applied yet.
 --
 -- If you accept this migration, run:
@@ -7,12 +7,17 @@
 --
 -- If you reject it, delete this file and remove the
 -- AnnouncementsSection component from app/page.tsx.
+--
+-- CHT-092: added `category` (e.g. Festival, Event, Announcement) and
+-- `link_url` (external detail target for the "Learn more" action).
 
 CREATE TABLE public.announcements (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   title text NOT NULL,
   body text,
+  category text,
   image_url text,
+  link_url text,
   event_date date,
   municipality_id uuid,
   published boolean NOT NULL DEFAULT false,

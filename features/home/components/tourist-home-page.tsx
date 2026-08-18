@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
 import { AtlasMapPreview } from "@/features/home/components/atlas-map-preview"
 import { getCategoryIcon } from "@/features/home/components/category-icon"
-import { TourismHighlightsSection } from "@/features/home/components/tourism-highlights-section"
+import { DistrictEventsSection } from "@/features/home/components/district-events-section"
 import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
 import type { HomePagePayload, TrendingSource } from "@/features/home/types"
 import type { RecommendationResult } from "@/types/recommendation"
@@ -77,7 +77,7 @@ interface TouristHomePageProps {
 export function TouristHomePage({ data }: TouristHomePageProps) {
   const {
     featuredSites,
-    editorialHighlights,
+    announcements,
     categories,
     trendingSites,
     trendingSource,
@@ -287,8 +287,8 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
         )}
       </section>
 
-      {/* 3. Tourism highlights (CR-CHTS-002) */}
-      <TourismHighlightsSection highlights={editorialHighlights} />
+      {/* 3. What's happening in the district (CHT-092) */}
+      <DistrictEventsSection announcements={announcements} />
 
       {/* 4. Explore by type */}
       <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">

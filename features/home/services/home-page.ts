@@ -3,9 +3,9 @@ import { createClient } from "@/utils/supabase/server"
 import { readSessionId } from "@/lib/session"
 import { generateRecommendations } from "@/features/recommendation/services"
 import type {
+  HomeAnnouncement,
   HomeAtlasStats,
   HomeCategoryTile,
-  HomeEditorialHighlight,
   HomeMapPin,
   HomePagePayload,
   HomeSiteCard,
@@ -19,13 +19,7 @@ const TRENDING_LIMIT = 3
 const RECOMMENDED_LIMIT = 3
 const TESTIMONIAL_LIMIT = 3
 const MAP_PIN_LIMIT = 50
-const EDITORIAL_LIMIT = 2
-/**
- * Minimum character length for historical_significance or cultural_significance
- * to count as non-trivial narrative (beyond a name or short tagline).
- * Deliberately not relaxed when fewer than 2 sites qualify — show 1 or empty.
- */
-const NARRATIVE_MIN_LENGTH = 80
+const DISTRICT_EVENTS_LIMIT = 3
 const TRENDING_WINDOW_DAYS = 30
 /** Below this many engagement events (visits + clicks) we fall back to most-reviewed. */
 const TRENDING_ENGAGEMENT_THRESHOLD = 5
@@ -463,106 +457,92 @@ async function getTestimonials(supabase: SupabaseServer): Promise<HomeTestimonia
 }
 
 /**
- * Tourism highlights (CR-CHTS-002): editorial picks with real narrative content.
- * Qualifies when historical_significance or cultural_significance is non-trivial.
- * Returns up to 2 sites; if only one qualifies, returns one (does not lower threshold).
+ * CHT-092: curated fallback for the "What's happening in the district" section.
+ * Used when the announcements table is missing or empty so the section always
+ * renders designed content. Card images point at existing local municipality
+ * assets.
  */
-async function getEditorialHighlights(
+const CURATED_DISTRICT_EVENTS: HomeAnnouncement[] = [
+  {
+    id: "curated-lechon-festival",
+    title: "Parada ng Lechon",
+    body: "Experience Batangas' biggest food festival — a vibrant celebration of community, culture, and cuisine.",
+    category: "Festival",
+    imageUrl:
+      "/images/municipalities/balayan/What you Need to Know About Lechon Festival in Balayan.jfif",
+    linkUrl: null,
+    eventDate: "2026-06-24",
+    municipalityName: "Balayan",
+  },
+  {
+    id: "curated-heritage-walk",
+    title: "Heritage Walk: Taal",
+    body: null,
+    category: "Event",
+    imageUrl: "/images/municipalities/taal/Heritage Town of Taal.jfif",
+    linkUrl: null,
+    eventDate: "2026-08-22",
+    municipalityName: "Taal",
+  },
+  {
+    id: "curated-markers-unveiled",
+    title: "New Heritage Markers Unveiled",
+    body: null,
+    category: "Announcement",
+    imageUrl:
+      "/images/municipalities/calatagan/Cape Santiago Lighthouse in Calatagan Batangas, _A Beacon of History with Over a Century Worth of Stories to Tell_.jfif",
+    linkUrl: null,
+    eventDate: "2026-07-15",
+    municipalityName: "Calatagan",
+  },
+]
+
+type AnnouncementRow = {
+  id: string
+  title: string
+  body: string | null
+  category: string | null
+  image_url: string | null
+  link_url: string | null
+  event_date: string | null
+  municipality: { name: string } | { name: string }[] | null
+}
+
+/**
+ * CHT-092: published events/announcements for the home page, upcoming first.
+ * Returns the curated fallback when the table is missing (migration unapplied)
+ * or when no published rows exist yet.
+ */
+async function getDistrictEvents(
   supabase: SupabaseServer,
-): Promise<HomeEditorialHighlight[]> {
-  const { data, error } = await supabase
-    .from("heritage_sites")
-    .select(`
-      id, site_name, short_description, year_established,
-      historical_significance, cultural_significance,
-      latitude, longitude, is_featured, updated_at,
-      municipality:municipalities(name),
-      category:heritage_categories(name, color),
-      media:heritage_site_media(file_url, is_primary, media_type)
-    `)
-    .eq("publication_status", "published")
-    .eq("visibility", "public")
-    .or(
-      "historical_significance.not.is.null,cultural_significance.not.is.null",
-    )
-    .order("is_featured", { ascending: false })
-    .order("updated_at", { ascending: false })
-    .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
-    .limit(40)
+): Promise<HomeAnnouncement[]> {
+  try {
+    const { data, error } = await supabase
+      .from("announcements")
+      .select(
+        "id, title, body, category, image_url, link_url, event_date, municipality:municipalities(name)",
+      )
+      .eq("published", true)
+      .order("event_date", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(DISTRICT_EVENTS_LIMIT)
 
-  if (error) throw new Error(`Editorial highlights: ${error.message}`)
+    if (error) return CURATED_DISTRICT_EVENTS
+    if (!data?.length) return CURATED_DISTRICT_EVENTS
 
-  type EditorialRow = {
-    id: string
-    site_name: string
-    short_description: string | null
-    year_established: string | null
-    historical_significance: string | null
-    cultural_significance: string | null
-    latitude: number | null
-    longitude: number | null
-    is_featured: boolean
-    updated_at: string
-    municipality: { name: string } | { name: string }[] | null
-    category:
-      | { name: string; color: string | null }
-      | { name: string; color: string | null }[]
-      | null
-    media: MediaRow[] | null
+    return (data as AnnouncementRow[]).map((row) => ({
+      id: row.id,
+      title: row.title,
+      body: row.body,
+      category: row.category,
+      imageUrl: row.image_url,
+      linkUrl: row.link_url,
+      eventDate: row.event_date,
+      municipalityName: unwrapOne(row.municipality)?.name ?? null,
+    }))
+  } catch {
+    return CURATED_DISTRICT_EVENTS
   }
-
-  const scored: { highlight: HomeEditorialHighlight; score: number }[] = []
-
-  for (const row of data ?? []) {
-    const r = row as EditorialRow
-    const historical = (r.historical_significance ?? "").trim()
-    const cultural = (r.cultural_significance ?? "").trim()
-
-    let narrative = ""
-    let narrativeKind: "historical" | "cultural" = "historical"
-    if (historical.length >= NARRATIVE_MIN_LENGTH && historical.length >= cultural.length) {
-      narrative = historical
-      narrativeKind = "historical"
-    } else if (cultural.length >= NARRATIVE_MIN_LENGTH) {
-      narrative = cultural
-      narrativeKind = "cultural"
-    } else if (historical.length >= NARRATIVE_MIN_LENGTH) {
-      narrative = historical
-      narrativeKind = "historical"
-    } else {
-      continue
-    }
-
-    const mun = unwrapOne(r.municipality)
-    const cat = unwrapOne(r.category)
-    const lat = r.latitude != null ? Number(r.latitude) : null
-    const lng = r.longitude != null ? Number(r.longitude) : null
-    const hasCoords =
-      lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng)
-
-    scored.push({
-      highlight: {
-        id: r.id,
-        siteName: r.site_name,
-        shortDescription: r.short_description,
-        narrative,
-        narrativeKind,
-        yearEstablished: r.year_established,
-        municipalityName: mun?.name ?? null,
-        categoryName: cat?.name ?? null,
-        categoryColor: cat?.color ?? null,
-        imageUrl: pickPrimaryImage(r.media),
-        latitude: hasCoords ? lat : null,
-        longitude: hasCoords ? lng : null,
-      },
-      score: narrative.length + (r.is_featured ? 200 : 0) + (hasCoords ? 50 : 0),
-    })
-  }
-
-  return scored
-    .sort((a, b) => b.score - a.score)
-    .slice(0, EDITORIAL_LIMIT)
-    .map((x) => x.highlight)
 }
 
 const NEARBY_HOME_LIMIT = 4
@@ -642,7 +622,7 @@ export async function getTouristHomePageData(): Promise<HomePagePayload> {
 
   const [
     featuredSites,
-    editorialHighlights,
+    announcements,
     categories,
     trending,
     mapPins,
@@ -651,7 +631,7 @@ export async function getTouristHomePageData(): Promise<HomePagePayload> {
     testimonials,
   ] = await Promise.all([
     getFeaturedSites(supabase),
-    getEditorialHighlights(supabase),
+    getDistrictEvents(supabase),
     getCategoryTiles(supabase),
     getTrendingSites(supabase),
     getMapPins(supabase),
@@ -668,7 +648,7 @@ export async function getTouristHomePageData(): Promise<HomePagePayload> {
 
   return {
     featuredSites,
-    editorialHighlights,
+    announcements,
     categories,
     trendingSites: trending.sites,
     trendingSource: trending.source,

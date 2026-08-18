@@ -59,27 +59,25 @@ export type TrendingSource =
   | "combined_engagement"
   | "most_reviewed"
 
-/** Editorial tourism-highlight site with narrative significance fields. */
-export interface HomeEditorialHighlight {
+/** An event or announcement shown in the "What's happening in the district" section. */
+export interface HomeAnnouncement {
   id: string
-  siteName: string
-  shortDescription: string | null
-  /** Preferred narrative body (historical or cultural significance). */
-  narrative: string
-  narrativeKind: "historical" | "cultural"
-  yearEstablished: string | null
-  municipalityName: string | null
-  categoryName: string | null
-  categoryColor: string | null
+  title: string
+  body: string | null
+  /** Category label drives the pill (e.g. Festival, Event, Announcement). */
+  category: string | null
   imageUrl: string | null
-  latitude: number | null
-  longitude: number | null
+  /** Optional external detail target for the "Learn more" action. */
+  linkUrl: string | null
+  /** ISO date (YYYY-MM-DD). */
+  eventDate: string | null
+  municipalityName: string | null
 }
 
 export interface HomePagePayload {
   featuredSites: HomeSiteCard[]
-  /** CR-CHTS-002: narrative-rich sites for the tourism highlights editorial section (0–2). */
-  editorialHighlights: HomeEditorialHighlight[]
+  /** CHT-092: events & announcements for the "What's happening" section (0–3, with curated fallback). */
+  announcements: HomeAnnouncement[]
   categories: HomeCategoryTile[]
   trendingSites: HomeSiteCard[]
   trendingSource: TrendingSource

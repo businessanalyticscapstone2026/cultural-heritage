@@ -238,8 +238,11 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
                   ease: [0.22, 1, 0.36, 1],
                 }}
               >
-                <Link href={`/heritage/${site.id}`} className="group relative flex flex-col">
-                  <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-parchment">
+                <Link
+                  href={`/heritage/${site.id}`}
+                  className="group relative flex flex-col transition-all duration-300 ease-out hover:-translate-y-1.5"
+                >
+                  <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-parchment transition-shadow duration-300 hover:shadow-xl">
                     <SiteImage
                       src={site.imageUrl}
                       alt={site.siteName}
@@ -452,7 +455,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
                 >
                   <Link
                     href={`/heritage/${site.id}`}
-                    className="group flex items-center gap-5 rounded-2xl border border-ink/10 bg-card p-4 transition-all hover:border-ink/20 hover:shadow-lg"
+                    className="group flex items-center gap-5 rounded-2xl border border-ink/10 bg-card p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-lg"
                   >
                     <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-parchment">
                       <SiteImage
@@ -609,7 +612,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
                     onClick={() => {
                       if (rec?.recommendationId) handleRecClick(rec.recommendationId)
                     }}
-                    className="group flex flex-col overflow-hidden rounded-2xl border border-ink/10 bg-card transition-all duration-300 hover:-translate-y-1 hover:border-ink/20 hover:shadow-xl"
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-ink/10 bg-card transition-all duration-300 hover:-translate-y-1.5 hover:border-ink/20 hover:shadow-xl"
                   >
                     <div className="relative aspect-[4/3] overflow-hidden">
                       <SiteImage
@@ -707,7 +710,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
               >
                 <Link
                   href={`/heritage/${site.id}`}
-                  className="group flex items-center gap-5 rounded-2xl border border-ink/10 bg-card p-4 transition-all hover:border-ink/20 hover:shadow-lg"
+                  className="group flex items-center gap-5 rounded-2xl border border-ink/10 bg-card p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-lg"
                 >
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-parchment">
                     <SiteImage
@@ -774,7 +777,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
               >
                 <Link
                   href={`/heritage/${site.id}`}
-                  className="group flex items-center gap-5 rounded-2xl border border-ink/10 bg-card p-4 transition-all hover:border-ink/20 hover:shadow-lg"
+                  className="group flex items-center gap-5 rounded-2xl border border-ink/10 bg-card p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-lg"
                 >
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-parchment">
                     <SiteImage

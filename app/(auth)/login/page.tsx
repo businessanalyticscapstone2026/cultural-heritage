@@ -185,7 +185,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen">
       {/* Left Panel — Form (full height, no sub-card) */}
       <div className="flex-1 flex flex-col justify-center bg-white px-8 lg:px-16 py-10">
-        <div className="w-full max-w-sm mx-auto lg:mx-0">
+        <div className="w-full max-w-sm mx-auto">
           {/* Logo */}
           <div className="mb-8">
             <Link href="/" className="mb-6 inline-flex items-center gap-1.5 text-xs text-ink-soft transition-colors hover:text-ink">
@@ -193,8 +193,8 @@ export default function LoginPage() {
               Back to home
             </Link>
             <BrandLogo variant="light" className="mb-4 size-12" />
-            <h1 className="text-2xl font-semibold text-[#0B2A4A]">Welcome back</h1>
-            <p className="text-sm text-gray-500 mt-1">Sign in to explore heritage sites near you</p>
+            <h1 className="text-3xl font-semibold leading-tight text-[#0B2A4A]">Welcome back</h1>
+            <p className="text-sm text-gray-500 mt-2">Sign in to explore heritage sites near you</p>
           </div>
 
           {/* Error banner */}
@@ -234,7 +234,7 @@ export default function LoginPage() {
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             {/* Email */}
             <div>
               <label htmlFor="login-email" className="block text-sm font-medium text-[#0B2A4A] mb-1.5">
@@ -248,7 +248,7 @@ export default function LoginPage() {
                   placeholder="Enter your email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white text-[#0B2A4A] placeholder:text-gray-400 outline-none transition-colors focus:border-[#1D5FA8] focus:ring-2 focus:ring-[#1D5FA8]/15"
+                  className="w-full h-11 pl-10 pr-4 border border-gray-300 rounded-lg text-sm bg-white text-[#0B2A4A] placeholder:text-gray-400 outline-none transition-colors focus:border-[#1D5FA8] focus:ring-2 focus:ring-[#1D5FA8]/15"
                   autoComplete="email"
                   required
                 />
@@ -268,7 +268,7 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm bg-white text-[#0B2A4A] placeholder:text-gray-400 outline-none transition-colors focus:border-[#1D5FA8] focus:ring-2 focus:ring-[#1D5FA8]/15"
+                  className="w-full h-11 pl-10 pr-10 border border-gray-300 rounded-lg text-sm bg-white text-[#0B2A4A] placeholder:text-gray-400 outline-none transition-colors focus:border-[#1D5FA8] focus:ring-2 focus:ring-[#1D5FA8]/15"
                   autoComplete="current-password"
                   required
                 />
@@ -302,14 +302,14 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleForgotPassword}
                 disabled={isResetting}
-                className="text-sm text-[#1D5FA8] hover:underline disabled:opacity-50 transition-opacity"
+                className="text-sm font-medium text-[#1D5FA8] hover:underline disabled:opacity-50 transition-opacity"
               >
                 {isResetting ? "Sending..." : "Forgot password?"}
               </button>
             </div>
 
             {/* Submit button */}
-            <Button type="submit" disabled={isLoading} className="w-full h-10 bg-[#0B2A4A] hover:bg-[#0B2A4A]/90">
+            <Button type="submit" disabled={isLoading} className="w-full h-11 bg-[#0B2A4A] hover:bg-[#0B2A4A]/90">
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg
@@ -332,7 +332,7 @@ export default function LoginPage() {
           </form>
 
           {/* Register link */}
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <p className="text-sm text-gray-500">
               Don&apos;t have an account?{" "}
               <Link

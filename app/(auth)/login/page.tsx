@@ -1,14 +1,28 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
+import type { ReactNode, Ref } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Eye, EyeOff, Mail, Lock, Compass, Route, Star, Heart, X, ArrowLeft } from "lucide-react"
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  Compass,
+  Route,
+  Star,
+  Heart,
+  X,
+  ArrowLeft,
+  AlertCircle,
+} from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
 import { checkLoginRateLimitAction } from "@/features/audit/actions"
 import { BrandLogo } from "@/components/brand/brand-logo"
+import { cn } from "@/lib/utils"
 
 const currentYear = new Date().getFullYear()
 
@@ -35,6 +49,99 @@ const features = [
   },
 ]
 
+interface LoginFieldProps {
+  id: string
+  label: string
+  type: string
+  placeholder: string
+  value: string
+  onChange: (value: string) => void
+  icon: ReactNode
+  trailing?: ReactNode
+  error?: string
+  disabled?: boolean
+  autoComplete: string
+  inputRef?: Ref<HTMLInputElement>
+}
+
+function LoginField({
+  id,
+  label,
+  type,
+  placeholder,
+  value,
+  onChange,
+  icon,
+  trailing,
+  error,
+  disabled,
+  autoComplete,
+  inputRef,
+}: LoginFieldProps) {
+  const filled = value !== ""
+
+  const iconClasses = disabled
+    ? "text-gray-400"
+    : error
+      ? "text-error group-focus-within:text-error"
+      : filled
+        ? "text-gray-500 group-hover:text-gray-500 group-focus-within:text-[#1D5FA8]"
+        : "text-gray-400 group-hover:text-gray-500 group-focus-within:text-[#1D5FA8]"
+
+  const inputClasses = cn(
+    "h-11 w-full rounded-lg border bg-white pl-10 text-sm text-[#0B2A4A] placeholder:text-gray-400 outline-none transition-colors duration-150",
+    "disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 disabled:placeholder:text-gray-300 disabled:hover:border-gray-200",
+    trailing ? "pr-10" : "pr-4",
+    disabled
+      ? ""
+      : error
+        ? "border-error hover:border-error focus:border-error focus:ring-2 focus:ring-error/15"
+        : filled
+          ? "border-gray-400 hover:border-gray-400 focus:border-[#1D5FA8] focus:ring-2 focus:ring-[#1D5FA8]/15"
+          : "border-gray-300 hover:border-gray-400 focus:border-[#1D5FA8] focus:ring-2 focus:ring-[#1D5FA8]/15",
+  )
+
+  return (
+    <div className="group">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-[#0B2A4A]">
+        {label}
+      </label>
+      <div className="relative">
+        <span
+          className={cn(
+            "pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-150",
+            iconClasses,
+          )}
+        >
+          {icon}
+        </span>
+        <input
+          id={id}
+          ref={inputRef}
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          autoComplete={autoComplete}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className={inputClasses}
+        />
+        {trailing && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">{trailing}</div>
+        )}
+      </div>
+      {error && (
+        <p id={`${id}-error`} className="mt-1.5 flex items-center gap-1.5 text-xs text-error">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -48,14 +155,27 @@ export default function LoginPage() {
   const [resetMessage, setResetMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  const fieldsDisabled = isLoading || isResetting
 
   const validateForm = useCallback((): boolean => {
+    const next: { email?: string; password?: string } = {}
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Please enter a valid email address.")
-      return false
+      next.email = "Please enter a valid email address."
     }
     if (!password) {
-      setError("Please enter your password.")
+      next.password = "Please enter your password."
+    }
+    setFieldErrors(next)
+    if (next.email) {
+      emailRef.current?.focus()
+      return false
+    }
+    if (next.password) {
+      passwordRef.current?.focus()
       return false
     }
     return true
@@ -65,6 +185,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null)
     setResetMessage(null)
+    setFieldErrors({})
 
     if (!validateForm()) return
 
@@ -150,12 +271,14 @@ export default function LoginPage() {
 
   const handleForgotPassword = async () => {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Please enter your email address above first.")
+      setFieldErrors({ email: "Please enter your email address above first." })
+      emailRef.current?.focus()
       return
     }
 
     setError(null)
     setResetMessage(null)
+    setFieldErrors({})
     setIsResetting(true)
 
     try {
@@ -236,56 +359,55 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             {/* Email */}
-            <div>
-              <label htmlFor="login-email" className="block text-sm font-medium text-[#0B2A4A] mb-1.5">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                <input
-                  id="login-email"
-                  type="email"
-                  placeholder="Enter your email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-11 pl-10 pr-4 border border-gray-300 rounded-lg text-sm bg-white text-[#0B2A4A] placeholder:text-gray-400 outline-none transition-colors focus:border-[#1D5FA8] focus:ring-2 focus:ring-[#1D5FA8]/15"
-                  autoComplete="email"
-                  required
-                />
-              </div>
-            </div>
+            <LoginField
+              id="login-email"
+              label="Email Address"
+              type="email"
+              placeholder="Enter your email address"
+              value={email}
+              onChange={(value) => {
+                setEmail(value)
+                if (fieldErrors.email) {
+                  setFieldErrors((prev) => ({ ...prev, email: undefined }))
+                }
+              }}
+              icon={<Mail className="h-4 w-4" />}
+              error={fieldErrors.email}
+              disabled={fieldsDisabled}
+              autoComplete="email"
+              inputRef={emailRef}
+            />
 
             {/* Password */}
-            <div>
-              <label htmlFor="login-password" className="block text-sm font-medium text-[#0B2A4A] mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                <input
-                  id="login-password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-11 pl-10 pr-10 border border-gray-300 rounded-lg text-sm bg-white text-[#0B2A4A] placeholder:text-gray-400 outline-none transition-colors focus:border-[#1D5FA8] focus:ring-2 focus:ring-[#1D5FA8]/15"
-                  autoComplete="current-password"
-                  required
-                />
+            <LoginField
+              id="login-password"
+              label="Password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(value) => {
+                setPassword(value)
+                if (fieldErrors.password) {
+                  setFieldErrors((prev) => ({ ...prev, password: undefined }))
+                }
+              }}
+              icon={<Lock className="h-4 w-4" />}
+              trailing={
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0B2A4A] transition-colors"
+                  disabled={fieldsDisabled}
+                  className="text-gray-400 transition-colors hover:text-[#0B2A4A] group-focus-within:text-[#1D5FA8] disabled:opacity-50"
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
-              </div>
-            </div>
+              }
+              error={fieldErrors.password}
+              disabled={fieldsDisabled}
+              autoComplete="current-password"
+              inputRef={passwordRef}
+            />
 
             {/* Remember me + Forgot Password */}
             <div className="flex items-center justify-between">
@@ -309,7 +431,7 @@ export default function LoginPage() {
             </div>
 
             {/* Submit button */}
-            <Button type="submit" disabled={isLoading} className="w-full h-11 bg-[#0B2A4A] hover:bg-[#0B2A4A]/90">
+            <Button type="submit" disabled={fieldsDisabled} className="w-full h-11 bg-[#0B2A4A] hover:bg-[#0B2A4A]/90">
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg

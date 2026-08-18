@@ -1,0 +1,58 @@
+"use client"
+
+import type { ReactNode } from "react"
+
+interface ParallaxImageProps {
+  src: string | null
+  alt: string
+  className?: string
+  imgClassName?: string
+  imageRef?: (element: HTMLElement | null) => void
+  placeholder?: ReactNode
+}
+
+/**
+ * Card image with a restrained hover zoom on a wrapper that carries the
+ * mouse-follow parallax transform (driven by `useCardParallax`).
+ *
+ * `className` positions the wrapper (e.g. `absolute inset-0 h-full w-full`);
+ * the inner `<img>` always fills it and zooms gently on group hover, leaving
+ * overscan for the parallax translate.
+ */
+export function ParallaxImage({
+  src,
+  alt,
+  className,
+  imgClassName,
+  imageRef,
+  placeholder,
+}: ParallaxImageProps) {
+  if (!src) {
+    return (
+      <div
+        ref={imageRef}
+        className={`flex items-center justify-center bg-parchment ${className ?? ""}`}
+        aria-hidden
+      >
+        {placeholder}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={imageRef}
+      className={`will-change-transform transition-transform duration-300 ease-out ${className ?? ""}`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage / local asset URLs */}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        className={`h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-[1.08] ${
+          imgClassName ?? ""
+        }`}
+      />
+    </div>
+  )
+}

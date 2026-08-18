@@ -20,8 +20,10 @@ import { CardBookmarkButton } from "@/features/bookmarks/components"
 import { AtlasMapPreview } from "@/features/home/components/atlas-map-preview"
 import { getCategoryIcon } from "@/features/home/components/category-icon"
 import { DistrictEventsSection } from "@/features/home/components/district-events-section"
+import { ParallaxImage } from "@/features/home/components/parallax-image"
 import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
-import type { HomePagePayload, TrendingSource } from "@/features/home/types"
+import { useCardParallax } from "@/hooks/use-card-parallax"
+import type { HomePagePayload, HomeSiteCard, TrendingSource } from "@/features/home/types"
 import type { RecommendationResult } from "@/types/recommendation"
 
 const CATEGORIES_PER_PAGE = 4
@@ -67,6 +69,81 @@ function SiteImage({
   return (
     // eslint-disable-next-line @next/next/no-img-element -- remote Supabase Storage URLs
     <img src={src} alt={alt} className={className} loading="lazy" />
+  )
+}
+
+function FeaturedSiteCard({
+  site,
+  index,
+}: {
+  site: HomeSiteCard
+  index: number
+}) {
+  const { cardRef, imageRef, onPointerMove, onPointerLeave } = useCardParallax()
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{
+        duration: 0.8,
+        delay: index * 0.08,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+    >
+      <Link
+        ref={cardRef}
+        onPointerMove={onPointerMove}
+        onPointerLeave={onPointerLeave}
+        href={`/heritage/${site.id}`}
+        className="group relative flex flex-col transition-all duration-300 ease-out hover:-translate-y-1.5"
+      >
+        <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-parchment transition-shadow duration-300 hover:shadow-xl">
+          <ParallaxImage
+            src={site.imageUrl}
+            alt={site.siteName}
+            imageRef={imageRef}
+            className="h-full w-full"
+            placeholder={<MapIcon className="h-8 w-8 text-ink/20" strokeWidth={1.25} />}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+          {site.categoryName && (
+            <span
+              className="absolute left-3 top-3 rounded-full bg-cream/85 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-ink backdrop-blur"
+              style={
+                site.categoryColor
+                  ? { borderLeft: `3px solid ${site.categoryColor}` }
+                  : undefined
+              }
+            >
+              {site.categoryName}
+            </span>
+          )}
+          <CardBookmarkButton siteId={site.id} />
+        </div>
+        <div className="mt-4 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="text-display text-xl leading-tight text-ink transition-colors group-hover:text-accent">
+              {site.siteName}
+            </h3>
+            <p className="text-sm text-ink-soft">
+              {site.municipalityName ?? "Batangas"}
+            </p>
+            {site.shortDescription && (
+              <p className="mt-1 line-clamp-2 text-xs text-ink-soft/90">
+                {site.shortDescription}
+              </p>
+            )}
+          </div>
+          {site.yearEstablished && (
+            <span className="shrink-0 font-mono text-xs text-accent">
+              {site.yearEstablished}
+            </span>
+          )}
+        </div>
+      </Link>
+    </motion.div>
   )
 }
 
@@ -227,64 +304,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
         ) : (
           <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
             {featuredSites.map((site, i) => (
-              <motion.div
-                key={site.id}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{
-                  duration: 0.8,
-                  delay: i * 0.08,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-              >
-                <Link
-                  href={`/heritage/${site.id}`}
-                  className="group relative flex flex-col transition-all duration-300 ease-out hover:-translate-y-1.5"
-                >
-                  <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-parchment transition-shadow duration-300 hover:shadow-xl">
-                    <SiteImage
-                      src={site.imageUrl}
-                      alt={site.siteName}
-                      className="h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-ink/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-                    {site.categoryName && (
-                      <span
-                        className="absolute left-3 top-3 rounded-full bg-cream/85 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-ink backdrop-blur"
-                        style={
-                          site.categoryColor
-                            ? { borderLeft: `3px solid ${site.categoryColor}` }
-                            : undefined
-                        }
-                      >
-                        {site.categoryName}
-                      </span>
-                    )}
-                    <CardBookmarkButton siteId={site.id} />
-                  </div>
-                  <div className="mt-4 flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="text-display text-xl leading-tight text-ink transition-colors group-hover:text-accent">
-                        {site.siteName}
-                      </h3>
-                      <p className="text-sm text-ink-soft">
-                        {site.municipalityName ?? "Batangas"}
-                      </p>
-                      {site.shortDescription && (
-                        <p className="mt-1 line-clamp-2 text-xs text-ink-soft/90">
-                          {site.shortDescription}
-                        </p>
-                      )}
-                    </div>
-                    {site.yearEstablished && (
-                      <span className="shrink-0 font-mono text-xs text-accent">
-                        {site.yearEstablished}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              </motion.div>
+              <FeaturedSiteCard key={site.id} site={site} index={i} />
             ))}
           </div>
         )}

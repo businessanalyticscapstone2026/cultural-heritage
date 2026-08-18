@@ -1,15 +1,17 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { SlidersHorizontal } from "lucide-react"
 import { getBookmarkedSitesAction, toggleBookmarkAction } from "@/features/heritage/actions/bookmark"
 import type { SavedSite } from "@/types/heritage"
+import { EmptyState as SharedEmptyState } from "@/components/shared/empty-state"
+import { Reveal } from "@/components/animations/reveal"
 import {
   SavedHeader,
   SavedSitesList,
   UndoToast,
   EmptyState,
 } from "@/features/bookmarks/components"
-import { Reveal } from "@/components/animations/reveal"
 
 interface UndoState {
   siteId: string
@@ -189,20 +191,22 @@ export default function SavedSitesPageContent() {
         <Reveal><EmptyState /></Reveal>
       ) : filteredSites.length === 0 ? (
         <Reveal>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-sm text-ink-soft">
-              No sites match the current filters.
-            </p>
-            <button
-              onClick={() => {
-                setMunicipalityFilter(null)
-                setCategoryFilter(null)
-              }}
-              className="mt-2 text-sm text-accent hover:underline"
-            >
-              Clear filters
-            </button>
-          </div>
+          <SharedEmptyState
+            icon={
+              <SlidersHorizontal size={24} strokeWidth={1.5} className="text-ink-soft/40" />
+            }
+            title="No sites match the current filters"
+            description="Try adjusting the filters to see more of your saved sites."
+            actions={[
+              {
+                label: "Clear filters",
+                onClick: () => {
+                  setMunicipalityFilter(null)
+                  setCategoryFilter(null)
+                },
+              },
+            ]}
+          />
         </Reveal>
       ) : (
         <SavedSitesList sites={filteredSites} onRemove={handleRemove} />

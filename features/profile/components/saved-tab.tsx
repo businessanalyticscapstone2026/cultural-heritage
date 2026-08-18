@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Bookmark, Compass, MapPin, Trash2, Loader2 } from "lucide-react"
 import Image from "next/image"
+import { EmptyState } from "@/components/shared/empty-state"
 import { toggleBookmarkAction } from "@/features/heritage/actions/bookmark"
 import type { SavedSite } from "@/types/heritage"
 
@@ -46,22 +47,18 @@ export default function SavedTab({ initialSites }: SavedTabProps) {
       </div>
 
       {sites.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-ink/15 bg-parchment/30 px-8 py-16 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-ink/5">
-            <Bookmark size={24} strokeWidth={1.5} className="text-ink-soft/40" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-ink">No saved sites yet</p>
-          <p className="mt-1 max-w-xs text-xs text-ink-soft">
-            Bookmark heritage sites you&apos;re interested in and they&apos;ll appear here.
-          </p>
-          <Link
-            href="/explore"
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-cream transition hover:bg-ink/90"
-          >
-            <Compass size={14} strokeWidth={1.5} />
-            Explore Heritage Sites
-          </Link>
-        </div>
+        <EmptyState
+          icon={<Bookmark size={24} strokeWidth={1.5} className="text-ink-soft/40" />}
+          title="No saved sites yet"
+          description="Bookmark heritage sites you&apos;re interested in and they&apos;ll appear here."
+          actions={[
+            {
+              label: "Explore Heritage Sites",
+              href: "/explore",
+              icon: <Compass size={14} strokeWidth={1.5} />,
+            },
+          ]}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sites.map((site) => (

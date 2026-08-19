@@ -21,7 +21,7 @@ import {
   Camera,
 } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
-import { Reveal } from "@/components/animations/reveal"
+import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 import type { HeritageSite, HeritageSiteTag, HeritageSiteReferenceLink } from "../types"
 import { BookmarkButton } from "./bookmark-button"
@@ -448,25 +448,26 @@ export default function HeritageDetailClient({
                   Photo Gallery
                 </h2>
 
-                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <Stagger className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {images.map((img, i) => (
-                    <button
-                      key={img.id}
-                      onClick={() => openLightbox(i)}
-                      className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-border"
-                      aria-label={`View photo ${i + 1}${img.caption ? `: ${img.caption}` : ""}`}
-                    >
-                      <Image
-                        src={img.fileUrl}
-                        alt={img.caption ?? `Photo ${i + 1}`}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                        loading={i < 6 ? "eager" : "lazy"}
-                      />
-                    </button>
+                    <StaggerItem key={img.id}>
+                      <button
+                        onClick={() => openLightbox(i)}
+                        className="group relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-border"
+                        aria-label={`View photo ${i + 1}${img.caption ? `: ${img.caption}` : ""}`}
+                      >
+                        <Image
+                          src={img.fileUrl}
+                          alt={img.caption ?? `Photo ${i + 1}`}
+                          fill
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                          loading={i < 6 ? "eager" : "lazy"}
+                        />
+                      </button>
+                    </StaggerItem>
                   ))}
-                </div>
+                </Stagger>
                 </section>
               </Reveal>
             )}

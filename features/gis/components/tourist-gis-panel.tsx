@@ -70,11 +70,7 @@ const Map = dynamic(
   () => import("@/components/ui/map").then((m) => m.Map),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-full items-center justify-center bg-parchment/30 text-sm text-ink-soft">
-        Loading map...
-      </div>
-    ),
+    loading: () => <div className="h-full w-full animate-pulse bg-muted" />,
   },
 )
 const MapMarker = dynamic(

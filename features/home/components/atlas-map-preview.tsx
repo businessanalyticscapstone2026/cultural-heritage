@@ -8,13 +8,7 @@ const Map = dynamic(
   () => import("@/components/ui/map").then((m) => m.Map),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-full w-full items-center justify-center rounded-3xl bg-parchment/30">
-        <span className="font-mono text-xs uppercase tracking-widest text-ink-soft/50">
-          Loading map…
-        </span>
-      </div>
-    ),
+    loading: () => <div className="h-full w-full animate-pulse rounded-3xl bg-muted" />,
   },
 )
 const MapMarker = dynamic(

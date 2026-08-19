@@ -4,6 +4,8 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import type { ReactNode, Ref } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { motion, useReducedMotion } from "motion/react"
+import { EASE } from "@/lib/motion-variants"
 import {
   Eye,
   EyeOff,
@@ -146,6 +148,7 @@ export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
   const { refreshSession } = useAuth()
+  const prefersReducedMotion = useReducedMotion()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -307,7 +310,12 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* Left Panel — Form (full height, no sub-card) */}
-      <div className="flex-1 flex flex-col justify-center bg-white px-8 lg:px-16 py-10">
+      <motion.div
+        initial={prefersReducedMotion ? undefined : { opacity: 0, x: -24 }}
+        animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
+        transition={{ duration: 0.55, ease: EASE }}
+        className="flex-1 flex flex-col justify-center bg-white px-8 lg:px-16 py-10"
+      >
         <div className="w-full max-w-sm mx-auto">
           {/* Logo */}
           <div className="mb-8">
@@ -467,10 +475,15 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Right Panel — Hero / Branding (hidden below 1024px) */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col overflow-hidden">
+      <motion.div
+        initial={prefersReducedMotion ? undefined : { opacity: 0, x: 24 }}
+        animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
+        transition={{ duration: 0.55, ease: EASE, delay: prefersReducedMotion ? 0 : 0.1 }}
+        className="hidden lg:flex lg:w-1/2 relative flex-col overflow-hidden"
+      >
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url('/images/municipalities/taal/Basilica Minore de San Martin de Tours - Taal Batangas.jfif')" }}
@@ -526,7 +539,7 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

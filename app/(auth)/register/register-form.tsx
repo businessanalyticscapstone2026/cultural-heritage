@@ -3,10 +3,12 @@
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { motion, useReducedMotion } from "motion/react"
 import { Eye, EyeOff, Mail, Lock, User, Compass, Route, Star, Heart, X, ArrowLeft } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { BrandLogo } from "@/components/brand/brand-logo"
+import { EASE } from "@/lib/motion-variants"
 
 const currentYear = new Date().getFullYear()
 
@@ -36,6 +38,7 @@ const features = [
 export default function RegisterForm() {
   const router = useRouter()
   const supabase = createClient()
+  const prefersReducedMotion = useReducedMotion()
 
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -123,7 +126,12 @@ export default function RegisterForm() {
   return (
     <div className="flex min-h-screen">
         {/* Left Panel — Hero / Branding (hidden below 1024px) */}
-        <div className="hidden lg:flex lg:w-1/2 relative flex-col overflow-hidden">
+        <motion.div
+          initial={prefersReducedMotion ? undefined : { opacity: 0, x: -24 }}
+          animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
+          transition={{ duration: 0.55, ease: EASE }}
+          className="hidden lg:flex lg:w-1/2 relative flex-col overflow-hidden"
+        >
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: "url('/images/municipalities/taal/Basilica Minore de San Martin de Tours - Taal Batangas.jfif')" }}
@@ -175,10 +183,15 @@ export default function RegisterForm() {
               </p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Right Panel — Form (full height, no sub-card) */}
-        <div className="flex-1 flex flex-col justify-center bg-white px-8 lg:px-16 py-10">
+        <motion.div
+          initial={prefersReducedMotion ? undefined : { opacity: 0, x: 24 }}
+          animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
+          transition={{ duration: 0.55, ease: EASE, delay: prefersReducedMotion ? 0 : 0.1 }}
+          className="flex-1 flex flex-col justify-center bg-white px-8 lg:px-16 py-10"
+        >
           <div className="w-full max-w-sm mx-auto lg:mx-0 lg:ml-auto">
             {/* Logo */}
             <div className="mb-8">
@@ -394,7 +407,7 @@ export default function RegisterForm() {
               </p>
             </div>
           </div>
-        </div>
+        </motion.div>
     </div>
   )
 }

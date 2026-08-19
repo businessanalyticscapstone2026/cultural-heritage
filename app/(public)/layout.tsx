@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server"
 import { QRScannerFAB } from "@/features/qr-code/components"
 import { BrandLogo } from "@/components/brand/brand-logo"
 import { FooterContact } from "@/components/layout/footer-contact"
+import { BackToTop } from "@/components/shared/back-to-top"
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -17,6 +18,7 @@ export default async function PublicLayout({ children }: { children: React.React
       <main className="min-h-screen bg-background text-ink overflow-x-clip pb-20 pt-0 md:pb-0 md:pt-0">{children}</main>
       <PublicFooter isAuthenticated={!!user} />
       <QRScannerFAB />
+      <BackToTop />
     </>
   )
 }

@@ -1,11 +1,9 @@
-import { Suspense } from "react"
 import type { Metadata } from "next"
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
 import { getPublishedSites, getExploreCategories, getExploreFilterOptions } from "@/features/heritage/services/explore"
 import { getGlobalSettingsPublic } from "@/features/settings/services"
 import ExploreClient from "@/features/heritage/components/explore-client"
-import ExploreSkeleton from "./loading"
 
 export const metadata: Metadata = {
   title: "Explore Heritage Sites | Batangas Heritage",
@@ -112,22 +110,20 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
         </p>
       </div>
 
-      <Suspense fallback={<ExploreSkeleton />}>
-        <ExploreClient
-          initialData={initialData}
-          categories={categories}
-          municipalities={filterOptions.municipalities}
-          historicalPeriods={filterOptions.historicalPeriods}
-          searchQuery={searchQuery}
-          activeCategoryId={categoryId || null}
-          activeMunicipalityId={municipalityId}
-          activeHistoricalPeriod={historicalPeriod}
-          activeAccessibility={accessibility}
-          recommendedSiteIds={recommendedSiteIds}
-          recommendedRecIdMap={recommendedRecIdMap}
-          initialBookmarkedIds={bookmarkedSiteIds}
-        />
-      </Suspense>
+      <ExploreClient
+        initialData={initialData}
+        categories={categories}
+        municipalities={filterOptions.municipalities}
+        historicalPeriods={filterOptions.historicalPeriods}
+        searchQuery={searchQuery}
+        activeCategoryId={categoryId || null}
+        activeMunicipalityId={municipalityId}
+        activeHistoricalPeriod={historicalPeriod}
+        activeAccessibility={accessibility}
+        recommendedSiteIds={recommendedSiteIds}
+        recommendedRecIdMap={recommendedRecIdMap}
+        initialBookmarkedIds={bookmarkedSiteIds}
+      />
     </div>
   )
 }

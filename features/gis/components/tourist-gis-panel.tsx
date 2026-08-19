@@ -19,6 +19,7 @@ import {
   Plus,
 } from "lucide-react"
 import type MapLibreGL from "maplibre-gl"
+import type { FillLayerSpecification, LineLayerSpecification } from "maplibre-gl"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { getBoundsFromViewport } from "@/utils/geo"
@@ -31,10 +32,39 @@ import NearbyDestinationsList from "./nearby-destinations-list"
 import CuratedTrailsPanel from "./curated-trails-panel"
 import { RoutePlannerPanel } from "@/features/route-optimization/components"
 import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
+import { DEFAULT_BOUNDARY_STYLE } from "../constants"
 import type { TouristMapSite, TouristMapCategory, CuratedTrail } from "../services/tourist-map"
 import type { SiteWithDistance } from "../hooks/use-nearby-sites"
 import type { DrivingDirections } from "../services/directions"
+import type { GeoFeature, GeoFeatureCollection } from "../types"
 import type { User } from "@supabase/supabase-js"
+
+type BoundaryFillPaint = NonNullable<FillLayerSpecification["paint"]>
+type BoundaryLinePaint = NonNullable<LineLayerSpecification["paint"]>
+
+/** Flattens a Polygon/MultiPolygon coordinate tree into a [minLng,minLat]/[maxLng,maxLat] box. */
+function computeBoundsFromGeometry(
+  geometry: GeoFeature["geometry"],
+): [[number, number], [number, number]] | null {
+  const coords: number[][] = []
+  function collect(node: unknown): void {
+    if (!Array.isArray(node)) return
+    if (typeof node[0] === "number" && typeof node[1] === "number") {
+      coords.push(node as number[])
+      return
+    }
+    for (const child of node) collect(child)
+  }
+  collect(geometry.coordinates)
+  if (coords.length === 0) return null
+
+  const lngs = coords.map((c) => c[0])
+  const lats = coords.map((c) => c[1])
+  return [
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)],
+  ]
+}
 
 const Map = dynamic(
   () => import("@/components/ui/map").then((m) => m.Map),
@@ -71,11 +101,17 @@ const MapRoute = dynamic(
   () => import("@/components/ui/map").then((m) => m.MapRoute),
   { ssr: false },
 )
+const MapGeoJSON = dynamic(
+  () => import("@/components/ui/map").then((m) => m.MapGeoJSON),
+  { ssr: false },
+)
 
 interface TouristGISPanelProps {
   sites: TouristMapSite[]
   categories: TouristMapCategory[]
   curatedTrails: CuratedTrail[]
+  municipalities: { id: string; name: string }[]
+  boundaries: GeoFeatureCollection
   user: User | null
   homeLatitude: number | null
   homeLongitude: number | null
@@ -92,6 +128,8 @@ export default function TouristGISPanel({
   sites,
   categories,
   curatedTrails,
+  municipalities,
+  boundaries,
   user,
   userLatitude,
   userLongitude,
@@ -125,6 +163,7 @@ export default function TouristGISPanel({
 
   const [selectedSite, setSelectedSite] = useState<SiteWithDistance | null>(null)
   const [showFilters, setShowFilters] = useState(true)
+  const [selectedMunicipalityId, setSelectedMunicipalityId] = useState<string | null>(null)
   const [recommendationRecIds, setRecommendationRecIds] = useState<Record<string, string>>({})
   const [directionsSiteId, setDirectionsSiteId] = useState<string | null>(null)
   const [directionsRoute, setDirectionsRoute] = useState<DrivingDirections | null>(null)
@@ -158,6 +197,7 @@ export default function TouristGISPanel({
   const filteredSites = useMemo(
     () =>
       nearbySites.filter((s) => {
+        if (selectedMunicipalityId && s.municipalityId !== selectedMunicipalityId) return false
         if (categoryFilter !== "all" && s.categoryId !== categoryFilter) return false
         if (
           visibleCategoryIds.length > 0 &&
@@ -176,7 +216,62 @@ export default function TouristGISPanel({
         }
         return true
       }),
-    [nearbySites, categoryFilter, visibleCategoryIds, showRecommended, recommendedSiteIds, searchQuery],
+    [
+      nearbySites,
+      selectedMunicipalityId,
+      categoryFilter,
+      visibleCategoryIds,
+      showRecommended,
+      recommendedSiteIds,
+      searchQuery,
+    ],
+  )
+
+  const boundaryFillPaint: BoundaryFillPaint = useMemo(
+    () =>
+      (selectedMunicipalityId
+        ? {
+            "fill-color": [
+              "case",
+              ["==", ["get", "municipalityId"], selectedMunicipalityId],
+              DEFAULT_BOUNDARY_STYLE.highlightFillColor,
+              DEFAULT_BOUNDARY_STYLE.fillColor,
+            ],
+            "fill-opacity": [
+              "case",
+              ["==", ["get", "municipalityId"], selectedMunicipalityId],
+              DEFAULT_BOUNDARY_STYLE.highlightFillOpacity,
+              DEFAULT_BOUNDARY_STYLE.fillOpacity,
+            ],
+          }
+        : {
+            "fill-color": DEFAULT_BOUNDARY_STYLE.fillColor,
+            "fill-opacity": DEFAULT_BOUNDARY_STYLE.fillOpacity,
+          }) as unknown as BoundaryFillPaint,
+    [selectedMunicipalityId],
+  )
+
+  const boundaryLinePaint: BoundaryLinePaint = {
+    "line-color": DEFAULT_BOUNDARY_STYLE.strokeColor,
+    "line-width": DEFAULT_BOUNDARY_STYLE.strokeWidth,
+  }
+
+  const handleMunicipalitySelect = useCallback(
+    (municipalityId: string | null) => {
+      setSelectedMunicipalityId(municipalityId)
+      if (!municipalityId || !mapInstanceRef.current) return
+
+      const feature = boundaries.features.find(
+        (f) => f.properties.municipalityId === municipalityId,
+      )
+      if (!feature) return
+
+      const bounds = computeBoundsFromGeometry(feature.geometry)
+      if (!bounds) return
+
+      mapInstanceRef.current.fitBounds(bounds, { padding: 80, duration: 800 })
+    },
+    [boundaries],
   )
 
   const isRecommendedSite = useCallback(
@@ -360,6 +455,52 @@ export default function TouristGISPanel({
             />
           </div>
         </div>
+
+        {/* Municipality tabs */}
+        {municipalities.length > 0 && (
+          <div className="border-b border-ink/10 p-3">
+            <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
+              Municipality
+            </label>
+            <div
+              className="flex gap-1.5 overflow-x-auto pb-1"
+              role="tablist"
+              aria-label="Filter by municipality"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={selectedMunicipalityId === null}
+                onClick={() => handleMunicipalitySelect(null)}
+                className={cn(
+                  "shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  selectedMunicipalityId === null
+                    ? "bg-ink text-cream"
+                    : "bg-parchment text-ink-soft hover:bg-parchment/80",
+                )}
+              >
+                All
+              </button>
+              {municipalities.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedMunicipalityId === m.id}
+                  onClick={() => handleMunicipalitySelect(m.id)}
+                  className={cn(
+                    "shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                    selectedMunicipalityId === m.id
+                      ? "bg-ink text-cream"
+                      : "bg-parchment text-ink-soft hover:bg-parchment/80",
+                  )}
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Heritage Statistics — counts update on pan/zoom via mapBounds */}
         <HeritageStatistics sites={sites} categories={categories} />
@@ -623,6 +764,17 @@ export default function TouristGISPanel({
           onViewportChange={handleViewportChange}
           theme="light"
         >
+          {/* Municipal boundary overlay */}
+          {boundaries.features.length > 0 && (
+            <MapGeoJSON
+              id="municipal-boundaries"
+              data={boundaries as never}
+              promoteId="municipalityId"
+              fillPaint={boundaryFillPaint}
+              linePaint={boundaryLinePaint}
+            />
+          )}
+
           {/* User location marker */}
           {hasUserMarker && (
             <MapMarker

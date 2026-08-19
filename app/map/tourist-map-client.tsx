@@ -3,12 +3,15 @@
 import { useUserLocation } from "@/features/gis/hooks/use-user-location"
 import { TouristGISPanel } from "@/features/gis/components"
 import type { TouristMapSite, TouristMapCategory, CuratedTrail } from "@/features/gis/services/tourist-map"
+import type { GeoFeatureCollection } from "@/features/gis/types"
 import type { User } from "@supabase/supabase-js"
 
 interface TouristMapClientProps {
   sites: TouristMapSite[]
   categories: TouristMapCategory[]
   curatedTrails: CuratedTrail[]
+  municipalities: { id: string; name: string }[]
+  boundaries: GeoFeatureCollection
   user: User | null
   homeLatitude: number | null
   homeLongitude: number | null
@@ -22,6 +25,8 @@ export function TouristMapClient({
   sites,
   categories,
   curatedTrails,
+  municipalities,
+  boundaries,
   user,
   homeLatitude,
   homeLongitude,
@@ -39,6 +44,8 @@ export function TouristMapClient({
       sites={sites}
       categories={categories}
       curatedTrails={curatedTrails}
+      municipalities={municipalities}
+      boundaries={boundaries}
       user={user}
       homeLatitude={homeLatitude}
       homeLongitude={homeLongitude}

@@ -348,10 +348,14 @@ export default function LoginPage() {
 
           {/* Error banner */}
           {error && (
-            <div
+            <motion.div
               role="alert"
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
+              animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
               className="flex items-start gap-2 bg-error/10 border border-error/20 text-error text-sm rounded-lg px-4 py-3 mb-4"
             >
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span className="flex-1">{error}</span>
               <button
                 type="button"
@@ -361,7 +365,7 @@ export default function LoginPage() {
               >
                 <X className="w-3.5 h-3.5" />
               </button>
-            </div>
+            </motion.div>
           )}
 
           {/* Reset-password success message */}

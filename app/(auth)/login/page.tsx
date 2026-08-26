@@ -506,13 +506,22 @@ export default function LoginPage() {
       >
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/images/municipalities/taal/Basilica Minore de San Martin de Tours - Taal Batangas.jfif')" }}
+          style={{ backgroundImage: "url('/images/municipalities/nasugbu/4785b65682e4b3288f998b0a15054ae7.jpg')" }}
           aria-hidden="true"
         />
+        {/* Light base tint — keeps the photo visible across the whole panel */}
         <div
           className="absolute inset-0"
           style={{
-            background: "linear-gradient(160deg, rgba(7,27,48,0.92) 0%, rgba(11,42,74,0.88) 45%, rgba(29,95,168,0.75) 100%)",
+            background: "linear-gradient(160deg, rgba(7,27,48,0.5) 0%, rgba(11,42,74,0.42) 50%, rgba(29,95,168,0.35) 100%)",
+          }}
+        />
+        {/* Concentrated dark gradient anchored bottom-left, behind the text block */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(0deg, rgba(3,12,24,0.92) 0%, rgba(5,20,38,0.7) 35%, rgba(7,27,48,0.25) 60%, transparent 78%), radial-gradient(ellipse 90% 70% at 10% 100%, rgba(3,12,24,0.85), transparent 70%)",
           }}
         />
         <div className="absolute inset-0" style={{

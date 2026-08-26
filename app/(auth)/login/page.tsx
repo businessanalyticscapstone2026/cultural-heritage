@@ -337,7 +337,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm mx-auto">
           {/* Logo */}
           <div className="mb-8">
-            <Link href="/" className="mb-6 inline-flex items-center gap-1.5 text-xs text-ink-soft transition-colors hover:text-ink">
+            <Link href="/" className="mb-6 inline-flex items-center gap-1.5 text-xs text-ink-soft transition-all duration-150 hover:text-ink hover:-translate-x-0.5 active:scale-[0.98] active:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D5FA8]/50 focus-visible:rounded">
               <ArrowLeft size={14} strokeWidth={1.5} />
               Back to home
             </Link>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useCallback, useRef } from "react"
 import type { ReactNode, Ref } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -18,6 +18,7 @@ import {
   X,
   ArrowLeft,
   AlertCircle,
+  MailCheck,
 } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -158,7 +159,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [resetMessage, setResetMessage] = useState<string | null>(null)
+  const [resetEmailSent, setResetEmailSent] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
@@ -205,7 +206,6 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    setResetMessage(null)
     setFieldErrors({})
 
     if (!validateForm()) return
@@ -298,7 +298,6 @@ export default function LoginPage() {
     }
 
     setError(null)
-    setResetMessage(null)
     setFieldErrors({})
     setIsResetting(true)
 
@@ -308,22 +307,18 @@ export default function LoginPage() {
       })
 
       if (resetError) {
+        setResetEmailSent(false)
         setError("Unable to send reset email. Please try again.")
       } else {
-        setResetMessage("Password reset link sent! Check your email inbox.")
+        setResetEmailSent(true)
       }
     } catch {
+      setResetEmailSent(false)
       setError("An unexpected error occurred. Please try again.")
     } finally {
       setIsResetting(false)
     }
   }
-
-  useEffect(() => {
-    if (!resetMessage) return
-    const timer = setTimeout(() => setResetMessage(null), 6000)
-    return () => clearTimeout(timer)
-  }, [resetMessage])
 
   return (
     <div className="flex min-h-screen">
@@ -346,154 +341,173 @@ export default function LoginPage() {
             <p className="text-sm text-gray-500 mt-2">Sign in to explore heritage sites near you</p>
           </div>
 
-          {/* Error banner */}
-          {error && (
+          {resetEmailSent ? (
+            /* Password reset confirmation */
             <motion.div
-              role="alert"
-              initial={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: 4 }}
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex items-start gap-2 bg-error/10 border border-error/20 text-error text-sm rounded-lg px-4 py-3 mb-4"
+              transition={{ duration: 0.25, ease: EASE }}
             >
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span className="flex-1">{error}</span>
-              <button
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-success/10 mb-5">
+                <MailCheck className="h-6 w-6 text-success" />
+              </div>
+              <h2 className="text-xl font-semibold text-[#0B2A4A]">Check your email</h2>
+              <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                We sent a password reset link to <span className="font-medium text-[#0B2A4A]">{email}</span>. Follow
+                the link in that email to choose a new password.
+              </p>
+
+              <Button
                 type="button"
-                onClick={() => setError(null)}
-                className="shrink-0 mt-0.5 text-error/60 hover:text-error"
-                aria-label="Dismiss error"
+                onClick={() => setResetEmailSent(false)}
+                className="w-full h-11 mt-6 bg-[#0B2A4A] hover:bg-[#0B2A4A]/90"
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </motion.div>
-          )}
+                Back to sign in
+              </Button>
 
-          {/* Reset-password success message */}
-          {resetMessage && (
-            <div
-              role="status"
-              className="flex items-start gap-2 bg-success/10 border border-success/20 text-success text-sm rounded-lg px-4 py-3 mb-4"
-            >
-              <span className="flex-1">{resetMessage}</span>
-              <button
-                type="button"
-                onClick={() => setResetMessage(null)}
-                className="shrink-0 mt-0.5 text-success/60 hover:text-success"
-                aria-label="Dismiss"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            {/* Email */}
-            <LoginField
-              id="login-email"
-              label="Email Address"
-              type="email"
-              placeholder="Enter your email address"
-              value={email}
-              onChange={(value) => {
-                setEmail(value)
-                setFieldErrors((prev) => ({ ...prev, email: validateField("email", value) }))
-              }}
-              onBlur={() => setFieldErrors((prev) => ({ ...prev, email: validateField("email", email) }))}
-              icon={<Mail className="h-4 w-4" />}
-              error={fieldErrors.email}
-              disabled={fieldsDisabled}
-              autoComplete="email"
-              inputRef={emailRef}
-            />
-
-            {/* Password */}
-            <LoginField
-              id="login-password"
-              label="Password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
-              value={password}
-              onChange={(value) => {
-                setPassword(value)
-                setFieldErrors((prev) => ({ ...prev, password: validateField("password", value) }))
-              }}
-              onBlur={() => setFieldErrors((prev) => ({ ...prev, password: validateField("password", password) }))}
-              icon={<Lock className="h-4 w-4" />}
-              trailing={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  disabled={fieldsDisabled}
-                  className="text-gray-400 transition-colors hover:text-[#0B2A4A] group-focus-within:text-[#1D5FA8] disabled:opacity-50"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              }
-              error={fieldErrors.password}
-              disabled={fieldsDisabled}
-              autoComplete="current-password"
-              inputRef={passwordRef}
-            />
-
-            {/* Remember me + Forgot Password */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-[#1D5FA8] accent-[#1D5FA8] focus:ring-[#1D5FA8]/20"
-                />
-                <span className="text-sm text-gray-600">Remember me</span>
-              </label>
               <button
                 type="button"
                 onClick={handleForgotPassword}
                 disabled={isResetting}
-                className="text-sm font-medium text-[#1D5FA8] hover:underline disabled:opacity-50 transition-opacity"
+                className="mt-4 w-full text-center text-sm text-gray-500 hover:text-[#1D5FA8] disabled:opacity-50 transition-colors"
               >
-                {isResetting ? "Sending..." : "Forgot password?"}
+                {isResetting ? "Resending..." : "Didn't get it? Resend"}
               </button>
-            </div>
-
-            {/* Submit button */}
-            <Button type="submit" disabled={fieldsDisabled} className="w-full h-11 bg-[#0B2A4A] hover:bg-[#0B2A4A]/90">
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg
-                    className="animate-spin w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden="true"
+            </motion.div>
+          ) : (
+            <>
+              {/* Error banner */}
+              {error && (
+                <motion.div
+                  role="alert"
+                  initial={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
+                  animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-start gap-2 bg-error/10 border border-error/20 text-error text-sm rounded-lg px-4 py-3 mb-4"
+                >
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span className="flex-1">{error}</span>
+                  <button
+                    type="button"
+                    onClick={() => setError(null)}
+                    className="shrink-0 mt-0.5 text-error/60 hover:text-error"
+                    aria-label="Dismiss error"
                   >
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Signing in...
-                </span>
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  Sign In
-                </span>
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </motion.div>
               )}
-            </Button>
-          </form>
 
-          {/* Register link */}
-          <div className="mt-8 text-center">
-            <p className="text-sm text-gray-500">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/register"
-                className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
-                style={{ color: "#1D5FA8" }}
-              >
-                Register here
-              </Link>
-            </p>
-          </div>
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                {/* Email */}
+                <LoginField
+                  id="login-email"
+                  label="Email Address"
+                  type="email"
+                  placeholder="Enter your email address"
+                  value={email}
+                  onChange={(value) => {
+                    setEmail(value)
+                    setFieldErrors((prev) => ({ ...prev, email: validateField("email", value) }))
+                  }}
+                  onBlur={() => setFieldErrors((prev) => ({ ...prev, email: validateField("email", email) }))}
+                  icon={<Mail className="h-4 w-4" />}
+                  error={fieldErrors.email}
+                  disabled={fieldsDisabled}
+                  autoComplete="email"
+                  inputRef={emailRef}
+                />
+
+                {/* Password */}
+                <LoginField
+                  id="login-password"
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(value) => {
+                    setPassword(value)
+                    setFieldErrors((prev) => ({ ...prev, password: validateField("password", value) }))
+                  }}
+                  onBlur={() => setFieldErrors((prev) => ({ ...prev, password: validateField("password", password) }))}
+                  icon={<Lock className="h-4 w-4" />}
+                  trailing={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      disabled={fieldsDisabled}
+                      className="text-gray-400 transition-colors hover:text-[#0B2A4A] group-focus-within:text-[#1D5FA8] disabled:opacity-50"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  }
+                  error={fieldErrors.password}
+                  disabled={fieldsDisabled}
+                  autoComplete="current-password"
+                  inputRef={passwordRef}
+                />
+
+                {/* Remember me + Forgot Password */}
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-[#1D5FA8] accent-[#1D5FA8] focus:ring-[#1D5FA8]/20"
+                    />
+                    <span className="text-sm text-gray-600">Remember me</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={isResetting}
+                    className="text-sm font-medium text-[#1D5FA8] hover:underline disabled:opacity-50 transition-opacity"
+                  >
+                    {isResetting ? "Sending..." : "Forgot password?"}
+                  </button>
+                </div>
+
+                {/* Submit button */}
+                <Button type="submit" disabled={fieldsDisabled} className="w-full h-11 bg-[#0B2A4A] hover:bg-[#0B2A4A]/90">
+                  {isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg
+                        className="animate-spin w-4 h-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Signing in...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      Sign In
+                    </span>
+                  )}
+                </Button>
+              </form>
+
+              {/* Register link */}
+              <div className="mt-8 text-center">
+                <p className="text-sm text-gray-500">
+                  Don&apos;t have an account?{" "}
+                  <Link
+                    href="/register"
+                    className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
+                    style={{ color: "#1D5FA8" }}
+                  >
+                    Register here
+                  </Link>
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </motion.div>
 

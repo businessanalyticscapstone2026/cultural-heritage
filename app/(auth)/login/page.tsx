@@ -58,6 +58,7 @@ interface LoginFieldProps {
   placeholder: string
   value: string
   onChange: (value: string) => void
+  onBlur?: () => void
   icon: ReactNode
   trailing?: ReactNode
   error?: string
@@ -73,6 +74,7 @@ function LoginField({
   placeholder,
   value,
   onChange,
+  onBlur,
   icon,
   trailing,
   error,
@@ -124,6 +126,7 @@ function LoginField({
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           disabled={disabled}
           autoComplete={autoComplete}
           aria-invalid={error ? true : undefined}
@@ -163,6 +166,21 @@ export default function LoginPage() {
   const passwordRef = useRef<HTMLInputElement>(null)
 
   const fieldsDisabled = isLoading || isResetting
+
+  const validateField = useCallback(
+    (name: string, value: string): string | undefined => {
+      if (name === "email") {
+        if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          return "Please enter a valid email address."
+        }
+      }
+      if (name === "password") {
+        if (!value) return "Please enter your password."
+      }
+      return undefined
+    },
+    [],
+  )
 
   const validateForm = useCallback((): boolean => {
     const next: { email?: string; password?: string } = {}
@@ -375,10 +393,9 @@ export default function LoginPage() {
               value={email}
               onChange={(value) => {
                 setEmail(value)
-                if (fieldErrors.email) {
-                  setFieldErrors((prev) => ({ ...prev, email: undefined }))
-                }
+                setFieldErrors((prev) => ({ ...prev, email: validateField("email", value) }))
               }}
+              onBlur={() => setFieldErrors((prev) => ({ ...prev, email: validateField("email", email) }))}
               icon={<Mail className="h-4 w-4" />}
               error={fieldErrors.email}
               disabled={fieldsDisabled}
@@ -395,10 +412,9 @@ export default function LoginPage() {
               value={password}
               onChange={(value) => {
                 setPassword(value)
-                if (fieldErrors.password) {
-                  setFieldErrors((prev) => ({ ...prev, password: undefined }))
-                }
+                setFieldErrors((prev) => ({ ...prev, password: validateField("password", value) }))
               }}
+              onBlur={() => setFieldErrors((prev) => ({ ...prev, password: validateField("password", password) }))}
               icon={<Lock className="h-4 w-4" />}
               trailing={
                 <button

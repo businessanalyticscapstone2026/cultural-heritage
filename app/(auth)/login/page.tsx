@@ -547,15 +547,15 @@ export default function LoginPage() {
           </div>
 
           {/* Feature rows */}
-          <div className="space-y-5">
+          <div className="space-y-6">
             {features.map((feature) => (
-              <div key={feature.title} className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center shrink-0">
-                  <feature.icon className="w-4 h-4 text-white" />
+              <div key={feature.title} className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-full bg-white/10 ring-1 ring-white/20 flex items-center justify-center shrink-0">
+                  <feature.icon className="w-[18px] h-[18px] text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white">{feature.title}</p>
-                  <p className="text-xs text-white/70">{feature.description}</p>
+                  <p className="text-[15px] font-semibold text-white">{feature.title}</p>
+                  <p className="text-xs text-white/70 leading-relaxed">{feature.description}</p>
                 </div>
               </div>
             ))}

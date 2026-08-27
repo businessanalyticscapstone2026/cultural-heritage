@@ -35,8 +35,15 @@ export default function MtoArchiveClient({
   }, [refetch])
 
   const handleDelete = useCallback(async (id: string) => {
-    await deleteMtoSiteAction(id)
-    refetch()
+    try {
+      const result = await deleteMtoSiteAction(id)
+      if (!result.success) {
+        throw new Error(result.error ?? "Failed to delete site. Please try again or contact support.")
+      }
+      refetch()
+    } catch (err) {
+      throw new Error(errorReason(err, "Failed to delete site. Please try again or contact support."))
+    }
   }, [refetch])
 
   return (

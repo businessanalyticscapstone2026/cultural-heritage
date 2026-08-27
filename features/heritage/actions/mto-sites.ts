@@ -305,9 +305,21 @@ export async function restoreMtoSiteAction(siteId: string) {
 }
 
 /** Permanently delete an archived site */
-export async function deleteMtoSiteAction(siteId: string) {
-  const { municipalityId } = await getAuthContext()
-  await deleteMtoSite(siteId, municipalityId)
+export async function deleteMtoSiteAction(
+  siteId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { municipalityId } = await getAuthContext()
+    await deleteMtoSite(siteId, municipalityId)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(`Failed to delete heritage site ${siteId}: ${message}`)
+    return {
+      success: false,
+      error: "Failed to delete site. Please try again or contact support.",
+    }
+  }
+
   revalidatePath("/mto/archive")
   revalidatePath("/mto/heritage-sites")
   revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
@@ -321,6 +333,8 @@ export async function deleteMtoSiteAction(siteId: string) {
       targetId: siteId,
     })
   } catch {}
+
+  return { success: true }
 }
 
 /** Get the current staff profile */

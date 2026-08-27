@@ -428,6 +428,57 @@ export async function deleteSiteDependencies(siteId: string): Promise<void> {
     .delete()
     .eq("site_id", siteId)
   if (linksError) throw new Error(`Failed to delete site reference links: ${linksError.message}`)
+
+  const { error: bookmarksError } = await supabase
+    .from("bookmarks")
+    .delete()
+    .eq("site_id", siteId)
+  if (bookmarksError) throw new Error(`Failed to delete site bookmarks: ${bookmarksError.message}`)
+
+  const { error: reviewRowsError } = await supabase
+    .from("reviews")
+    .delete()
+    .eq("site_id", siteId)
+  if (reviewRowsError) throw new Error(`Failed to delete site reviews: ${reviewRowsError.message}`)
+
+  const { data: qrCodeRows, error: qrCodeLookupError } = await supabase
+    .from("qr_codes")
+    .select("id")
+    .eq("site_id", siteId)
+  if (qrCodeLookupError) throw new Error(`Failed to look up site QR codes: ${qrCodeLookupError.message}`)
+
+  const qrCodeIds = qrCodeRows?.map((row) => row.id) ?? []
+  if (qrCodeIds.length > 0) {
+    const { error: qrScanLogsError } = await supabase
+      .from("qr_scan_logs")
+      .delete()
+      .in("qr_code_id", qrCodeIds)
+    if (qrScanLogsError) throw new Error(`Failed to delete QR scan logs: ${qrScanLogsError.message}`)
+  }
+
+  const { error: qrCodesError } = await supabase
+    .from("qr_codes")
+    .delete()
+    .eq("site_id", siteId)
+  if (qrCodesError) throw new Error(`Failed to delete site QR codes: ${qrCodesError.message}`)
+
+  const { error: touristVisitsError } = await supabase
+    .from("tourist_visits")
+    .delete()
+    .eq("site_id", siteId)
+  if (touristVisitsError) throw new Error(`Failed to delete tourist visits: ${touristVisitsError.message}`)
+
+  const { error: distancesAError } = await supabase
+    .from("site_distances")
+    .delete()
+    .eq("site_a_id", siteId)
+  if (distancesAError) throw new Error(`Failed to delete site distances: ${distancesAError.message}`)
+
+  const { error: distancesBError } = await supabase
+    .from("site_distances")
+    .delete()
+    .eq("site_b_id", siteId)
+  if (distancesBError) throw new Error(`Failed to delete site distances: ${distancesBError.message}`)
 }
 
 export async function deleteHeritageSite(id: string): Promise<void> {

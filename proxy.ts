@@ -98,6 +98,7 @@ export async function proxy(request: NextRequest) {
       return supabaseResponse
     }
     const loginUrl = new URL("/login", request.url)
+    loginUrl.searchParams.set("reason", "expired")
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)
   }

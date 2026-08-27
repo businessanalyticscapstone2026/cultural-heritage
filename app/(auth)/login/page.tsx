@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useEffect, useRef, Suspense } from "react"
 import type { ReactNode, Ref } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { motion, useReducedMotion } from "motion/react"
 import { EASE } from "@/lib/motion-variants"
@@ -18,6 +18,7 @@ import {
   X,
   ArrowLeft,
   AlertCircle,
+  Info,
   MailCheck,
 } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
@@ -26,6 +27,7 @@ import { useAuth } from "@/context/auth-context"
 import { checkLoginRateLimitAction } from "@/features/audit/actions"
 import { BrandLogo } from "@/components/brand/brand-logo"
 import { cn } from "@/lib/utils"
+import { resolvePostLoginRoute, isPathAuthorizedForRole } from "@/lib/auth/resolve-post-login-route"
 
 const currentYear = new Date().getFullYear()
 
@@ -148,11 +150,33 @@ function LoginField({
   )
 }
 
+function LoginRedirectFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-white">
+      <svg className="animate-spin w-6 h-6 text-[#0B2A4A]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      </svg>
+    </div>
+  )
+}
+
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginRedirectFallback />}>
+      <LoginPageContent />
+    </Suspense>
+  )
+}
+
+function LoginPageContent() {
   const router = useRouter()
   const supabase = createClient()
-  const { refreshSession } = useAuth()
+  const { session, isLoading: authLoading, refreshSession } = useAuth()
   const prefersReducedMotion = useReducedMotion()
+  const searchParams = useSearchParams()
+  const redirectParam = searchParams.get("redirect")
+  const reasonParam = searchParams.get("reason")
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -163,10 +187,41 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
+  const [sessionChecked, setSessionChecked] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
 
   const fieldsDisabled = isLoading || isResetting
+
+  // Already-authenticated state: bounce off /login to the user's role-based
+  // destination (or an authorized ?redirect= target) before the form renders.
+  useEffect(() => {
+    if (authLoading || !session) return
+
+    let cancelled = false
+
+    void (async () => {
+      const resolved = await resolvePostLoginRoute(supabase, session.user.id)
+      if (cancelled) return
+
+      if (!resolved) {
+        setError("No profile found for this account. Please contact support.")
+        setSessionChecked(true)
+        return
+      }
+
+      const target =
+        redirectParam && isPathAuthorizedForRole(redirectParam, resolved.role)
+          ? redirectParam
+          : resolved.defaultRoute
+
+      router.replace(target)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, session, supabase, redirectParam, router])
 
   const validateField = useCallback(
     (name: string, value: string): string | undefined => {
@@ -202,6 +257,10 @@ export default function LoginPage() {
     }
     return true
   }, [email, password])
+
+  if (authLoading || (session && !sessionChecked)) {
+    return <LoginRedirectFallback />
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -251,38 +310,20 @@ export default function LoginPage() {
 
       await refreshSession()
 
-      // Resolve role client-side
-      const { data: staffProfile } = await supabase
-        .from("staff_profiles")
-        .select("*, roles(name)")
-        .eq("id", data.user.id)
-        .maybeSingle()
+      const resolved = await resolvePostLoginRoute(supabase, data.user.id)
 
-      if (staffProfile) {
-        const roleName = staffProfile.roles?.name
-        if (roleName === "MTO Staff") {
-          router.push("/mto/dashboard")
-        } else {
-          router.push("/admin/dashboard")
-        }
-      } else {
-        const { data: touristProfile } = await supabase
-          .from("tourist_profiles")
-          .select("onboarding_completed_at")
-          .eq("id", data.user.id)
-          .maybeSingle()
-
-        if (touristProfile) {
-          if (touristProfile.onboarding_completed_at) {
-            router.push("/home")
-          } else {
-            router.push("/onboarding")
-          }
-        } else {
-          setError("No profile found for this account. Please contact support.")
-          setPassword("")
-        }
+      if (!resolved) {
+        setError("No profile found for this account. Please contact support.")
+        setPassword("")
+        return
       }
+
+      const target =
+        redirectParam && isPathAuthorizedForRole(redirectParam, resolved.role)
+          ? redirectParam
+          : resolved.defaultRoute
+
+      router.push(target)
     } catch {
       setError("An unexpected error occurred. Please try again.")
     } finally {
@@ -338,7 +379,11 @@ export default function LoginPage() {
             </Link>
             <BrandLogo variant="light" className="mb-4 size-12" />
             <h1 className="text-3xl font-semibold leading-tight text-[#0B2A4A]">Welcome back</h1>
-            <p className="text-sm text-gray-500 mt-2">Sign in to explore heritage sites near you</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {redirectParam && reasonParam !== "expired"
+                ? "Sign in to continue"
+                : "Sign in to explore heritage sites near you"}
+            </p>
           </div>
 
           {resetEmailSent ? (
@@ -376,25 +421,38 @@ export default function LoginPage() {
             </motion.div>
           ) : (
             <>
-              {/* Error banner */}
-              {error && (
+              {/* Error / session-expired banner */}
+              {(error || reasonParam === "expired") && (
                 <motion.div
                   role="alert"
                   initial={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
                   animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="flex items-start gap-2 bg-error/10 border border-error/20 text-error text-sm rounded-lg px-4 py-3 mb-4"
+                  className={cn(
+                    "flex items-start gap-2 text-sm rounded-lg px-4 py-3 mb-4",
+                    error
+                      ? "bg-error/10 border border-error/20 text-error"
+                      : "bg-warning/5 border border-warning/30 text-warning",
+                  )}
                 >
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span className="flex-1">{error}</span>
-                  <button
-                    type="button"
-                    onClick={() => setError(null)}
-                    className="shrink-0 mt-0.5 text-error/60 hover:text-error"
-                    aria-label="Dismiss error"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                  {error ? (
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  ) : (
+                    <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                  )}
+                  <span className="flex-1">
+                    {error ?? "Your session has expired. Please sign in again."}
+                  </span>
+                  {error && (
+                    <button
+                      type="button"
+                      onClick={() => setError(null)}
+                      className="shrink-0 mt-0.5 text-error/60 hover:text-error"
+                      aria-label="Dismiss error"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </motion.div>
               )}
 

@@ -160,9 +160,13 @@ export default function HeritageSiteForm({
   }, [step, basicForm, historicalForm, locationForm, reviewForm])
 
   const handleNext = useCallback(async () => {
-    const valid = await validateStep()
-    if (valid && step < STEPS.length - 1) {
-      setStep(step + 1)
+    try {
+      const valid = await validateStep()
+      if (valid && step < STEPS.length - 1) {
+        setStep(step + 1)
+      }
+    } catch (err) {
+      notifyError(errorReason(err, "Failed to validate this step. Please try again."))
     }
   }, [step, validateStep])
 
@@ -293,38 +297,62 @@ export default function HeritageSiteForm({
               <div className="space-y-2">
                 <Label htmlFor="detailedDescription">Detailed Description</Label>
                 <Textarea id="detailedDescription" {...historicalForm.register("detailedDescription")} placeholder="Comprehensive description of the heritage site" rows={5} />
+                {historicalForm.formState.errors.detailedDescription && (
+                  <p className="text-xs text-destructive">{historicalForm.formState.errors.detailedDescription.message}</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="historicalPeriod">Historical Period</Label>
                   <Input id="historicalPeriod" {...historicalForm.register("historicalPeriod")} placeholder="e.g., Spanish Colonial" />
+                  {historicalForm.formState.errors.historicalPeriod && (
+                    <p className="text-xs text-destructive">{historicalForm.formState.errors.historicalPeriod.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="yearEstablished">Year Established</Label>
                   <Input id="yearEstablished" {...historicalForm.register("yearEstablished")} placeholder="e.g., 1856" />
+                  {historicalForm.formState.errors.yearEstablished && (
+                    <p className="text-xs text-destructive">{historicalForm.formState.errors.yearEstablished.message}</p>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="architectBuilder">Architect / Builder</Label>
                   <Input id="architectBuilder" {...historicalForm.register("architectBuilder")} placeholder="Name of architect or builder" />
+                  {historicalForm.formState.errors.architectBuilder && (
+                    <p className="text-xs text-destructive">{historicalForm.formState.errors.architectBuilder.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="architecturalStyle">Architectural Style</Label>
                   <Input id="architecturalStyle" {...historicalForm.register("architecturalStyle")} placeholder="e.g., Baroque" />
+                  {historicalForm.formState.errors.architecturalStyle && (
+                    <p className="text-xs text-destructive">{historicalForm.formState.errors.architecturalStyle.message}</p>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="historicalSignificance">Historical Significance</Label>
                 <Textarea id="historicalSignificance" {...historicalForm.register("historicalSignificance")} placeholder="Why is this site historically significant?" rows={3} />
+                {historicalForm.formState.errors.historicalSignificance && (
+                  <p className="text-xs text-destructive">{historicalForm.formState.errors.historicalSignificance.message}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="culturalSignificance">Cultural Significance</Label>
                 <Textarea id="culturalSignificance" {...historicalForm.register("culturalSignificance")} placeholder="Cultural importance to the community" rows={3} />
+                {historicalForm.formState.errors.culturalSignificance && (
+                  <p className="text-xs text-destructive">{historicalForm.formState.errors.culturalSignificance.message}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="designation">Designation</Label>
                 <Input id="designation" {...historicalForm.register("designation")} placeholder="e.g., National Cultural Treasure" />
+                {historicalForm.formState.errors.designation && (
+                  <p className="text-xs text-destructive">{historicalForm.formState.errors.designation.message}</p>
+                )}
               </div>
             </div>
           )}

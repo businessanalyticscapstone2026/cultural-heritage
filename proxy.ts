@@ -118,6 +118,9 @@ export async function proxy(request: NextRequest) {
 
   // MTO routes guard
   if (pathname.startsWith("/mto")) {
+    if (isPTCAO) {
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url))
+    }
     if (!isStaff || !isMTO) {
       return NextResponse.redirect(new URL("/login", request.url))
     }
@@ -129,6 +132,9 @@ export async function proxy(request: NextRequest) {
 
   // Admin routes guard
   if (isAdminRoute) {
+    if (isMTO) {
+      return NextResponse.redirect(new URL("/mto/dashboard", request.url))
+    }
     if (!isStaff || !isPTCAO) {
       return NextResponse.redirect(new URL("/login", request.url))
     }

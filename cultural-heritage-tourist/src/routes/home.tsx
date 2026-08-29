@@ -11,9 +11,11 @@ import { Navbar } from "@/components/Navbar";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AuthPrompt } from "@/components/AuthPrompt";
 import { useAuth } from "@/lib/auth";
-import { Church, Landmark, TreePine, BookOpen, MapPin, Calendar, Megaphone, Star, ChevronRight, ArrowRight, Compass, Map as MapIcon } from "lucide-react";
+import { getTrendingSites, type TrendingSite } from "@/lib/trending";
+import { Church, Landmark, TreePine, BookOpen, MapPin, Calendar, Megaphone, Star, ChevronRight, ArrowRight, Compass, Map as MapIcon, TrendingUp } from "lucide-react";
 
 export const Route = createFileRoute("/home")({
+  loader: () => getTrendingSites(),
   component: HomePage,
 });
 
@@ -36,12 +38,6 @@ const categories = [
   { icon: TreePine, label: "Natural Heritage", desc: "Explore protected forests and geological wonders.", count: 1, img: dest4, color: "from-emerald-600/80 to-emerald-800/80" },
 ];
 
-const popularSites = [
-  { id: "basilica-martin", name: "Basilica of St. Martin de Tours", municipality: "Balayan", img: dest1, visitors: "2.1k", rating: 4.8, category: "Sacred" },
-  { id: "calatagan-archaeological", name: "Calatagan Archaeological Site", municipality: "Calatagan", img: dest4, visitors: "1.8k", rating: 4.9, category: "UNESCO" },
-  { id: "fortune-island", name: "Fortune Island Ruins", municipality: "Nasugbu", img: dest3, visitors: "1.5k", rating: 4.3, category: "Colonial" },
-];
-
 const testimonials = [
   { name: "Maria Santos", role: "Heritage Advocate", rating: 5, text: "Batangas Heritage brought me back to my grandmother's stories. Walking through Balayan felt like stepping into a living museum." },
   { name: "Jose Reyes", role: "Travel Blogger", rating: 5, text: "The curated trails saved us hours of planning. The Calatagan archaeological sites were jaw-dropping." },
@@ -54,6 +50,7 @@ const InteractiveMap = lazy(() =>
 
 function HomePage() {
   const { user } = useAuth();
+  const trendingSites = Route.useLoaderData();
   const [authModal, setAuthModal] = useState<{ open: boolean; title: string; description: string }>({
     open: false, title: "", description: "",
   });
@@ -296,33 +293,53 @@ function HomePage() {
             </Link>
           </motion.div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {popularSites.map((site, i) => (
-              <motion.div key={site.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: i * 0.1 }}>
-                <Link to="/heritage/$id" params={{ id: site.id }} className="group flex items-center gap-5 rounded-2xl border border-ink/10 bg-card p-4 transition-all hover:shadow-lg hover:border-ink/20">
-                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-parchment">
-                    <img src={site.img} alt={site.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] uppercase tracking-widest text-accent">{site.category}</span>
+          {trendingSites.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-ink/15 bg-card/60 px-6 py-16 text-center">
+              <TrendingUp size={24} strokeWidth={1.5} className="text-ink-soft/40" />
+              <h3 className="text-sm font-medium text-ink">No trending sites yet</h3>
+              <p className="max-w-xs text-xs text-ink-soft">
+                Check back soon — this section fills in as travelers visit and review heritage sites.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {trendingSites.map((site, i) => (
+                <motion.div key={site.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: i * 0.1 }}>
+                  <Link to="/heritage/$id" params={{ id: site.id }} className="group flex items-center gap-5 rounded-2xl border border-ink/10 bg-card p-4 transition-all hover:shadow-lg hover:border-ink/20">
+                    <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-parchment">
+                      {site.imageUrl ? (
+                        <img src={site.imageUrl} alt={site.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                      ) : (
+                        <Landmark size={22} strokeWidth={1.5} className="text-ink-soft/40" />
+                      )}
                     </div>
-                    <h3 className="mt-1 truncate text-sm font-medium text-ink group-hover:text-accent transition-colors">{site.name}</h3>
-                    <p className="mt-0.5 text-xs text-ink-soft">{site.municipality}</p>
-                    <div className="mt-2 flex items-center gap-3 text-xs text-ink-soft">
-                      <span className="flex items-center gap-1">
-                        <Star size={10} className="fill-amber-400 text-amber-400" />
-                        {site.rating}
-                      </span>
-                      <span className="h-1 w-1 rounded-full bg-ink/20" />
-                      <span>{site.visitors} visitors this week</span>
+                    <div className="min-w-0 flex-1">
+                      {site.category && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[10px] uppercase tracking-widest text-accent">{site.category}</span>
+                        </div>
+                      )}
+                      <h3 className="mt-1 truncate text-sm font-medium text-ink group-hover:text-accent transition-colors">{site.name}</h3>
+                      <p className="mt-0.5 text-xs text-ink-soft">{site.municipality}</p>
+                      <div className="mt-2 flex items-center gap-3 text-xs text-ink-soft">
+                        {site.rating != null && (
+                          <>
+                            <span className="flex items-center gap-1">
+                              <Star size={10} className="fill-amber-400 text-amber-400" />
+                              {site.rating.toFixed(1)}
+                            </span>
+                            <span className="h-1 w-1 rounded-full bg-ink/20" />
+                          </>
+                        )}
+                        <span>{site.metricValue} {site.metricLabel}</span>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronRight size={16} className="shrink-0 text-ink-soft transition-transform group-hover:translate-x-1 group-hover:text-accent" />
-                </Link>
-              </motion.div>
-            ))}
-          </div>
+                    <ChevronRight size={16} className="shrink-0 text-ink-soft transition-transform group-hover:translate-x-1 group-hover:text-accent" />
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

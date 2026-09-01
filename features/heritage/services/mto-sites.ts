@@ -136,6 +136,7 @@ export async function getMtoSites(municipalityId: string): Promise<SiteWithDetai
             description: (cat.description ?? null) as string | null,
             icon: (cat.icon ?? null) as string | null,
             color: (cat.color ?? null) as string | null,
+            imageUrl: (cat.image_url ?? null) as string | null,
             displayOrder: (cat.display_order ?? null) as number | null,
             status: (cat.status ?? "active") as HeritageCategory["status"],
           }
@@ -231,6 +232,7 @@ export async function getMtoSiteById(siteId: string, municipalityId: string): Pr
           description: (cat.description ?? null) as string | null,
           icon: (cat.icon ?? null) as string | null,
           color: (cat.color ?? null) as string | null,
+          imageUrl: (cat.image_url ?? null) as string | null,
           displayOrder: (cat.display_order ?? null) as number | null,
           status: (cat.status ?? "active") as HeritageCategory["status"],
         }
@@ -608,6 +610,7 @@ export async function getActiveCategories(): Promise<HeritageCategory[]> {
     description: (row.description ?? null) as string | null,
     icon: (row.icon ?? null) as string | null,
     color: (row.color ?? null) as string | null,
+    imageUrl: (row.image_url ?? null) as string | null,
     displayOrder: (row.display_order ?? null) as number | null,
     status: (row.status ?? "active") as HeritageCategory["status"],
   }))

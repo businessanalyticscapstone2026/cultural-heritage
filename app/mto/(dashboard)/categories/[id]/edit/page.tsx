@@ -28,17 +28,19 @@ export default async function EditCategoryPage({ params }: EditCategoryPageProps
     description: (category.description ?? null) as string | null,
     icon: (category.icon ?? null) as string | null,
     color: (category.color ?? null) as string | null,
+    imageUrl: (category.image_url ?? null) as string | null,
     displayOrder: (category.display_order ?? null) as number | null,
     status: (category.status ?? "active") as HeritageCategory["status"],
   }
 
-  async function handleSubmit(data: { name: string; description?: string | null; icon?: string | null; color?: string | null; displayOrder?: number | null; status?: string }) {
+  async function handleSubmit(data: { name: string; description?: string | null; icon?: string | null; color?: string | null; imageUrl?: string | null; displayOrder?: number | null; status?: string }) {
     "use server"
     const updates: Partial<HeritageCategory> = {
       name: data.name,
       description: data.description ?? undefined,
       icon: data.icon ?? undefined,
       color: data.color ?? undefined,
+      imageUrl: data.imageUrl ?? undefined,
       displayOrder: data.displayOrder ?? undefined,
       status: data.status as HeritageCategory["status"],
     }

@@ -104,7 +104,7 @@ async function getFeaturedSites(supabase: SupabaseServer): Promise<HomeSiteCard[
 async function getCategoryTiles(supabase: SupabaseServer): Promise<HomeCategoryTile[]> {
   const { data: categories, error } = await supabase
     .from("heritage_categories")
-    .select("id, name, description, icon, color, display_order")
+    .select("id, name, description, icon, color, image_url, display_order")
     .eq("status", "active")
     .order("display_order", { ascending: true, nullsFirst: false })
 
@@ -127,6 +127,7 @@ async function getCategoryTiles(supabase: SupabaseServer): Promise<HomeCategoryT
       description: (cat.description ?? null) as string | null,
       icon: (cat.icon ?? null) as string | null,
       color: (cat.color ?? null) as string | null,
+      imageUrl: (cat.image_url ?? null) as string | null,
       siteCount: count ?? 0,
     })
   }

@@ -77,6 +77,7 @@ export interface HeritageCategory {
   description: string | null
   icon: string | null
   color: string | null
+  imageUrl: string | null
   displayOrder: number | null
   status: "active" | "inactive"
 }

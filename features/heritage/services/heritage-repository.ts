@@ -39,6 +39,7 @@ async function fetchAllCategories(supabase: SupabaseClient): Promise<HeritageCat
     description: (row.description ?? null) as string | null,
     icon: (row.icon ?? null) as string | null,
     color: (row.color ?? null) as string | null,
+    imageUrl: (row.image_url ?? null) as string | null,
     displayOrder: (row.display_order ?? null) as number | null,
     status: (row.status ?? "active") as HeritageCategory["status"],
   }))

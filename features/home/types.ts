@@ -25,6 +25,7 @@ export interface HomeCategoryTile {
   description: string | null
   icon: string | null
   color: string | null
+  imageUrl: string | null
   siteCount: number
 }
 

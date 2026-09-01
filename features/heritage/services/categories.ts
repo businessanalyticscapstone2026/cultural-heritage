@@ -19,6 +19,7 @@ export async function getCategories(): Promise<HeritageCategory[]> {
     description: (row.description ?? null) as string | null,
     icon: (row.icon ?? null) as string | null,
     color: (row.color ?? null) as string | null,
+    imageUrl: (row.image_url ?? null) as string | null,
     displayOrder: (row.display_order ?? null) as number | null,
     status: (row.status ?? "active") as HeritageCategory["status"],
   }))
@@ -40,12 +41,13 @@ export async function getAllCategories(): Promise<HeritageCategory[]> {
     description: (row.description ?? null) as string | null,
     icon: (row.icon ?? null) as string | null,
     color: (row.color ?? null) as string | null,
+    imageUrl: (row.image_url ?? null) as string | null,
     displayOrder: (row.display_order ?? null) as number | null,
     status: (row.status ?? "active") as HeritageCategory["status"],
   }))
 }
 
-export async function createCategory(data: { name: string; description?: string; icon?: string; color?: string; displayOrder?: number }): Promise<HeritageCategory> {
+export async function createCategory(data: { name: string; description?: string; icon?: string; color?: string; imageUrl?: string; displayOrder?: number }): Promise<HeritageCategory> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
@@ -56,6 +58,7 @@ export async function createCategory(data: { name: string; description?: string;
       description: data.description ?? null,
       icon: data.icon ?? null,
       color: data.color ?? null,
+      image_url: data.imageUrl ?? null,
       display_order: data.displayOrder ?? null,
       status: "active",
     })
@@ -70,6 +73,7 @@ export async function createCategory(data: { name: string; description?: string;
     description: (category.description ?? null) as string | null,
     icon: (category.icon ?? null) as string | null,
     color: (category.color ?? null) as string | null,
+    imageUrl: (category.image_url ?? null) as string | null,
     displayOrder: (category.display_order ?? null) as number | null,
     status: (category.status ?? "active") as HeritageCategory["status"],
   }
@@ -84,6 +88,7 @@ export async function updateCategory(id: string, updates: Partial<HeritageCatego
   if (updates.description !== undefined) updateData.description = updates.description
   if (updates.icon !== undefined) updateData.icon = updates.icon
   if (updates.color !== undefined) updateData.color = updates.color
+  if (updates.imageUrl !== undefined) updateData.image_url = updates.imageUrl
   if (updates.displayOrder !== undefined) updateData.display_order = updates.displayOrder
   if (updates.status !== undefined) updateData.status = updates.status
 
@@ -113,6 +118,7 @@ export async function updateCategory(id: string, updates: Partial<HeritageCatego
     description: (updated.description ?? null) as string | null,
     icon: (updated.icon ?? null) as string | null,
     color: (updated.color ?? null) as string | null,
+    imageUrl: (updated.image_url ?? null) as string | null,
     displayOrder: (updated.display_order ?? null) as number | null,
     status: (updated.status ?? "active") as HeritageCategory["status"],
   }
@@ -165,6 +171,7 @@ export async function getCategoriesWithSiteCount(): Promise<(HeritageCategory & 
       description: (cat.description ?? null) as string | null,
       icon: (cat.icon ?? null) as string | null,
       color: (cat.color ?? null) as string | null,
+      imageUrl: (cat.image_url ?? null) as string | null,
       displayOrder: (cat.display_order ?? null) as number | null,
       status: (cat.status ?? "active") as HeritageCategory["status"],
       siteCount: count,

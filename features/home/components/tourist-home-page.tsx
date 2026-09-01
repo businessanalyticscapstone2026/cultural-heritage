@@ -394,10 +394,25 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
                     href={`/explore?category=${cat.id}`}
                     className="group relative flex h-[280px] flex-col justify-end overflow-hidden rounded-3xl border border-ink/10 bg-ink"
                   >
+                    {cat.imageUrl && (
+                      /* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL */
+                      <img
+                        src={cat.imageUrl}
+                        alt={cat.name}
+                        loading="lazy"
+                        onError={(e) => {
+                          const t = e.currentTarget
+                          t.style.display = "none"
+                        }}
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                    )}
                     <div
                       className="absolute inset-0 opacity-90 transition-opacity group-hover:opacity-100"
                       style={{
-                        background: `linear-gradient(to top, ${tint}ee, ${tint}99 45%, ${tint}55)`,
+                        background: cat.imageUrl
+                          ? `linear-gradient(to top, ${tint}f2, ${tint}78 45%, ${tint}14 90%)`
+                          : `linear-gradient(to top, ${tint}ee, ${tint}99 45%, ${tint}55)`,
                       }}
                     />
                     <div className="relative p-6">

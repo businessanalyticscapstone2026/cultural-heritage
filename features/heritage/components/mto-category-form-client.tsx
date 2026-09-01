@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
-import { SaveIcon, Loader2Icon, ArrowLeftIcon } from "lucide-react"
+import { SaveIcon, Loader2Icon, ArrowLeftIcon, UploadIcon, ImageIcon, XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,12 +16,17 @@ import { categorySchema, type CategoryFormValues } from "../schemas/category"
 import type { HeritageCategory } from "@/types/heritage"
 import CategoryIcon from "./category-icon"
 import CategoryIconPicker from "./category-icon-picker"
+import {
+  requestCategoryImageUploadUrlAction,
+  resolveCategoryImageUrlAction,
+} from "@/features/media/actions/media"
 
 type CategoryFormData = {
   name: string
   description?: string | null
   icon?: string | null
   color?: string | null
+  imageUrl?: string | null
   displayOrder?: number | null
   status?: string
 }
@@ -31,10 +36,16 @@ interface MtoCategoryFormClientProps {
   onSubmit: (data: CategoryFormData) => Promise<void>
 }
 
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"]
+
 export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategoryFormClientProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
@@ -43,16 +54,61 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
       description: category?.description ?? null,
       icon: category?.icon ?? null,
       color: category?.color ?? null,
+      imageUrl: category?.imageUrl ?? null,
       displayOrder: category?.displayOrder ?? null,
       status: category?.status ?? "active",
     },
   })
 
   const watchAll = form.watch()
+  const imageUrl = watchAll.imageUrl ?? null
 
   const colorInputValue = watchAll.color?.match(/^#[0-9a-fA-F]{6}$/)
     ? watchAll.color
     : "#6366f1"
+
+  const handleUpload = useCallback(
+    async (file: File) => {
+      setUploadError(null)
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        setUploadError("Unsupported file type. Please upload a JPG, PNG, or WebP image.")
+        return
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        setUploadError("Image is too large. The maximum size is 10MB.")
+        return
+      }
+
+      setIsUploading(true)
+      try {
+        const { uploadUrl, filePath } = await requestCategoryImageUploadUrlAction(
+          file.name,
+        )
+        const response = await fetch(uploadUrl, { method: "PUT", body: file })
+        if (!response.ok) throw new Error("Upload failed")
+        const publicUrl = await resolveCategoryImageUrlAction(filePath)
+        form.setValue("imageUrl", publicUrl, { shouldValidate: true })
+      } catch (err) {
+        setUploadError(errorReason(err, "Failed to upload image. Please try again."))
+      } finally {
+        setIsUploading(false)
+      }
+    },
+    [form],
+  )
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (file) void handleUpload(file)
+      e.target.value = ""
+    },
+    [handleUpload],
+  )
+
+  const removeImage = useCallback(() => {
+    form.setValue("imageUrl", null, { shouldValidate: true })
+  }, [form])
 
   const handleSubmit = useCallback(async () => {
     const valid = await form.trigger()
@@ -175,6 +231,69 @@ export default function MtoCategoryFormClient({ category, onSubmit }: MtoCategor
                   )}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Category Image Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Category Image</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              {imageUrl ? (
+                <div className="relative overflow-hidden rounded-xl border">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL */}
+                  <img src={imageUrl} alt="Category preview" className="h-40 w-full object-cover" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-2"
+                    onClick={removeImage}
+                    disabled={isUploading}
+                  >
+                    <XIcon className="size-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8">
+                  <ImageIcon className="size-8 text-muted-foreground" />
+                  <p className="text-center text-sm text-muted-foreground">
+                    No image set. This card will fall back to the icon and color.
+                  </p>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <Loader2Icon className="size-4 mr-1 animate-spin" />
+                  ) : (
+                    <UploadIcon className="size-4 mr-1" />
+                  )}
+                  {isUploading ? "Uploading..." : imageUrl ? "Replace Image" : "Upload Image"}
+                </Button>
+                {imageUrl && (
+                  <Button type="button" variant="ghost" onClick={removeImage} disabled={isUploading}>
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                JPG, PNG, or WebP up to 10MB.
+              </p>
+              {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
             </CardContent>
           </Card>
 

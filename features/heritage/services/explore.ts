@@ -82,6 +82,7 @@ function mapDbRow(row: Record<string, unknown>): HeritageSite {
           description: (category.description ?? null) as string | null,
           icon: (category.icon ?? null) as string | null,
           color: (category.color ?? null) as string | null,
+          imageUrl: (category.image_url ?? null) as string | null,
           displayOrder: (category.display_order ?? null) as number | null,
           status: (category.status ?? "active") as HeritageCategory["status"],
         }

@@ -51,7 +51,7 @@ interface RawSite {
   updated_at: string
   average_rating: number
   review_count: number
-  category: { id: string; name: string; description: string | null; icon: string | null; color: string | null; display_order: number | null; status: string } | null
+  category: { id: string; name: string; description: string | null; icon: string | null; color: string | null; image_url: string | null; display_order: number | null; status: string } | null
   municipality: { name: string } | null
   tags: HeritageSiteTag[]
   media: { id: string; site_id: string; media_type: string; file_url: string; file_name: string | null; file_size_bytes: number | null; mime_type: string | null; is_primary: boolean; sort_order: number | null; caption: string | null; uploaded_by: string | null; created_at: string }[]
@@ -95,6 +95,7 @@ function toHeritageSite(raw: RawSite): HeritageSite {
           description: raw.category.description,
           icon: raw.category.icon,
           color: raw.category.color,
+          imageUrl: raw.category.image_url,
           displayOrder: raw.category.display_order,
           status: raw.category.status as "active" | "inactive",
         }
@@ -282,7 +283,7 @@ export async function generateRecommendations(
         publication_status, is_featured, visibility,
         created_by, created_at, updated_at,
         average_rating, review_count,
-        category:heritage_categories(id, name, description, icon, color, display_order, status),
+        category:heritage_categories(id, name, description, icon, color, image_url, display_order, status),
         municipality:municipalities(name),
         tags:heritage_site_tags(id, site_id, tag),
         media:heritage_site_media(id, site_id, media_type, file_url, file_name, file_size_bytes, mime_type, is_primary, caption, uploaded_by, created_at)

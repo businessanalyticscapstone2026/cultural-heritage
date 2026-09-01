@@ -20,7 +20,7 @@ export async function getCategoriesWithSiteCountAction() {
   return getCategoriesWithSiteCount()
 }
 
-export async function createCategoryAction(data: { name: string; description?: string; icon?: string; color?: string; displayOrder?: number }) {
+export async function createCategoryAction(data: { name: string; description?: string; icon?: string; color?: string; imageUrl?: string; displayOrder?: number }) {
   const category = await createCategory(data)
   revalidatePath("/mto/categories")
   revalidatePath("/admin/heritage-repository")

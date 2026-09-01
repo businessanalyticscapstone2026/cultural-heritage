@@ -10,6 +10,7 @@ export const categorySchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/, "Color must be a valid hex code (e.g., #6366f1)")
     .nullable()
     .optional(),
+  imageUrl: z.string().max(500).nullable().optional(),
   displayOrder: z.number().int().min(0).nullable().optional(),
   status: z.enum(["active", "inactive"]).optional(),
 })

@@ -181,15 +181,23 @@ export default async function AdminDashboardPage() {
               <MetricBox
                 icon={Star}
                 label="User Satisfaction"
-                value="—"
-                progress={0}
+                value={
+                  data.recommendationPerformance.userSatisfaction.reviewCount > 0
+                    ? `${data.recommendationPerformance.userSatisfaction.average}/5`
+                    : "—"
+                }
+                progress={
+                  data.recommendationPerformance.userSatisfaction.reviewCount > 0
+                    ? data.recommendationPerformance.userSatisfaction.percent
+                    : undefined
+                }
+                progressTone="success"
               />
             </div>
-            {/* TODO: User Satisfaction uses AVG(rating) from reviews table.
-                 The reviews table has rating, but tying it to recommendations
-                 specifically would require a join on site_id or tourist_id
-                 within the current month. No direct link exists between
-                 recommendations and reviews — stubbed for now. */}
+            {/* User Satisfaction is AVG(reviews.rating) for the current month,
+                 not a per-recommendation rate — the reviews table has no
+                 foreign key to recommendations (only site_id / tourist_id),
+                 so this is reported as an independent site-satisfaction metric. */}
           </div>
 
           {/* System Health */}

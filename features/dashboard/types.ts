@@ -43,6 +43,11 @@ export type RecommendationPerformance = {
   totalRecommendations: number
   clickThroughRate: number
   routePlansCreated: number
+  userSatisfaction: {
+    average: number
+    percent: number
+    reviewCount: number
+  }
 }
 
 export type SystemHealth = {

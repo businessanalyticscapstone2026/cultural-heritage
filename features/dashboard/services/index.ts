@@ -261,6 +261,23 @@ async function fetchRecommendationPerformance(
 
   if (errRoute) throw new Error(`Failed to count recommendation routes: ${errRoute.message}`)
 
+  // User Satisfaction is AVG(reviews.rating) for the current month. The
+  // reviews table has no foreign key to recommendations (only site_id /
+  // tourist_id), so this is reported as an independent site-satisfaction
+  // metric rather than a per-recommendation rate.
+  const { data: monthlyReviews, error: errReviews } = await supabase
+    .from("reviews")
+    .select("rating")
+    .eq("status", "published")
+    .gte("created_at", monthStart)
+
+  if (errReviews) throw new Error(`Failed to fetch reviews: ${errReviews.message}`)
+
+  const ratings = (monthlyReviews ?? []).map((r) => r.rating as number)
+  const reviewCount = ratings.length
+  const average = reviewCount > 0 ? ratings.reduce((sum, r) => sum + r, 0) / reviewCount : 0
+  const percent = reviewCount > 0 ? Math.round((average / 5) * 100) : 0
+
   const total = totalRecommendations ?? 0
   const clicked = clickedCount ?? 0
   const clickThroughRate = total > 0 ? Math.round((clicked / total) * 100) : 0
@@ -269,6 +286,11 @@ async function fetchRecommendationPerformance(
     totalRecommendations: total,
     clickThroughRate,
     routePlansCreated: routePlansCreated ?? 0,
+    userSatisfaction: {
+      average: Math.round(average * 10) / 10,
+      percent,
+      reviewCount,
+    },
   }
 }
 

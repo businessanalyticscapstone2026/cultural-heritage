@@ -602,3 +602,4 @@ When uncertain:
 Prefer consistency with the existing architecture over introducing new patterns.
 
 <!-- END:nextjs-agent-rules -->
+

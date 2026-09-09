@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { formatDistanceToNow } from "@/lib/format-time"
 import {
   Landmark,
   Building2,
@@ -212,11 +213,13 @@ export default async function AdminDashboardPage() {
                   <p className="text-xs text-muted-foreground">Last Backup</p>
                   {data.systemHealth.lastBackupAt ? (
                     <p className="mt-0.5 font-medium text-sm">
-                      {new Date(data.systemHealth.lastBackupAt).toLocaleString()}
+                      {formatDistanceToNow(new Date(data.systemHealth.lastBackupAt))}{" "}
+                      <span className="text-muted-foreground font-normal">
+                        ({new Date(data.systemHealth.lastBackupAt).toLocaleString()})
+                      </span>
                     </p>
                   ) : (
                     <p className="mt-0.5 text-sm italic text-muted-foreground">
-                      {/* TODO: no schema field for this yet — no backup has been recorded */}
                       No backups recorded
                     </p>
                   )}

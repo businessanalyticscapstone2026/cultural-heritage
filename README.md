@@ -2,6 +2,16 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Environment Variables
+
+Copy `.env.local.example` to `.env.local` and fill in real values from the
+Supabase and Clerk dashboards. `.env.local` is gitignored — never commit real
+secrets.
+
+```bash
+cp .env.local.example .env.local
+```
+
 First, run the development server:
 
 ```bash

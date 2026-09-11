@@ -36,6 +36,7 @@ export const ROUTES = {
     ANALYTICS: "/mto/analytics",
     REPORTS: "/mto/reports",
     QR_CODES: "/mto/qr-codes",
+    USERS: "/mto/users",
   },
   TOURIST: {
     HOME: "/home",

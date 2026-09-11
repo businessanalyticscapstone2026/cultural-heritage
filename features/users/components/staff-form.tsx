@@ -4,16 +4,22 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { X } from "lucide-react"
+import { notifyError } from "@/lib/toast"
 import type { StaffProfileWithRelations, Role } from "../types"
 import type { Municipality } from "@/features/municipalities/types"
 
 const staffSchema = z.object({
-  email: z.string().email("Invalid email"),
+  // Email is create-only (hidden in edit mode): optional at base level,
+  // required + valid format enforced for create in superRefine below.
+  email: z.string().optional().or(z.literal("")),
   password: z.string().min(8, "Password must be at least 8 characters").optional().or(z.literal("")),
-  first_name: z.string().min(1, "First name is required"),
-  last_name: z.string().min(1, "Last name is required"),
-  username: z.string().min(1, "Username is required"),
-  role_id: z.string().min(1, "Role is required"),
+  // Optional at the schema level so edit mode can leave NULL-backed fields
+  // untouched; required-ness for create mode is enforced in superRefine below.
+  // Edit callers strip "" values and the PATCH endpoints keep existing values.
+  first_name: z.string().optional().or(z.literal("")),
+  last_name: z.string().optional().or(z.literal("")),
+  username: z.string().optional().or(z.literal("")),
+  role_id: z.string().optional().or(z.literal("")),
   municipality_id: z.string().optional().or(z.literal("")),
 })
 
@@ -25,9 +31,11 @@ type StaffFormProps = {
   municipalities: Municipality[]
   onSave: (data: StaffFormValues) => Promise<void>
   onCancel: () => void
+  /** When set, the municipality is locked to this id (MTO-scoped creation). */
+  fixedMunicipalityId?: string
 }
 
-export function StaffForm({ editingProfile, roles, municipalities, onSave, onCancel }: StaffFormProps) {
+export function StaffForm({ editingProfile, roles, municipalities, onSave, onCancel, fixedMunicipalityId }: StaffFormProps) {
   const isMtoRole = (roleId: string) => {
     const role = roles.find((r) => r.id === roleId)
     return role?.name === "MTO Staff"
@@ -35,7 +43,25 @@ export function StaffForm({ editingProfile, roles, municipalities, onSave, onCan
 
   const resolver = zodResolver(
     staffSchema.superRefine((values, ctx) => {
-      if (isMtoRole(values.role_id) && !values.municipality_id) {
+      // Create mode keeps strict required fields with inline errors.
+      if (!editingProfile) {
+        if (!values.email || !z.string().email().safeParse(values.email).success) {
+          ctx.addIssue({ code: "custom", path: ["email"], message: "Invalid email" })
+        }
+        if (!values.first_name) {
+          ctx.addIssue({ code: "custom", path: ["first_name"], message: "First name is required" })
+        }
+        if (!values.last_name) {
+          ctx.addIssue({ code: "custom", path: ["last_name"], message: "Last name is required" })
+        }
+        if (!values.username) {
+          ctx.addIssue({ code: "custom", path: ["username"], message: "Username is required" })
+        }
+        if (!values.role_id) {
+          ctx.addIssue({ code: "custom", path: ["role_id"], message: "Role is required" })
+        }
+      }
+      if (isMtoRole(values.role_id || "") && !values.municipality_id) {
         ctx.addIssue({
           code: "custom",
           path: ["municipality_id"],
@@ -60,7 +86,7 @@ export function StaffForm({ editingProfile, roles, municipalities, onSave, onCan
           last_name: editingProfile.last_name ?? "",
           username: editingProfile.username ?? "",
           role_id: editingProfile.role_id ?? "",
-          municipality_id: editingProfile.municipality_id ?? "",
+          municipality_id: editingProfile.municipality_id ?? fixedMunicipalityId ?? "",
         }
       : {
           email: "",
@@ -69,11 +95,14 @@ export function StaffForm({ editingProfile, roles, municipalities, onSave, onCan
           last_name: "",
           username: "",
           role_id: "",
-          municipality_id: "",
+          municipality_id: fixedMunicipalityId ?? "",
         },
   })
 
   const mtoRequiresMunicipality = isMtoRole(watch("role_id") || "")
+  const municipalityOptions = fixedMunicipalityId
+    ? municipalities.filter((m) => m.id === fixedMunicipalityId)
+    : municipalities
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -87,7 +116,12 @@ export function StaffForm({ editingProfile, roles, municipalities, onSave, onCan
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSave)} className="space-y-4">
+        <form
+          onSubmit={handleSubmit(onSave, () =>
+            notifyError("Please fix the highlighted fields and try again.")
+          )}
+          className="space-y-4"
+        >
           {!editingProfile && (
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -162,7 +196,8 @@ export function StaffForm({ editingProfile, roles, municipalities, onSave, onCan
               <select
                 id="role_id"
                 {...register("role_id")}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                disabled={roles.length === 0}
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <option value="">Select role</option>
                 {roles.map((r) => (
@@ -171,19 +206,26 @@ export function StaffForm({ editingProfile, roles, municipalities, onSave, onCan
                   </option>
                 ))}
               </select>
-              {errors.role_id && <p className="mt-1 text-xs text-error">{errors.role_id.message}</p>}
+              {roles.length === 0 ? (
+                <p className="mt-1 text-xs text-error">
+                  No assignable roles available — contact your PTCAO administrator.
+                </p>
+              ) : (
+                errors.role_id && <p className="mt-1 text-xs text-error">{errors.role_id.message}</p>
+              )}
             </div>
             <div>
               <label htmlFor="municipality_id" className="mb-1 block text-xs font-medium text-muted-foreground">
-                Municipality{mtoRequiresMunicipality ? " *" : ""}
+                Municipality{mtoRequiresMunicipality || fixedMunicipalityId ? " *" : ""}
               </label>
               <select
                 id="municipality_id"
                 {...register("municipality_id")}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                disabled={!!fixedMunicipalityId}
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <option value="">{mtoRequiresMunicipality ? "Select municipality" : "All / Provincial"}</option>
-                {municipalities.map((m) => (
+                {municipalityOptions.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
                   </option>

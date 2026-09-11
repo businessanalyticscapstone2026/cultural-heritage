@@ -1,4 +1,5 @@
 export { UsersClient } from "./users-client"
+export { MtoUsersClient } from "./mto-users-client"
 export { StaffTable } from "./staff-table"
 export { StaffForm } from "./staff-form"
 export { RoleTable } from "./role-table"

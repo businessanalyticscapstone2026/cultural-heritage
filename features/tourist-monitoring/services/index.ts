@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { unwrapOne } from "@/lib/unwrap-one"
 import type {
   MonitoringFilters,
   MonitoringMetric,
@@ -331,10 +332,9 @@ export async function getSitePopularity(
 
   const siteInfoMap = new Map<string, { name: string; category: string }>()
   for (const site of siteData ?? []) {
-    const catArr = site.category as unknown as { name: string }[] | null
     siteInfoMap.set(site.id as string, {
       name: site.site_name as string,
-      category: (Array.isArray(catArr) ? catArr[0]?.name : null) ?? "Uncategorized",
+      category: unwrapOne(site.category as unknown as { name: string } | { name: string }[] | null)?.name ?? "Uncategorized",
     })
   }
 
@@ -442,10 +442,9 @@ export async function getUnderPromotedSites(
 
   const siteInfoMap = new Map<string, { name: string; category: string }>()
   for (const site of siteData ?? []) {
-    const catArr = site.category as unknown as { name: string }[] | null
     siteInfoMap.set(site.id as string, {
       name: site.site_name as string,
-      category: (Array.isArray(catArr) ? catArr[0]?.name : null) ?? "Uncategorized",
+      category: unwrapOne(site.category as unknown as { name: string } | { name: string }[] | null)?.name ?? "Uncategorized",
     })
   }
 

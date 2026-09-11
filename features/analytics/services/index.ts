@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { createTokenClient, resolveAccessToken } from "@/utils/supabase/cached"
 import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
 import { FIRST_DISTRICT_MUNICIPALITIES } from "@/lib/constants"
+import { unwrapOne } from "@/lib/unwrap-one"
 import { MUNICIPALITY_COLORS, computeChange } from "../utils"
 import type {
   ProvinceMetric,
@@ -351,8 +352,7 @@ async function fetchTopCategories(
 
   const siteCategoryMap = new Map<string, { name: string; color: string }>()
   for (const site of sites) {
-    const catArr = site.category as unknown as { name: string; color: string }[] | null
-    const cat = Array.isArray(catArr) ? catArr[0] : null
+    const cat = unwrapOne(site.category as unknown as { name: string; color: string } | { name: string; color: string }[] | null)
     siteCategoryMap.set(site.id as string, {
       name: cat?.name ?? "Uncategorized",
       color: cat?.color ?? "#9CA3AF",
@@ -438,12 +438,10 @@ async function fetchTopSites(
 
   const siteInfoMap = new Map<string, { name: string; municipality: string; category: string }>()
   for (const site of siteData ?? []) {
-    const muniArr = site.municipality as unknown as { name: string }[] | null
-    const catArr = site.category as unknown as { name: string }[] | null
     siteInfoMap.set(site.id as string, {
       name: site.site_name as string,
-      municipality: (Array.isArray(muniArr) ? muniArr[0]?.name : null) ?? "Unknown",
-      category: (Array.isArray(catArr) ? catArr[0]?.name : null) ?? "Uncategorized",
+      municipality: unwrapOne(site.municipality as unknown as { name: string } | { name: string }[] | null)?.name ?? "Unknown",
+      category: unwrapOne(site.category as unknown as { name: string } | { name: string }[] | null)?.name ?? "Uncategorized",
     })
   }
 

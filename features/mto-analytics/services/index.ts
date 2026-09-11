@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { unwrapOne } from "@/lib/unwrap-one"
 import { ATTRACTION_COLORS, computeChange } from "../utils"
 import { normalizeDeviceType } from "@/lib/device-type"
 import { CHART_PALETTE } from "@/lib/chart-colors"
@@ -284,8 +285,7 @@ export async function getVisitsByAttraction(
 
   const siteCategoryMap = new Map<string, string>()
   for (const site of sites) {
-    const catArr = site.category as unknown as { name: string }[] | null
-    const cat = Array.isArray(catArr) ? catArr[0] : null
+    const cat = unwrapOne(site.category as unknown as { name: string } | { name: string }[] | null)
     siteCategoryMap.set(site.id as string, cat?.name ?? "Uncategorized")
   }
 
@@ -301,8 +301,7 @@ export async function getVisitsByAttraction(
   if (filters.categoryId) {
     const allowedSiteIds = sites
       .filter((s) => {
-        const catArr = s.category as unknown as { id: string }[] | null
-        const cat = Array.isArray(catArr) ? catArr[0] : null
+        const cat = unwrapOne(s.category as unknown as { id: string } | { id: string }[] | null)
         return cat?.id === filters.categoryId || s.category_id === filters.categoryId
       })
       .map((s) => s.id as string)
@@ -461,10 +460,9 @@ export async function getTopSites(
 
   const siteInfoMap = new Map<string, { name: string; category: string }>()
   for (const site of siteData ?? []) {
-    const catArr = site.category as unknown as { name: string }[] | null
     siteInfoMap.set(site.id as string, {
       name: site.site_name as string,
-      category: (Array.isArray(catArr) ? catArr[0]?.name : null) ?? "Uncategorized",
+      category: unwrapOne(site.category as unknown as { name: string } | { name: string }[] | null)?.name ?? "Uncategorized",
     })
   }
 

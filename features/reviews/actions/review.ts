@@ -9,6 +9,8 @@ import {
   createReview,
   deleteReview,
   reportReview,
+  getPublishedReviews,
+  getReviewsPageStats,
 } from "../services"
 import { BLOCKED_WORDS, MAX_COMMENT_LENGTH } from "../constants"
 
@@ -28,6 +30,14 @@ export async function getReviewsAction(
   const limit = 10
   const offset = (page ?? 0) * limit
   return getReviewsBySiteId(siteId, { sort, limit, offset })
+}
+
+export async function getPublishedReviewsAction(page: number) {
+  return getPublishedReviews(page, 9)
+}
+
+export async function getReviewsPageStatsAction() {
+  return getReviewsPageStats()
 }
 
 export async function getUserReviewAction(siteId: string) {

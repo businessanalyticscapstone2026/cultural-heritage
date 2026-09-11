@@ -1,65 +1,122 @@
 "use client"
 
 import Link from "next/link"
+import { useCallback, useEffect, useState } from "react"
 import { motion } from "motion/react"
 import { fadeUp } from "@/lib/motion-variants"
-import { Star, Quote } from "lucide-react"
+import { Star, Quote, ChevronLeft, ChevronRight } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import RestrictedGuestPrompt from "@/components/auth/restricted-guest-prompt"
+import { ReviewForm } from "@/features/reviews/components/review-form"
+import {
+  getPublishedReviewsAction,
+  getReviewsPageStatsAction,
+  deleteReviewAction,
+} from "@/features/reviews/actions/review"
+import type { PublishedReviewItem, ReviewsPageStats } from "@/features/reviews/services"
+import type { ReviewWithAuthor } from "@/types/review"
 
-const reviews = [
-  {
-    name: "Maria Santos",
-    role: "Heritage Advocate",
-    rating: 5,
-    text: "Batangas Heritage brought me back to my grandmother's stories. Walking through Balayan felt like stepping into a living museum.",
-  },
-  {
-    name: "Jose Reyes",
-    role: "Travel Blogger",
-    rating: 5,
-    text: "The curated trails saved us hours of planning. The Calatagan archaeological sites were jaw-dropping — every stop felt like a chapter from a history book.",
-  },
-  {
-    name: "Elena Cruz",
-    role: "History Teacher",
-    rating: 5,
-    text: "I bring my students here every semester. The depth of information is unmatched — it makes history come alive in ways no textbook ever could.",
-  },
-  {
-    name: "Andre Villanueva",
-    role: "Photographer",
-    rating: 5,
-    text: "The heritage sites here are incredibly photogenic. From the golden-hour light at the Basilica to the eerie beauty of Fortune Island ruins — every frame tells a story.",
-  },
-  {
-    name: "Camille Dimaculangan",
-    role: "Local Guide",
-    rating: 4,
-    text: "As a local, I thought I knew Batangas. This platform showed me hidden gems in my own town — a centuries-old watchtower I had walked past a hundred times.",
-  },
-  {
-    name: "Rafael Mendoza",
-    role: "Cultural Researcher",
-    rating: 5,
-    text: "The GIS mapping feature is brilliant. Being able to trace heritage corridors between municipalities gives a perspective that traditional guides simply cannot.",
-  },
-  {
-    name: "Isabel Torres",
-    role: "Solo Traveler",
-    rating: 5,
-    text: "I explored five municipalities in one weekend using the route planner. The recommended itineraries are thoughtful and respect the local communities.",
-  },
-  {
-    name: "Daniel Aquino",
-    role: "Urban Planner",
-    rating: 4,
-    text: "A invaluable resource for understanding how heritage conservation intersects with modern development. The documentation quality is exceptional.",
-  },
-]
+const PAGE_SIZE = 9
+
+function formatCompact(value: number): string {
+  return new Intl.NumberFormat("en-US", { notation: "compact" }).format(value)
+}
+
+function displayName(item: PublishedReviewItem): string {
+  const full = [item.authorFirstName, item.authorLastName].filter(Boolean).join(" ")
+  return full || "Heritage traveler"
+}
+
+function toExistingReview(item: PublishedReviewItem): ReviewWithAuthor {
+  return {
+    id: item.id,
+    touristId: item.touristId,
+    siteId: item.siteId,
+    rating: item.rating,
+    comment: item.comment,
+    status: "published",
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    authorFirstName: item.authorFirstName,
+    authorLastName: item.authorLastName,
+  }
+}
 
 export default function ReviewsPage() {
   const { profile, isLoading } = useAuth()
+  const [stats, setStats] = useState<ReviewsPageStats | null>(null)
+  const [items, setItems] = useState<PublishedReviewItem[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    getReviewsPageStatsAction()
+      .then((s) => {
+        if (!cancelled) setStats(s)
+      })
+      .catch(() => {
+        if (!cancelled) setStats(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey])
+
+  useEffect(() => {
+    let cancelled = false
+    getPublishedReviewsAction(page)
+      .then((result) => {
+        if (cancelled) return
+        setItems(result.items)
+        setTotal(result.total)
+        setError(null)
+        setLoading(false)
+      })
+      .catch((e) => {
+        if (cancelled) return
+        setError(e instanceof Error ? e.message : "Failed to load reviews")
+        setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [page, reloadKey])
+
+  const refreshStats = useCallback(() => {
+    getReviewsPageStatsAction()
+      .then((s) => setStats(s))
+      .catch(() => {})
+  }, [])
+
+  const goToPage = (target: number) => {
+    setLoading(true)
+    setPage(Math.max(0, target))
+  }
+
+  const handleRetry = () => {
+    setLoading(true)
+    setReloadKey((k) => k + 1)
+  }
+
+  const ownId = profile?.id ?? null
+
+  const handleDelete = async (item: PublishedReviewItem) => {
+    if (!confirm("Delete your review? This action cannot be undone.")) return
+    try {
+      await deleteReviewAction(item.id, item.siteId)
+      setItems((prev) => prev.filter((r) => r.id !== item.id))
+      setTotal((prev) => Math.max(0, prev - 1))
+      setEditingId(null)
+      refreshStats()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to delete review")
+    }
+  }
 
   if (isLoading) {
     return (
@@ -77,6 +134,15 @@ export default function ReviewsPage() {
       />
     )
   }
+
+  const statsRow = [
+    { value: stats ? stats.averageRating.toFixed(1) : "—", label: "Average Rating" },
+    { value: stats ? formatCompact(stats.explorerCount) : "—", label: "Heritage Explorers" },
+    { value: stats ? formatCompact(stats.reviewCount) : "—", label: "Reviews Written" },
+  ]
+
+  const start = total === 0 ? 0 : page * PAGE_SIZE + 1
+  const end = Math.min((page + 1) * PAGE_SIZE, total)
 
   return (
     <>
@@ -105,11 +171,7 @@ export default function ReviewsPage() {
       <section className="border-b border-ink/10 bg-parchment/30">
         <div className="mx-auto max-w-7xl px-6 md:px-10 py-10">
           <div className="grid grid-cols-3 gap-8">
-            {[
-              { value: "4.8", label: "Average Rating" },
-              { value: "2.4k", label: "Heritage Explorers" },
-              { value: "850+", label: "Reviews Written" },
-            ].map((stat, i) => (
+            {statsRow.map((stat, i) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 20 }}
@@ -141,45 +203,179 @@ export default function ReviewsPage() {
           </h2>
         </motion.div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {reviews.map((review, i) => (
-            <motion.div
-              key={review.name}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: i * 0.08 }}
-              className="group rounded-2xl border border-ink/10 bg-card p-6 transition-all duration-300 hover:shadow-lg hover:border-ink/20"
+        {loading && items.length === 0 ? (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-56 animate-pulse rounded-2xl border border-ink/10 bg-card" />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-ink/10 bg-card p-10 text-center">
+            <p className="text-sm text-destructive">{error}</p>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="mt-3 text-sm font-medium text-accent hover:underline"
             >
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <Star
-                      key={j}
-                      size={14}
-                      className={
-                        j < review.rating
-                          ? "fill-amber-400 text-amber-400"
-                          : "text-ink/20"
-                      }
-                    />
-                  ))}
-                </div>
-                <Quote size={16} className="text-ink/10 transition-colors group-hover:text-accent/40" />
-              </div>
-              <p className="text-sm leading-relaxed text-ink-soft">
-                &ldquo;{review.text}&rdquo;
+              Try again
+            </button>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="rounded-2xl border border-ink/10 bg-card p-10 text-center">
+            <p className="text-sm text-ink-soft">
+              No traveler stories yet. Be the first to share your visit.
+            </p>
+            <Link
+              href="/explore"
+              className="mt-3 inline-block text-sm font-medium text-accent hover:underline"
+            >
+              Find a site to review
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {items.map((item, i) => {
+                const isOwn = ownId != null && item.touristId === ownId
+                const isEditing = editingId === item.id
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.7, delay: (i % PAGE_SIZE) * 0.08 }}
+                    className="group rounded-2xl border border-ink/10 bg-card p-6 transition-all duration-300 hover:shadow-lg hover:border-ink/20"
+                  >
+                    {isEditing ? (
+                      <ReviewForm
+                        siteId={item.siteId}
+                        existingReview={toExistingReview(item)}
+                        onSubmit={(updated) => {
+                          setItems((prev) =>
+                            prev.map((r) =>
+                              r.id === updated.id
+                                ? {
+                                    ...r,
+                                    rating: updated.rating,
+                                    comment: updated.comment,
+                                    updatedAt: updated.updatedAt,
+                                  }
+                                : r
+                            )
+                          )
+                          setEditingId(null)
+                          refreshStats()
+                        }}
+                        onDelete={() => {
+                          setItems((prev) => prev.filter((r) => r.id !== item.id))
+                          setTotal((prev) => Math.max(0, prev - 1))
+                          setEditingId(null)
+                          refreshStats()
+                        }}
+                      />
+                    ) : (
+                      <>
+                        <div className="mb-4 flex items-center justify-between">
+                          <div
+                            className="flex items-center gap-1"
+                            role="img"
+                            aria-label={`${item.rating} out of 5 stars`}
+                          >
+                            {Array.from({ length: 5 }).map((_, j) => (
+                              <Star
+                                key={j}
+                                size={14}
+                                className={
+                                  j < item.rating
+                                    ? "fill-amber-400 text-amber-400"
+                                    : "text-ink/20"
+                                }
+                              />
+                            ))}
+                          </div>
+                          <Quote size={16} className="text-ink/10 transition-colors group-hover:text-accent/40" />
+                        </div>
+                        {item.comment ? (
+                          <p className="text-sm leading-relaxed text-ink-soft">
+                            &ldquo;{item.comment}&rdquo;
+                          </p>
+                        ) : (
+                          <p className="text-sm italic text-ink-soft/70">Rated this site highly.</p>
+                        )}
+                        <div className="mt-5 flex items-center gap-3 border-t border-ink/10 pt-4">
+                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-parchment text-xs font-medium text-ink">
+                            {displayName(item).charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="flex items-center gap-2 text-sm font-medium text-ink">
+                              <span className="truncate">{displayName(item)}</span>
+                              {isOwn && (
+                                <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent">
+                                  You
+                                </span>
+                              )}
+                            </p>
+                            <Link
+                              href={`/heritage/${item.siteId}`}
+                              className="block truncate text-xs text-ink-soft transition-colors hover:text-accent"
+                            >
+                              {item.siteName}
+                            </Link>
+                          </div>
+                        </div>
+                        {isOwn && (
+                          <div className="mt-3 flex gap-3 border-t border-ink/10 pt-3">
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(item.id)}
+                              className="text-xs font-medium text-accent hover:underline"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(item)}
+                              className="text-xs font-medium text-destructive hover:underline"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </motion.div>
+                )
+              })}
+            </div>
+
+            <div className="mt-10 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Showing {start}-{end} of {total}
               </p>
-              <div className="mt-5 flex items-center gap-3 border-t border-ink/10 pt-4">
-                <div className="h-10 w-10 rounded-full bg-parchment" />
-                <div>
-                  <p className="text-sm font-medium text-ink">{review.name}</p>
-                  <p className="text-xs text-ink-soft">{review.role}</p>
-                </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={page === 0 || loading}
+                  onClick={() => goToPage(page - 1)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-ink/10 bg-card px-4 py-2 text-sm text-ink transition-colors hover:border-ink/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ChevronLeft size={14} />
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  disabled={(page + 1) * PAGE_SIZE >= total || loading}
+                  onClick={() => goToPage(page + 1)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-ink/10 bg-card px-4 py-2 text-sm text-ink transition-colors hover:border-ink/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Next
+                  <ChevronRight size={14} />
+                </button>
               </div>
-            </motion.div>
-          ))}
-        </div>
+            </div>
+          </>
+        )}
       </section>
 
       <section className="mx-auto max-w-7xl px-6 py-20 md:py-28">

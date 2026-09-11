@@ -244,3 +244,105 @@ export async function reportReview(
       .eq("status", "published")
   }
 }
+
+export interface PublishedReviewItem {
+  id: string
+  touristId: string
+  siteId: string
+  siteName: string
+  rating: number
+  comment: string | null
+  createdAt: string
+  updatedAt: string
+  authorFirstName: string | null
+  authorLastName: string | null
+}
+
+export interface PublishedReviewsResult {
+  items: PublishedReviewItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface ReviewsPageStats {
+  averageRating: number
+  explorerCount: number
+  reviewCount: number
+}
+
+function unwrapJoin<T>(value: T | T[] | null | undefined): T | null {
+  if (value == null) return null
+  return Array.isArray(value) ? (value[0] ?? null) : value
+}
+
+/** Global newest-first feed of published reviews across all sites. */
+export async function getPublishedReviews(
+  page: number,
+  pageSize: number
+): Promise<PublishedReviewsResult> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const offset = page * pageSize
+  const { data, error, count } = await supabase
+    .from("reviews")
+    .select(
+      `
+      id, tourist_id, site_id, rating, comment, created_at, updated_at,
+      tourist:tourist_profiles(first_name, last_name),
+      site:heritage_sites(site_name)
+    `,
+      { count: "exact" }
+    )
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + pageSize - 1)
+
+  if (error) throw error
+
+  const items = (data ?? []).map((row) => {
+    const r = row as Record<string, unknown>
+    const tourist = unwrapJoin(
+      r.tourist as { first_name: string | null; last_name: string | null } | null
+    )
+    const site = unwrapJoin(r.site as { site_name: string } | null)
+    return {
+      id: r.id as string,
+      touristId: r.tourist_id as string,
+      siteId: r.site_id as string,
+      siteName: site?.site_name ?? "Unknown site",
+      rating: r.rating as number,
+      comment: (r.comment ?? null) as string | null,
+      createdAt: r.created_at as string,
+      updatedAt: (r.updated_at ?? r.created_at) as string,
+      authorFirstName: tourist?.first_name ?? null,
+      authorLastName: tourist?.last_name ?? null,
+    }
+  })
+
+  return { items, total: count ?? 0, page, pageSize }
+}
+
+/** Aggregate stats for the Tourist Reviews page header. */
+export async function getReviewsPageStats(): Promise<ReviewsPageStats> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("rating, tourist_id")
+    .eq("status", "published")
+
+  if (error) throw error
+
+  const rows = (data ?? []) as { rating: number; tourist_id: string }[]
+  const reviewCount = rows.length
+  const averageRating =
+    reviewCount === 0
+      ? 0
+      : Math.round((rows.reduce((sum, r) => sum + (r.rating ?? 0), 0) / reviewCount) * 10) / 10
+  const explorerCount = new Set(rows.map((r) => r.tourist_id)).size
+
+  return { averageRating, explorerCount, reviewCount }
+}

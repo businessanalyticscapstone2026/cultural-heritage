@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { unwrapOne } from "@/lib/unwrap-one"
 import { CHART_PALETTE } from "@/lib/chart-colors"
 import { normalizeDeviceType } from "@/lib/device-type"
 import type {
@@ -273,8 +274,7 @@ export async function getMTOVisitsByCategory(
 
   const siteCategoryMap = new Map<string, string>()
   for (const site of sites) {
-    const catArr = site.category as unknown as { name: string }[] | null
-    const cat = Array.isArray(catArr) ? catArr[0] : null
+    const cat = unwrapOne(site.category as unknown as { name: string } | { name: string }[] | null)
     siteCategoryMap.set(site.id as string, cat?.name ?? "Uncategorized")
   }
 
@@ -334,8 +334,7 @@ export async function getMTORecentSites(municipalityId: string): Promise<RecentS
   }
 
   return (data ?? []).map((row) => {
-    const catArr = row.category as unknown as { name: string }[] | null
-    const cat = Array.isArray(catArr) ? catArr[0] : null
+    const cat = unwrapOne(row.category as unknown as { name: string } | { name: string }[] | null)
     return {
       id: row.id as string,
       siteName: row.site_name as string,
@@ -407,8 +406,7 @@ export async function getMTORecentActivity(municipalityId: string): Promise<Tour
   }
 
   for (const s of scans.data ?? []) {
-    const qrCodeArr = s.qr_code as unknown as { site_id: string }[] | null
-    const qrCode = Array.isArray(qrCodeArr) ? qrCodeArr[0] : null
+    const qrCode = unwrapOne(s.qr_code as unknown as { site_id: string } | { site_id: string }[] | null)
     activities.push({
       id: s.id as string,
       type: "qr_scan",
@@ -492,10 +490,8 @@ export async function getMTORecentScans(municipalityId: string): Promise<RecentS
   if (error) throw error
 
   return (data ?? []).map((row) => {
-    const qrCodeArr = row.qr_code as unknown as Record<string, unknown>[] | null
-    const qrCode = Array.isArray(qrCodeArr) ? qrCodeArr[0] : null
-    const siteArr = qrCode?.site as unknown as Record<string, unknown>[] | null
-    const site = Array.isArray(siteArr) ? siteArr[0] : null
+    const qrCode = unwrapOne(row.qr_code as unknown as Record<string, unknown> | Record<string, unknown>[] | null)
+    const site = unwrapOne(qrCode?.site as Record<string, unknown> | Record<string, unknown>[] | null | undefined)
     return {
       id: row.id as string,
       siteName: (site?.site_name as string) ?? "Unknown",
@@ -654,8 +650,7 @@ export async function getMTOCategoryDistribution(
 
   const categoryCounts = new Map<string, number>()
   for (const site of sites) {
-    const catArr = site.category as unknown as { name: string }[] | null
-    const cat = Array.isArray(catArr) ? catArr[0] : null
+    const cat = unwrapOne(site.category as unknown as { name: string } | { name: string }[] | null)
     const name = cat?.name ?? "Uncategorized"
     categoryCounts.set(name, (categoryCounts.get(name) ?? 0) + 1)
   }

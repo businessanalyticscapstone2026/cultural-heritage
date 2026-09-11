@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { unwrapOne } from "@/lib/unwrap-one"
 import type { GovernanceReview, GovernanceReviewWithSite } from "@/types/heritage"
 
 export async function submitForReview(heritageSiteId: string, heritageSiteVersionId: string): Promise<GovernanceReview> {
@@ -96,8 +97,8 @@ export async function getGovernanceQueue(options?: {
 
   return (data ?? []).map((row) => {
     const site = row.heritage_site as unknown as Record<string, unknown> | null
-    const mun = site?.municipality as { name: string }[] | null
-    const cat = site?.category as { name: string }[] | null
+    const mun = site?.municipality as { name: string } | { name: string }[] | null
+    const cat = site?.category as { name: string } | { name: string }[] | null
     const submitter = row.submitter as { full_name: string } | null
     const reviewer = row.reviewer as { full_name: string } | null
     const version = row.version as { snapshot: Record<string, unknown> } | null
@@ -118,8 +119,8 @@ export async function getGovernanceQueue(options?: {
       createdAt: row.created_at as string,
       updatedAt: row.updated_at as string,
       siteName: (site?.site_name as string) ?? "Unknown Site",
-      municipalityName: mun?.[0]?.name ?? null,
-      categoryName: cat?.[0]?.name ?? null,
+      municipalityName: unwrapOne(mun)?.name ?? null,
+      categoryName: unwrapOne(cat)?.name ?? null,
       submittedByName: submitter?.full_name ?? "Unknown",
       reviewedByName: reviewer?.full_name ?? null,
       snapshot: version?.snapshot ?? {},
@@ -157,8 +158,8 @@ export async function getGovernanceReviewById(reviewId: string): Promise<Governa
   if (!data) return null
 
   const site = data.heritage_site as unknown as Record<string, unknown> | null
-  const mun = site?.municipality as { name: string }[] | null
-  const cat = site?.category as { name: string }[] | null
+  const mun = site?.municipality as { name: string } | { name: string }[] | null
+  const cat = site?.category as { name: string } | { name: string }[] | null
   const submitter = data.submitter as { full_name: string } | null
   const reviewer = data.reviewer as { full_name: string } | null
   const version = data.version as { snapshot: Record<string, unknown> } | null
@@ -179,8 +180,8 @@ export async function getGovernanceReviewById(reviewId: string): Promise<Governa
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string,
     siteName: (site?.site_name as string) ?? "Unknown Site",
-    municipalityName: mun?.[0]?.name ?? null,
-    categoryName: cat?.[0]?.name ?? null,
+    municipalityName: unwrapOne(mun)?.name ?? null,
+    categoryName: unwrapOne(cat)?.name ?? null,
     submittedByName: submitter?.full_name ?? "Unknown",
     reviewedByName: reviewer?.full_name ?? null,
     snapshot: version?.snapshot ?? {},

@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { UNDER_PROMOTION_PERCENTILE_THRESHOLD } from "../utils"
+import { unwrapOne } from "@/lib/unwrap-one"
 import type {
   RecommendationMonitoringFilters,
   RecommendationFunnelMetrics,
@@ -176,10 +177,9 @@ export async function getRecommendationSiteSummaries(
 
   const siteInfoMap = new Map<string, { name: string; category: string }>()
   for (const s of siteData ?? []) {
-    const catArr = s.category as unknown as { name: string }[] | null
     siteInfoMap.set(s.id as string, {
       name: s.site_name as string,
-      category: (Array.isArray(catArr) ? catArr[0]?.name : null) ?? "Uncategorized",
+      category: unwrapOne(s.category as unknown as { name: string } | { name: string }[] | null)?.name ?? "Uncategorized",
     })
   }
 
@@ -280,8 +280,7 @@ export async function getSiteRecommendationDetail(
 
   if (!site) return null
 
-  const catArr = site.category as unknown as { name: string }[] | null
-  const categoryName = (Array.isArray(catArr) ? catArr[0]?.name : null) ?? "Uncategorized"
+  const categoryName = unwrapOne(site.category as unknown as { name: string } | { name: string }[] | null)?.name ?? "Uncategorized"
   const range = dateRange(filters.dateFrom, filters.dateTo)
 
   const [recs, clicks, bookmarks, convs, allRecs] = await Promise.all([

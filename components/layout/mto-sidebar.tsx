@@ -12,6 +12,7 @@ import {
   Activity,
   History,
   BarChart3,
+  TrendingUp,
   FileText,
   QrCode,
   Users,
@@ -69,6 +70,7 @@ const navGroups: NavGroup[] = [
     label: "Reports & Analytics",
     items: [
       { label: "Analytics Dashboard", href: ROUTES.MTO.ANALYTICS, icon: BarChart3 },
+      { label: "Visitor Statistics", href: ROUTES.MTO.VISITOR_STATS, icon: TrendingUp },
       { label: "Reports", href: ROUTES.MTO.REPORTS, icon: FileText },
     ],
   },

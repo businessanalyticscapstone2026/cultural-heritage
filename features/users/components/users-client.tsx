@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react"
 import { UserPlus, Shield, Key } from "lucide-react"
 import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
+import { stripEmptyStrings } from "../utils"
 import { StaffTable } from "./staff-table"
 import { StaffForm } from "./staff-form"
 import { RoleTable } from "./role-table"
@@ -40,15 +41,20 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
   const handleStaffFormSave = async (data: Record<string, unknown>) => {
     try {
       if (editingProfile) {
+        // Omit untouched empties (NULL-backed profile fields surface as "") so
+        // server-side min(1) validation can't fail on values the user never set.
+        const payload = stripEmptyStrings({
+          first_name: data.first_name,
+          last_name: data.last_name,
+          username: data.username,
+          role_id: data.role_id,
+        })
         const updated = await apiClient<StaffProfileWithRelations>(
           `/users/${editingProfile.id}`,
           {
             method: "PATCH",
             body: {
-              first_name: data.first_name,
-              last_name: data.last_name,
-              username: data.username,
-              role_id: data.role_id,
+              ...payload,
               municipality_id: data.municipality_id || null,
             },
           }

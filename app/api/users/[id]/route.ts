@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { requirePermission } from "@/lib/permissions"
+import { getActorScope, getRoleNameById, getTargetMunicipalityId } from "@/lib/mto-scope"
 import { logAuditEvent } from "@/features/audit/services"
 import { z } from "zod"
 
@@ -48,6 +49,20 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (user) {
+    const scope = await getActorScope(supabase, user.id)
+    if (
+      scope.isMto &&
+      (!scope.municipalityId ||
+        (data as { municipality_id: string | null }).municipality_id !== scope.municipalityId)
+    ) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
+  }
+
   return NextResponse.json(data)
 }
 
@@ -65,6 +80,27 @@ export async function PATCH(
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser()
+  if (!currentUser) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const actorScope = await getActorScope(supabase, currentUser.id)
+  if (actorScope.isMto) {
+    if (!actorScope.municipalityId) {
+      return NextResponse.json(
+        { error: "Your account is not linked to a municipality" },
+        { status: 403 }
+      )
+    }
+    const targetMunicipalityId = await getTargetMunicipalityId(supabase, id)
+    if (targetMunicipalityId !== actorScope.municipalityId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
+  }
+
   const body = await request.json()
 
   const parsed = updateStaffSchema.safeParse(body)
@@ -77,6 +113,11 @@ export async function PATCH(
 
   let finalRoleId = role_id
   let resolvedMunicipalityId: string | null | undefined = municipality_id
+
+  // MTO managers cannot move accounts out of their municipality.
+  if (actorScope.isMto) {
+    resolvedMunicipalityId = actorScope.municipalityId
+  }
 
   if (finalRoleId === undefined || resolvedMunicipalityId === undefined) {
     const { data: existing } = await supabase
@@ -99,13 +140,16 @@ export async function PATCH(
       : (resolvedMunicipalityId ?? null)
 
   if (finalRoleId) {
-    const { data: role } = await supabase
-      .from("roles")
-      .select("name")
-      .eq("id", finalRoleId)
-      .maybeSingle()
+    const roleName = await getRoleNameById(supabase, finalRoleId)
 
-    if (role?.name === "MTO Staff" && !normalizedMunicipalityId) {
+    if (actorScope.isMto && roleName !== "MTO Staff") {
+      return NextResponse.json(
+        { error: "MTO managers can only assign the MTO Staff role" },
+        { status: 403 }
+      )
+    }
+
+    if (roleName === "MTO Staff" && !normalizedMunicipalityId) {
       return NextResponse.json(
         { error: "Municipality is required for MTO Staff accounts" },
         { status: 400 }
@@ -179,11 +223,21 @@ export async function DELETE(
 
   const { data: existing } = await supabase
     .from("staff_profiles")
-    .select("id")
+    .select("id, municipality_id")
     .eq("id", id)
     .maybeSingle()
 
   if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  const deleterScope = await getActorScope(supabase, currentUser.id)
+  if (
+    deleterScope.isMto &&
+    (!deleterScope.municipalityId ||
+      (existing as { municipality_id: string | null }).municipality_id !==
+        deleterScope.municipalityId)
+  ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 

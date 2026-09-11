@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { requirePermission } from "@/lib/permissions"
+import { getActorScope, getRoleNameById } from "@/lib/mto-scope"
 import { logAuditEvent } from "@/features/audit/services"
 import { z } from "zod"
 
@@ -33,10 +34,29 @@ export async function GET() {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const { data, error } = await supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let query = supabase
     .from("staff_profiles")
     .select(STAFF_RELATIONS_SELECT)
     .order("created_at", { ascending: false })
+
+  if (user) {
+    const scope = await getActorScope(supabase, user.id)
+    if (scope.isMto) {
+      if (!scope.municipalityId) {
+        return NextResponse.json(
+          { error: "Your account is not linked to a municipality" },
+          { status: 403 }
+        )
+      }
+      query = query.eq("municipality_id", scope.municipalityId)
+    }
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -80,10 +100,31 @@ export async function POST(request: Request) {
     municipality_id,
   } = parsed.data
 
+  // MTO managers may only create accounts inside their own municipality
+  // and may only assign MTO-scoped roles.
+  const actorScope = await getActorScope(supabase, currentUser.id)
+  if (actorScope.isMto) {
+    if (!actorScope.municipalityId) {
+      return NextResponse.json(
+        { error: "Your account is not linked to a municipality" },
+        { status: 403 }
+      )
+    }
+    const targetRoleName = await getRoleNameById(supabase, role_id)
+    if (targetRoleName !== "MTO Staff") {
+      return NextResponse.json(
+        { error: "MTO managers can only assign the MTO Staff role" },
+        { status: 403 }
+      )
+    }
+  }
+
   const finalMunicipalityId =
-    typeof municipality_id === "string" && municipality_id.trim() === ""
-      ? null
-      : (municipality_id ?? null)
+    actorScope.isMto && actorScope.municipalityId
+      ? actorScope.municipalityId
+      : typeof municipality_id === "string" && municipality_id.trim() === ""
+        ? null
+        : (municipality_id ?? null)
 
   const { data: role } = await supabase
     .from("roles")

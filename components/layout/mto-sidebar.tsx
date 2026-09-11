@@ -13,6 +13,7 @@ import {
   BarChart3,
   FileText,
   QrCode,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ROUTES } from "@/lib/constants"
@@ -73,6 +74,12 @@ const navGroups: NavGroup[] = [
     label: "QR Code Management",
     items: [
       { label: "QR Codes", href: ROUTES.MTO.QR_CODES, icon: QrCode },
+    ],
+  },
+  {
+    label: "User Management",
+    items: [
+      { label: "Users", href: ROUTES.MTO.USERS, icon: Users },
     ],
   },
 ]

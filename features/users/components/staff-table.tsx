@@ -10,9 +10,10 @@ type StaffTableProps = {
   onToggleStatus: (profile: StaffProfileWithRelations) => void
   onDelete: (profile: StaffProfileWithRelations) => void
   togglingId: string | null
+  onView?: (profile: StaffProfileWithRelations) => void
 }
 
-export function StaffTable({ staff, onEdit, onToggleStatus, onDelete, togglingId }: StaffTableProps) {
+export function StaffTable({ staff, onEdit, onToggleStatus, onDelete, togglingId, onView }: StaffTableProps) {
   if (staff.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -61,6 +62,15 @@ export function StaffTable({ staff, onEdit, onToggleStatus, onDelete, togglingId
               </td>
               <td className="px-4 py-3 text-right">
                 <div className="flex items-center justify-end gap-2">
+                  {onView && (
+                    <button
+                      type="button"
+                      onClick={() => onView(profile)}
+                      className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      View
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => onEdit(profile)}

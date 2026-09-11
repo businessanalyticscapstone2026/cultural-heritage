@@ -10,6 +10,7 @@ import {
   Image,
   Map,
   Activity,
+  History,
   BarChart3,
   FileText,
   QrCode,
@@ -61,6 +62,7 @@ const navGroups: NavGroup[] = [
     label: "Tourist Monitoring",
     items: [
       { label: "Tourist Monitoring", href: ROUTES.MTO.TOURIST_MONITORING, icon: Activity },
+      { label: "Activities", href: ROUTES.MTO.ACTIVITIES, icon: History },
     ],
   },
   {

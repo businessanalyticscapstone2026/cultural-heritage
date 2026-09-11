@@ -16,6 +16,7 @@ import {
   FileText,
   QrCode,
   Users,
+  Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ROUTES } from "@/lib/constants"
@@ -84,6 +85,12 @@ const navGroups: NavGroup[] = [
     label: "User Management",
     items: [
       { label: "Users", href: ROUTES.MTO.USERS, icon: Users },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { label: "Settings", href: ROUTES.MTO.SETTINGS, icon: Settings },
     ],
   },
 ]

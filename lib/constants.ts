@@ -37,6 +37,7 @@ export const ROUTES = {
     REPORTS: "/mto/reports",
     QR_CODES: "/mto/qr-codes",
     USERS: "/mto/users",
+    SETTINGS: "/mto/settings",
   },
   TOURIST: {
     HOME: "/home",

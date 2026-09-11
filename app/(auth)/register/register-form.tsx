@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, useReducedMotion } from "motion/react"
 import { Eye, EyeOff, Mail, Lock, User, Compass, Route, Star, Heart, X, ArrowLeft } from "lucide-react"
+import { useSignUp } from "@clerk/nextjs/legacy"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { BrandLogo } from "@/components/brand/brand-logo"
@@ -38,6 +39,7 @@ const features = [
 export default function RegisterForm() {
   const router = useRouter()
   const supabase = createClient()
+  const { signUp, isLoaded: signUpLoaded } = useSignUp()
   const prefersReducedMotion = useReducedMotion()
 
   const [firstName, setFirstName] = useState("")
@@ -50,6 +52,33 @@ export default function RegisterForm() {
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get("reason")
+    if (reason === "oauth-error") {
+      setError("Unable to sign up with Google. Please try again.")
+    }
+  }, [])
+
+  const handleGoogleSignUp = async () => {
+    if (!signUpLoaded) return
+
+    setError(null)
+    setIsGoogleLoading(true)
+
+    try {
+      await signUp.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/auth/clerk-bridge-register",
+      })
+    } catch (err) {
+      console.error("Google sign-up failed:", err)
+      setError("Unable to sign up with Google. Please try again.")
+      setIsGoogleLoading(false)
+    }
+  }
   const validateForm = useCallback((): boolean => {
     if (!firstName.trim()) {
       setError("Please enter your first name.")
@@ -392,6 +421,45 @@ export default function RegisterForm() {
                 )}
               </Button>
             </form>
+
+            {/* Clerk bot-protection mount point for the custom Google OAuth flow */}
+            <div id="clerk-captcha" />
+
+            {/* Divider */}
+            <div className="mt-6 flex items-center gap-3">
+              <div className="h-px flex-1 bg-gray-200" />
+              <span className="text-xs text-gray-400">or</span>
+              <div className="h-px flex-1 bg-gray-200" />
+            </div>
+
+            {/* Google sign-up */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGoogleSignUp}
+              disabled={isLoading || isGoogleLoading || !signUpLoaded}
+              className="w-full h-10 mt-6"
+            >
+              {isGoogleLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Signing up...
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.47c-.28 1.48-1.13 2.73-2.4 3.58v2.98h3.86c2.26-2.09 3.56-5.17 3.56-8.8Z" />
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.93l-3.86-2.98c-1.07.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.28v3.09C3.26 21.3 7.31 24 12 24Z" />
+                    <path fill="#FBBC05" d="M5.27 14.28A7.14 7.14 0 0 1 4.9 12c0-.79.14-1.56.37-2.28V6.63H1.28A11.96 11.96 0 0 0 0 12c0 1.93.46 3.76 1.28 5.37l3.99-3.09Z" />
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.94 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.28 6.63l3.99 3.09C6.22 6.86 8.87 4.75 12 4.75Z" />
+                  </svg>
+                  Sign up with Google
+                </span>
+              )}
+            </Button>
 
             {/* Sign in link */}
             <div className="mt-6 text-center">

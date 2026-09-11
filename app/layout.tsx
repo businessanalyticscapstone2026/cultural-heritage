@@ -3,6 +3,7 @@ import { Playfair_Display, Inter, Geist } from "next/font/google"
 import "./globals.css"
 import { cn } from "@/lib/utils"
 import { Toaster } from "sonner"
+import { ClerkProvider } from "@clerk/nextjs"
 import { AuthProvider } from "@/context/auth-context"
 import { RoleProvider } from "@/context/role-context"
 import { QueryProvider } from "@/components/providers/query-provider"
@@ -37,13 +38,15 @@ export default function RootLayout({
       className={cn("h-full", "antialiased", playfairDisplay.variable, inter.variable, "font-sans", geist.variable)}
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <AuthProvider>
-          <RoleProvider>
-            <QueryProvider>
-              <MotionProvider>{children}</MotionProvider>
-            </QueryProvider>
-          </RoleProvider>
-        </AuthProvider>
+        <ClerkProvider>
+          <AuthProvider>
+            <RoleProvider>
+              <QueryProvider>
+                <MotionProvider>{children}</MotionProvider>
+              </QueryProvider>
+            </RoleProvider>
+          </AuthProvider>
+        </ClerkProvider>
         <Toaster richColors closeButton position="top-right" />
       </body>
     </html>

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
+import { clerkMiddleware } from "@clerk/nextjs/server"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
@@ -22,6 +23,9 @@ const publicRoutes = [
   "/scan",
   "/about",
   "/maintenance",
+  // Clerk-Google-to-Supabase bridge: not yet Supabase-authenticated when hit.
+  "/sso-callback",
+  "/auth",
 ]
 const adminRoutes = ["/admin", "/ptcao"]
 const maintenanceExemptRoutes = ["/maintenance", "/api"]
@@ -39,7 +43,7 @@ async function getGlobalSetting(supabase: ReturnType<typeof createServerClient>,
   return (data?.value as Record<string, unknown>) ?? null
 }
 
-export async function proxy(request: NextRequest) {
+async function proxyHandler(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (maintenanceExemptRoutes.some((route) => pathname.startsWith(route))) {
@@ -205,6 +209,8 @@ export async function proxy(request: NextRequest) {
 
   return supabaseResponse
 }
+
+export const proxy = clerkMiddleware((_auth, request) => proxyHandler(request))
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|images/|api/).*)"],

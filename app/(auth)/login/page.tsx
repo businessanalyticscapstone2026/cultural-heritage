@@ -21,6 +21,7 @@ import {
   Info,
   MailCheck,
 } from "lucide-react"
+import { useSignIn } from "@clerk/nextjs/legacy"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
@@ -172,6 +173,7 @@ export default function LoginPage() {
 function LoginPageContent() {
   const router = useRouter()
   const supabase = createClient()
+  const { signIn, isLoaded: signInLoaded } = useSignIn()
   const { session, isLoading: authLoading, refreshSession } = useAuth()
   const prefersReducedMotion = useReducedMotion()
   const searchParams = useSearchParams()
@@ -186,6 +188,7 @@ function LoginPageContent() {
   const [resetEmailSent, setResetEmailSent] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
   const [sessionChecked, setSessionChecked] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -331,6 +334,24 @@ function LoginPageContent() {
     }
   }
 
+  const handleGoogleSignIn = async () => {
+    if (!signInLoaded) return
+
+    setError(null)
+    setIsGoogleLoading(true)
+
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/auth/clerk-bridge-register",
+      })
+    } catch {
+      setError("Unable to sign in with Google. Please try again.")
+      setIsGoogleLoading(false)
+    }
+  }
+
   const handleForgotPassword = async () => {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setFieldErrors({ email: "Please enter your email address above first." })
@@ -422,7 +443,7 @@ function LoginPageContent() {
           ) : (
             <>
               {/* Error / session-expired banner */}
-              {(error || reasonParam === "expired") && (
+              {(error || reasonParam === "expired" || reasonParam === "no-profile" || reasonParam === "oauth-error") && (
                 <motion.div
                   role="alert"
                   initial={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
@@ -430,18 +451,23 @@ function LoginPageContent() {
                   transition={{ duration: 0.2 }}
                   className={cn(
                     "flex items-start gap-2 text-sm rounded-lg px-4 py-3 mb-4",
-                    error
+                    error || reasonParam === "no-profile" || reasonParam === "oauth-error"
                       ? "bg-error/10 border border-error/20 text-error"
                       : "bg-warning/5 border border-warning/30 text-warning",
                   )}
                 >
-                  {error ? (
+                  {error || reasonParam === "no-profile" || reasonParam === "oauth-error" ? (
                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   ) : (
                     <Info className="h-4 w-4 shrink-0 mt-0.5" />
                   )}
                   <span className="flex-1">
-                    {error ?? "Your session has expired. Please sign in again."}
+                    {error ??
+                      (reasonParam === "no-profile"
+                        ? "No profile found for this account. Please contact support."
+                        : reasonParam === "oauth-error"
+                          ? "Unable to sign in with Google. Please try again."
+                          : "Your session has expired. Please sign in again.")}
                   </span>
                   {error && (
                     <button
@@ -550,6 +576,59 @@ function LoginPageContent() {
                   )}
                 </Button>
               </form>
+
+              {/* Divider */}
+              <div className="mt-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-gray-200" />
+                <span className="text-xs text-gray-400">or</span>
+                <div className="h-px flex-1 bg-gray-200" />
+              </div>
+
+              {/* Google sign-in */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGoogleSignIn}
+                disabled={fieldsDisabled || isGoogleLoading || !signInLoaded}
+                className="w-full h-11 mt-6"
+              >
+                {isGoogleLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg
+                      className="animate-spin w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Signing in...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="#4285F4"
+                        d="M23.49 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.47c-.28 1.48-1.13 2.73-2.4 3.58v2.98h3.86c2.26-2.09 3.56-5.17 3.56-8.8Z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 24c3.24 0 5.95-1.08 7.93-2.93l-3.86-2.98c-1.07.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.28v3.09C3.26 21.3 7.31 24 12 24Z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.27 14.28A7.14 7.14 0 0 1 4.9 12c0-.79.14-1.56.37-2.28V6.63H1.28A11.96 11.96 0 0 0 0 12c0 1.93.46 3.76 1.28 5.37l3.99-3.09Z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.94 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.28 6.63l3.99 3.09C6.22 6.86 8.87 4.75 12 4.75Z"
+                      />
+                    </svg>
+                    Sign in with Google
+                  </span>
+                )}
+              </Button>
 
               {/* Register link */}
               <div className="mt-8 text-center">

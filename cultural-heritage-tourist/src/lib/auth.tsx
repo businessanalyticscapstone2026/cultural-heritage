@@ -25,6 +25,8 @@ interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Persists a real Supabase-authenticated (e.g. Google OAuth) user into local session state. */
+  hydrateSupabaseUser: (user: { id: string; name: string; email: string }, onboarded: boolean) => void;
   completeOnboarding: (data: {
     interests: string[];
     travelStyle?: TravelStyle;
@@ -99,6 +101,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ user: null, loading: false });
   }, []);
 
+  const hydrateSupabaseUser = useCallback(
+    (supabaseUser: { id: string; name: string; email: string }, onboarded: boolean) => {
+      const existing = loadUser();
+      const user: User = {
+        id: supabaseUser.id,
+        name: supabaseUser.name,
+        email: supabaseUser.email,
+        interests: existing?.id === supabaseUser.id ? existing.interests : [],
+        onboarded,
+        ...(existing?.id === supabaseUser.id
+          ? {
+              travelStyle: existing.travelStyle,
+              accessibilityPrefs: existing.accessibilityPrefs,
+              travelDistance: existing.travelDistance,
+              locationEnabled: existing.locationEnabled,
+            }
+          : {}),
+      };
+      saveUser(user);
+      setState({ user, loading: false });
+    },
+    [],
+  );
+
   const completeOnboarding = useCallback((data: {
     interests: string[];
     travelStyle?: TravelStyle;
@@ -123,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, signup, logout, completeOnboarding }}>
+    <AuthContext.Provider value={{ ...state, login, signup, logout, completeOnboarding, hydrateSupabaseUser }}>
       {children}
     </AuthContext.Provider>
   );

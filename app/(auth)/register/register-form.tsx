@@ -221,7 +221,7 @@ export default function RegisterForm() {
           transition={{ duration: 0.55, ease: EASE, delay: prefersReducedMotion ? 0 : 0.1 }}
           className="flex-1 flex flex-col justify-center bg-white px-8 lg:px-16 py-10"
         >
-          <div className="w-full max-w-sm mx-auto lg:mx-0 lg:ml-auto">
+          <div className="w-full max-w-sm mx-auto">
             {/* Logo */}
             <div className="mb-8">
               <Link href="/" className="mb-6 inline-flex items-center gap-1.5 text-xs text-ink-soft transition-colors hover:text-ink">

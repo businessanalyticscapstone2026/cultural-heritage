@@ -97,7 +97,7 @@ function LoginField({
         : "text-gray-400 group-hover:text-gray-500 group-focus-within:text-[#1D5FA8]"
 
   const inputClasses = cn(
-    "h-11 w-full rounded-lg border bg-white pl-10 text-sm text-[#0B2A4A] placeholder:text-gray-400 outline-none transition-colors duration-150",
+    "h-11 w-full rounded-lg border bg-white pl-10 text-sm text-[#0B2A4A] placeholder:text-gray-400 outline-none transition-colors duration-150 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden",
     "disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 disabled:placeholder:text-gray-300 disabled:hover:border-gray-200",
     trailing ? "pr-10" : "pr-4",
     disabled

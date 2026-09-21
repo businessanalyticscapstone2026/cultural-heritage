@@ -127,24 +127,22 @@ function FeaturedSiteCard({
           )}
           <CardBookmarkButton siteId={site.id} />
         </div>
-        <div className="mt-4 flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="text-display text-xl leading-tight text-ink transition-colors group-hover:text-accent">
-              {site.siteName}
-            </h3>
-            <p className="text-sm text-ink-soft">
-              {site.municipalityName ?? "Batangas"}
-            </p>
-            {site.shortDescription && (
-              <p className="mt-1 line-clamp-2 text-xs text-ink-soft/90">
-                {site.shortDescription}
-              </p>
-            )}
-          </div>
+        <div className="mt-4 space-y-1.5">
           {site.yearEstablished && (
-            <span className="shrink-0 font-mono text-xs text-accent">
-              {site.yearEstablished}
-            </span>
+            <p className="font-mono text-xs text-accent">
+              Est. {site.yearEstablished}
+            </p>
+          )}
+          <h3 className="text-display text-xl leading-tight text-ink transition-colors group-hover:text-accent">
+            {site.siteName}
+          </h3>
+          <p className="text-sm text-ink-soft">
+            {site.municipalityName ?? "Batangas"}
+          </p>
+          {site.shortDescription && (
+            <p className="text-xs text-ink-soft/90">
+              {site.shortDescription}
+            </p>
           )}
         </div>
       </Link>

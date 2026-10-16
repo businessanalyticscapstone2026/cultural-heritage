@@ -3,7 +3,8 @@
 import { useCallback } from "react"
 import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { updateHeritageSiteAction, getArchivedSitesByMunicipalityAction } from "../actions/heritage"
-import { deleteMtoSiteAction } from "../actions/mto-sites"
+import { deleteMtoSiteAction, deleteMtoSitesAction } from "../actions/mto-sites"
+import type { BatchDeleteSiteResult } from "../actions/mto-sites"
 import { useHeritageSites } from "../hooks"
 import ArchiveList from "./archive-list"
 import type { HeritageSite } from "../types"
@@ -34,16 +35,17 @@ export default function MtoArchiveClient({
     }
   }, [refetch])
 
-  const handleDelete = useCallback(async (id: string) => {
-    try {
-      const result = await deleteMtoSiteAction(id)
-      if (!result.success) {
-        throw new Error(result.error ?? "Failed to delete site. Please try again or contact support.")
-      }
-      refetch()
-    } catch (err) {
-      throw new Error(errorReason(err, "Failed to delete site. Please try again or contact support."))
-    }
+  const handleDelete = useCallback(async (id: string): Promise<{ ok: boolean; reason?: string }> => {
+    const result = await deleteMtoSiteAction(id)
+    if (!result.success) return { ok: false, reason: result.error }
+    refetch()
+    return { ok: true }
+  }, [refetch])
+
+  const handleDeleteMany = useCallback(async (ids: string[]): Promise<BatchDeleteSiteResult> => {
+    const result = await deleteMtoSitesAction(ids)
+    refetch()
+    return result
   }, [refetch])
 
   return (
@@ -51,6 +53,7 @@ export default function MtoArchiveClient({
       sites={displaySites}
       onRestore={handleRestore}
       onDelete={handleDelete}
+      onDeleteMany={handleDeleteMany}
     />
   )
 }

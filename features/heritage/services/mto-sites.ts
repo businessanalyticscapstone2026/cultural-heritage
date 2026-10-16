@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import type { HeritageSite, HeritageCategory, HeritageSiteTag } from "@/types/heritage"
 import { createHeritageSiteVersion, deleteSiteDependencies, findDuplicateHeritageSiteByName } from "./index"
-import { DuplicateHeritageSiteError } from "../errors"
+import { DuplicateHeritageSiteError, SiteDeleteError } from "../errors"
 
 export type SiteWithDetails = HeritageSite & {
   creatorName?: string | null
@@ -548,29 +548,52 @@ export async function restoreMtoSite(siteId: string, municipalityId: string): Pr
   if (error) throw new Error(`Failed to restore site: ${error.message}`)
 }
 
-/** Permanently delete an archived site — scoped to the MTO's municipality */
-export async function deleteMtoSite(siteId: string, municipalityId: string): Promise<void> {
+/** Permanently delete an archived site — scoped to the MTO's municipality.
+ * Returns the deleted site's name so callers can report the outcome. */
+export async function deleteMtoSite(
+  siteId: string,
+  municipalityId: string,
+): Promise<{ siteName: string }> {
   const supabase = await getSupabase()
 
-  const { data: site } = await supabase
+  const { data: site, error: lookupError } = await supabase
     .from("heritage_sites")
-    .select("id")
+    .select("id, site_name, municipality_id, publication_status")
     .eq("id", siteId)
-    .eq("municipality_id", municipalityId)
-    .eq("publication_status", "archived")
     .maybeSingle()
 
-  if (!site) throw new Error("Site not found or cannot be deleted")
+  if (lookupError) throw new SiteDeleteError("unknown", lookupError.message)
+  if (!site) throw new SiteDeleteError("not_found")
+  if (site.municipality_id !== municipalityId) {
+    throw new SiteDeleteError("wrong_municipality", `site municipality is ${site.municipality_id}`)
+  }
+  if (site.publication_status !== "archived") {
+    throw new SiteDeleteError("not_archived", `status is ${site.publication_status}`)
+  }
 
   await deleteSiteDependencies(siteId)
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("heritage_sites")
     .delete()
     .eq("id", siteId)
     .eq("municipality_id", municipalityId)
+    .select("id")
 
-  if (error) throw new Error(`Failed to delete site: ${error.message}`)
+  if (error) {
+    const code = (error as { code?: string }).code
+    const detail = (error as { message?: string }).message ?? String(error)
+    if (code === "23503") throw new SiteDeleteError("still_referenced", `FK violation: ${detail}`)
+    if (code === "42501") throw new SiteDeleteError("permission_denied", detail)
+    throw new SiteDeleteError("unknown", detail)
+  }
+
+  if (!data || data.length === 0) {
+    // PostgREST returns 0 rows with no error when RLS denies the delete.
+    throw new SiteDeleteError("permission_denied", "delete affected 0 rows")
+  }
+
+  return { siteName: site.site_name }
 }
 
 /** Fetch barangays for the MTO's municipality */

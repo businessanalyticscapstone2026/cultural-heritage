@@ -436,6 +436,23 @@ export async function deleteSiteDependencies(siteId: string): Promise<void> {
     .eq("site_id", siteId)
   if (bookmarksError) throw new Error(`Failed to delete site bookmarks: ${bookmarksError.message}`)
 
+  // review_reports references reviews.id (no guaranteed ON DELETE CASCADE in the
+  // live DB), so delete the site's review reports before deleting its reviews.
+  const { data: reviewRows, error: reviewLookupError } = await supabase
+    .from("reviews")
+    .select("id")
+    .eq("site_id", siteId)
+  if (reviewLookupError) throw new Error(`Failed to look up site reviews: ${reviewLookupError.message}`)
+
+  const reviewIds = reviewRows?.map((row) => row.id) ?? []
+  if (reviewIds.length > 0) {
+    const { error: reviewReportsError } = await supabase
+      .from("review_reports")
+      .delete()
+      .in("review_id", reviewIds)
+    if (reviewReportsError) throw new Error(`Failed to delete site review reports: ${reviewReportsError.message}`)
+  }
+
   const { error: reviewRowsError } = await supabase
     .from("reviews")
     .delete()

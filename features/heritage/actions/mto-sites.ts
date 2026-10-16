@@ -17,8 +17,10 @@ import {
 } from "../services/mto-sites"
 import type { SiteWithDetails } from "../services/mto-sites"
 import { mtoHeritageSiteSchema } from "../schemas/mto-heritage-site"
+import { deleteMtoSitesSchema } from "../schemas/mto-site-delete"
 import { findDuplicateHeritageSiteByName } from "../services/sites"
 import type { DuplicateSiteMatch } from "../services/sites"
+import { SiteDeleteError } from "../errors"
 import { autoGenerateQrForSite, revokeQrCodesForSite } from "@/features/qr-code/services/qr-management"
 import { logAuditEvent } from "@/features/audit/services"
 
@@ -310,31 +312,88 @@ export async function deleteMtoSiteAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { municipalityId } = await getAuthContext()
-    await deleteMtoSite(siteId, municipalityId)
+    const { siteName } = await deleteMtoSite(siteId, municipalityId)
+
+    revalidatePath("/mto/archive")
+    revalidatePath("/mto/heritage-sites")
+    revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+    revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+
+    try {
+      await logAuditEvent({
+        category: "heritage",
+        action: "heritage_site_deleted",
+        targetType: "heritage_site",
+        targetId: siteId,
+        detail: { siteName },
+      })
+    } catch {}
+
+    return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error(`Failed to delete heritage site ${siteId}: ${message}`)
-    return {
-      success: false,
-      error: "Failed to delete site. Please try again or contact support.",
+    return { success: false, error: mapDeleteError(err, siteId) }
+  }
+}
+
+const AUTH_ERROR_MESSAGES = new Set([
+  "Not authenticated",
+  "MTO staff must be assigned to a municipality",
+])
+
+/** Log the real cause server-side and return a safe, specific message for the UI. */
+function mapDeleteError(err: unknown, siteId: string): string {
+  const message = err instanceof Error ? err.message : String(err)
+  if (err instanceof SiteDeleteError) {
+    console.error(`[deleteMtoSite] ${siteId} failed (${err.reason}): ${err.detail ?? message}`)
+    return message
+  }
+  if (AUTH_ERROR_MESSAGES.has(message)) {
+    console.error(`[deleteMtoSite] ${siteId} auth error: ${message}`)
+    return message
+  }
+  console.error(`[deleteMtoSite] ${siteId} failed: ${message}`)
+  return "Failed to delete site. Please try again or contact support."
+}
+
+export interface BatchDeleteSiteResult {
+  deleted: { id: string; siteName: string }[]
+  failed: { id: string; reason: string }[]
+}
+
+/** Permanently delete several archived sites. One failing site does not abort the rest. */
+export async function deleteMtoSitesAction(siteIds: string[]): Promise<BatchDeleteSiteResult> {
+  const { municipalityId } = await getAuthContext()
+  const ids = deleteMtoSitesSchema.parse(siteIds)
+
+  const deleted: BatchDeleteSiteResult["deleted"] = []
+  const failed: BatchDeleteSiteResult["failed"] = []
+
+  for (const id of ids) {
+    try {
+      const { siteName } = await deleteMtoSite(id, municipalityId)
+      deleted.push({ id, siteName })
+      try {
+        await logAuditEvent({
+          category: "heritage",
+          action: "heritage_site_deleted",
+          targetType: "heritage_site",
+          targetId: id,
+          detail: { siteName },
+        })
+      } catch {}
+    } catch (err) {
+      failed.push({ id, reason: mapDeleteError(err, id) })
     }
   }
 
-  revalidatePath("/mto/archive")
-  revalidatePath("/mto/heritage-sites")
-  revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
-  revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+  if (deleted.length > 0) {
+    revalidatePath("/mto/archive")
+    revalidatePath("/mto/heritage-sites")
+    revalidateTag(CACHE_TAGS.heritageSites, { expire: CACHE_REVALIDATE_SECONDS })
+    revalidateTag(CACHE_TAGS.dashboardSites, { expire: CACHE_REVALIDATE_SECONDS })
+  }
 
-  try {
-    await logAuditEvent({
-      category: "heritage",
-      action: "heritage_site_deleted",
-      targetType: "heritage_site",
-      targetId: siteId,
-    })
-  } catch {}
-
-  return { success: true }
+  return { deleted, failed }
 }
 
 /** Get the current staff profile */

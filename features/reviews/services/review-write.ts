@@ -30,6 +30,16 @@ export interface SubmitReviewResult {
   aggregate: ReviewAggregate
 }
 
+export interface RichReviewSubmitResult extends SubmitReviewResult {
+  /**
+   * True when this call created the caller's review, false when it updated an
+   * existing one. Determined before the write; two concurrent first-time
+   * submits for the same tourist+site can both report true (the upsert itself
+   * stays correct).
+   */
+  created: boolean
+}
+
 interface SubmitReviewRpcResult {
   review_id: string
   removed_storage_paths: string[] | null
@@ -55,12 +65,17 @@ async function assertTouristProfile(supabase: SupabaseClient, userId: string): P
   if (!data) throw new ReviewWriteError("no_tourist_profile", "Tourist profile not found")
 }
 
-/** Media rows currently attached to the caller's review for this site. */
-async function getExistingMedia(
+interface ExistingReview {
+  exists: boolean
+  media: Map<string, ExistingMediaRow>
+}
+
+/** Whether the caller already reviewed this site, and the media attached to it. */
+async function getExistingReview(
   supabase: SupabaseClient,
   userId: string,
   siteId: string
-): Promise<Map<string, ExistingMediaRow>> {
+): Promise<ExistingReview> {
   const { data, error } = await supabase
     .from("reviews")
     .select(
@@ -73,7 +88,7 @@ async function getExistingMedia(
   if (error) throw new ReviewWriteError("write_failed", "Could not load your review.", error.message)
 
   const rows = ((data as { media?: ExistingMediaRow[] | null } | null)?.media ?? []) as ExistingMediaRow[]
-  return new Map(rows.map((row) => [row.storage_path, row]))
+  return { exists: data != null, media: new Map(rows.map((row) => [row.storage_path, row])) }
 }
 
 /**
@@ -175,7 +190,7 @@ export async function submitRichReview(
   supabase: SupabaseClient,
   userId: string,
   rawInput: unknown
-): Promise<SubmitReviewResult> {
+): Promise<RichReviewSubmitResult> {
   const parsed = reviewSubmissionSchema.safeParse(rawInput)
   if (!parsed.success) {
     throw new ReviewWriteError(
@@ -194,8 +209,8 @@ export async function submitRichReview(
   }
 
   await assertTouristProfile(supabase, userId)
-  const existing = await getExistingMedia(supabase, userId, input.siteId)
-  const media = await resolveMedia(supabase, input.media, existing)
+  const existing = await getExistingReview(supabase, userId, input.siteId)
+  const media = await resolveMedia(supabase, input.media, existing.media)
 
   const result = await callSubmitReview(supabase, {
     p_site_id: input.siteId,
@@ -207,7 +222,8 @@ export async function submitRichReview(
     p_media: media,
   })
 
-  return finishWrite(supabase, userId, input.siteId, result)
+  const written = await finishWrite(supabase, userId, input.siteId, result)
+  return { ...written, created: !existing.exists }
 }
 
 /**

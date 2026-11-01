@@ -15,6 +15,10 @@ export const CACHE_TAGS = {
   analytics: "analytics",
   /** CHT-135 review-derived DSS insights (satisfaction, engagement, alerts) */
   reviewInsights: "review-insights",
+  /** CHT-136 Taal portal API: public heritage-site payloads */
+  portalHeritageSites: "portal-heritage-sites",
+  /** CHT-136 Taal portal API: public review payloads */
+  portalReviews: "portal-reviews",
 } as const
 
 export type CacheTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS]

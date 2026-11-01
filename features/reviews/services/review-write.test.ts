@@ -27,6 +27,8 @@ const allCriteria = (score = 4) => Object.fromEntries(REVIEW_CRITERIA.map((c) =>
 
 function fakeSupabase(options: {
   existingMedia?: Record<string, unknown>[]
+  /** Simulate a first-time review (no existing row for tourist+site). */
+  noExistingReview?: boolean
   info?: { size: number; contentType: string } | null
   rpcResult?: { data: unknown; error: unknown }
 }) {
@@ -45,6 +47,7 @@ function fakeSupabase(options: {
           return Promise.resolve({ data: { average_rating: 4, review_count: 1 }, error: null })
         }
         if (table === "reviews" && rpcCalls.length === 0) {
+          if (options.noExistingReview) return Promise.resolve({ data: null, error: null })
           return Promise.resolve({ data: { media: options.existingMedia ?? [] }, error: null })
         }
         return Promise.resolve({
@@ -105,6 +108,14 @@ const newImageRef = {
 }
 
 describe("submitRichReview", () => {
+  test("reports created=true for a first review and created=false for an edit", async () => {
+    const fresh = fakeSupabase({ noExistingReview: true })
+    expect((await submitRichReview(fresh.client, USER, payload())).created).toBe(true)
+
+    const edit = fakeSupabase({})
+    expect((await submitRichReview(edit.client, USER, payload())).created).toBe(false)
+  })
+
   test("rejects invalid input before touching the database", async () => {
     const { client, rpcCalls } = fakeSupabase({})
     const err = await submitRichReview(client, USER, payload({ criteria: { safety: 3 } })).catch((e) => e)

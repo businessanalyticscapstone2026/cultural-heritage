@@ -226,3 +226,50 @@ export async function getReviewsPageStats(supabase: SupabaseClient): Promise<Rev
 
   return { averageRating, explorerCount, reviewCount }
 }
+
+export interface PublishedReviewsQuery {
+  /** Restrict to these sites. An empty array returns no rows. */
+  siteIds: readonly string[]
+  /** Only reviews whose updated_at is at or after this ISO timestamp. */
+  updatedSince?: string | null
+  /** Sort by updated_at; "asc" suits incremental sync, "desc" suits display. */
+  order: "asc" | "desc"
+  offset: number
+  limit: number
+}
+
+export interface PublishedReviewsPage {
+  reviews: ReviewWithAuthor[]
+  total: number
+}
+
+/**
+ * Published reviews across a set of sites, with an updated_since filter for
+ * incremental sync. Uses the same explicit columns and anonymity-safe mapper
+ * as every other review read; `viewerId` is null so `isOwn` is always false.
+ */
+export async function listPublishedReviews(
+  supabase: SupabaseClient,
+  query: PublishedReviewsQuery
+): Promise<PublishedReviewsPage> {
+  if (query.siteIds.length === 0) return { reviews: [], total: 0 }
+
+  let request = supabase
+    .from("reviews")
+    .select(REVIEW_COLUMNS, { count: "exact" })
+    .in("site_id", [...query.siteIds])
+    .eq("status", "published")
+
+  if (query.updatedSince) request = request.gte("updated_at", query.updatedSince)
+
+  const ascending = query.order === "asc"
+  const { data, error, count } = await request
+    .order("updated_at", { ascending })
+    .order("id", { ascending })
+    .range(query.offset, query.offset + query.limit - 1)
+
+  if (error) throw error
+
+  const reviews = ((data ?? []) as unknown as ReviewRow[]).map((row) => mapReviewRow(row, null))
+  return { reviews, total: count ?? 0 }
+}

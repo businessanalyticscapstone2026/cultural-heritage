@@ -442,3 +442,6 @@ CONSTRAINT review_media_pkey PRIMARY KEY (id),
 CONSTRAINT review_media_review_id_fkey FOREIGN KEY (review_id) REFERENCES public.reviews(id) ON DELETE CASCADE
 );
 -- Storage bucket review-media: public read, 30 MB bucket limit, image/jpeg|png|webp, video/mp4|quicktime.
+-- CHT-136 Taal portal API (migration 20261102000000_taal_portal_api_indexes.sql).
+-- Index: idx_heritage_sites_municipality_status_updated ON heritage_sites (municipality_id, publication_status, updated_at DESC).
+-- Portal review reads reuse reviews_site_status_updated_idx (CHT-135). No new tables, policies or functions.

@@ -1,0 +1,444 @@
+openapi: 3.1.0
+info:
+  title: TCDSS Taal Municipal Portal API
+  version: 1.0.0
+  description: |
+    Read published heritage sites and reviews of the Taal municipality from the
+    central Batangas Cultural Tourism (TCDSS) database, and create or update a
+    tourist's review (CHT-136).
+
+    Request schemas mirror the Zod schemas in the TCDSS repository:
+      * ReviewSubmission: features/reviews/schemas/review.ts (reviewSubmissionSchema),
+        the same schema the main site uses. Generated with z.toJSONSchema and
+        transcribed here; refinements Zod cannot express in JSON Schema are
+        listed in the descriptions.
+      * Query parameters: features/portal-api/schemas/portal-query.ts.
+    If those files change, update this document in the same pull request.
+
+    See docs/integrations/taal-portal.md for sync, caching, CORS and fallback guidance.
+servers:
+  - url: "{baseUrl}/api/v1/taal"
+    variables:
+      baseUrl:
+        default: https://tcdss.example.gov.ph
+        description: Origin of the TCDSS deployment (no trailing slash).
+
+paths:
+  /heritage-sites:
+    get:
+      operationId: listTaalHeritageSites
+      summary: Published, public heritage sites of Taal
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/UpdatedSince"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: One page of heritage sites.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/PublicCacheControl" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/HeritageSite" }
+                  meta: { $ref: "#/components/schemas/PageMeta" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    options:
+      operationId: preflightTaalHeritageSites
+      summary: CORS preflight
+      responses:
+        "204": { description: Allowed origin, or not a CORS request. }
+        "403": { $ref: "#/components/responses/OriginNotAllowed" }
+
+  /reviews:
+    get:
+      operationId: listTaalReviews
+      summary: Published reviews of Taal heritage sites
+      parameters:
+        - name: site_id
+          in: query
+          required: false
+          description: Only reviews of this Taal site. 404 if the site is not a published Taal site.
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/UpdatedSince"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: One page of reviews.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/PublicCacheControl" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Review" }
+                  meta: { $ref: "#/components/schemas/PageMeta" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: upsertTaalReview
+      summary: Create or update the caller's review of a Taal site
+      description: |
+        One review per tourist per site. The first POST creates it (201); later
+        POSTs for the same site replace it (200). Replaying the same request is
+        safe. The caller must be a signed-in tourist of the TCDSS Supabase
+        project (tourist_profiles row). Media can only reference objects the
+        caller already uploaded to the review-media bucket through the TCDSS
+        upload flow; this API has no upload endpoint.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewSubmission" }
+      responses:
+        "200":
+          description: Existing review updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewEnvelope" }
+        "201":
+          description: Review created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewEnvelope" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    options:
+      operationId: preflightTaalReviews
+      summary: CORS preflight
+      responses:
+        "204": { description: Allowed origin, or not a CORS request. }
+        "403": { $ref: "#/components/responses/OriginNotAllowed" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase access token of a user of the TCDSS Supabase project.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 10000, default: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      description: Values above 50 are clamped to 50.
+      schema: { type: integer, minimum: 1, default: 20 }
+    UpdatedSince:
+      name: updated_since
+      in: query
+      required: false
+      description: |
+        Only rows with updated_at >= this instant. ISO 8601 with timezone
+        (e.g. 2026-10-01T00:00:00Z or 2026-10-01T08:00:00+08:00).
+      schema: { type: string, format: date-time }
+    Sort:
+      name: sort
+      in: query
+      required: false
+      description: Order by updated_at. Use updated_asc for incremental sync.
+      schema: { type: string, enum: [updated_desc, updated_asc], default: updated_desc }
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      schema: { type: string }
+
+  headers:
+    ETag:
+      description: Strong validator for the response body.
+      schema: { type: string }
+    PublicCacheControl:
+      description: "public, max-age=0, s-maxage=60, stale-while-revalidate=300"
+      schema: { type: string }
+    RetryAfter:
+      description: Seconds to wait before retrying.
+      schema: { type: integer }
+
+  responses:
+    NotModified:
+      description: The client's cached copy (If-None-Match) is current. Empty body.
+    BadRequest:
+      description: Invalid query parameters or malformed JSON (codes bad_request, invalid_json).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthenticated:
+      description: Missing, malformed, invalid or expired Bearer token (code unauthenticated).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: |
+        origin_not_allowed (browser Origin not in the allowlist),
+        no_tourist_profile (account is not a tourist), or forbidden (RLS refused
+        the write or a media object is not the caller's).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    OriginNotAllowed:
+      description: Origin not in the allowlist (code origin_not_allowed).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Site is not a published Taal site, or Taal is not configured (code not_found).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PayloadTooLarge:
+      description: Body larger than 32 KiB (code payload_too_large).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UnsupportedMediaType:
+      description: Content-Type is not application/json (code unsupported_media_type).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unprocessable:
+      description: |
+        validation_failed (schema), moderation_rejected (blocked language in
+        comment) or invalid_media (referenced file missing, wrong type, too
+        large, or not owned by the caller). `details` maps field paths to messages.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InternalError:
+      description: Unexpected error (code internal_error). No internals are returned.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unavailable:
+      description: |
+        dependency_unavailable (database/auth unreachable) or maintenance
+        (writes disabled while the platform is in maintenance mode; GETs stay up).
+      headers:
+        Retry-After: { $ref: "#/components/headers/RetryAfter" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error: { type: string, description: Human-readable, safe to display. }
+        code:
+          type: string
+          enum:
+            - bad_request
+            - invalid_json
+            - unauthenticated
+            - forbidden
+            - origin_not_allowed
+            - no_tourist_profile
+            - not_found
+            - payload_too_large
+            - unsupported_media_type
+            - validation_failed
+            - moderation_rejected
+            - invalid_media
+            - rate_limited
+            - maintenance
+            - dependency_unavailable
+            - internal_error
+          description: rate_limited (429) is reserved; the API does not rate-limit itself yet.
+        details:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+    PageMeta:
+      type: object
+      required: [page, pageSize, total, totalPages, hasMore, updatedSince]
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+        hasMore: { type: boolean }
+        updatedSince: { type: [string, "null"], format: date-time }
+
+    HeritageSite:
+      type: object
+      required: [id, name, municipality, isFeatured, averageRating, reviewCount, images, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        alternativeName: { type: [string, "null"] }
+        municipality: { type: string }
+        category: { type: [string, "null"] }
+        barangay: { type: [string, "null"] }
+        address: { type: [string, "null"] }
+        shortDescription: { type: [string, "null"] }
+        detailedDescription: { type: [string, "null"] }
+        historicalPeriod: { type: [string, "null"] }
+        yearEstablished: { type: [string, "null"] }
+        historicalSignificance: { type: [string, "null"] }
+        culturalSignificance: { type: [string, "null"] }
+        latitude: { type: [number, "null"] }
+        longitude: { type: [number, "null"] }
+        accessibilityInfo: { type: [string, "null"] }
+        operatingHours: { type: [string, "null"] }
+        entranceFee: { type: [string, "null"] }
+        designation: { type: [string, "null"] }
+        isFeatured: { type: boolean }
+        averageRating: { type: number }
+        reviewCount: { type: integer }
+        images:
+          type: array
+          description: Primary image first.
+          items:
+            type: object
+            required: [url, caption, isPrimary]
+            properties:
+              url: { type: string, format: uri }
+              caption: { type: [string, "null"] }
+              isPrimary: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Review:
+      type: object
+      description: |
+        Public review. Never contains user ids, emails, moderation status or
+        original file names. For anonymous reviews authorName is
+        "Anonymous Visitor".
+      required: [id, siteId, rating, comment, isAnonymous, authorName, criteria, tags, media, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        siteId: { type: string, format: uuid }
+        rating: { type: integer, minimum: 1, maximum: 5, description: Overall rating (average of criteria). }
+        comment: { type: [string, "null"] }
+        isAnonymous: { type: boolean }
+        authorName: { type: string }
+        criteria:
+          type: array
+          items:
+            type: object
+            required: [key, score]
+            properties:
+              key: { $ref: "#/components/schemas/CriterionKey" }
+              score: { type: integer, minimum: 1, maximum: 5 }
+        tags:
+          type: array
+          items: { $ref: "#/components/schemas/TagKey" }
+        media:
+          type: array
+          items:
+            type: object
+            required: [mediaType, url, sortOrder]
+            properties:
+              mediaType: { type: string, enum: [image, video] }
+              url: { type: string, format: uri }
+              sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ReviewEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: "#/components/schemas/Review" }
+
+    CriterionKey:
+      type: string
+      enum: [site_condition, cultural_value, accessibility, guides_information, safety, value_for_money]
+
+    TagKey:
+      type: string
+      enum:
+        - well_maintained
+        - informative_guide
+        - rich_history
+        - great_photo_spot
+        - clean_facilities
+        - family_friendly
+        - easy_to_find
+        - crowded
+        - poor_signage
+        - needs_repair
+        - dirty_restrooms
+        - unsafe_area
+        - hard_to_access
+        - limited_parking
+
+    ReviewSubmission:
+      type: object
+      description: |
+        Mirrors reviewSubmissionSchema. Extra server-side rules: tags must be
+        unique; comment is trimmed and checked against the blocked-word list;
+        at most 5 images (image/jpeg|png|webp, 5 MB each) and 1 video
+        (video/mp4|quicktime, 30 MB); mimeType must match mediaType; media
+        storage paths must be unique and must be objects the caller uploaded.
+      required: [siteId, criteria, tags, comment, isAnonymous, media]
+      additionalProperties: true
+      properties:
+        siteId: { type: string, format: uuid }
+        criteria:
+          type: object
+          description: Every criterion is required.
+          propertyNames: { $ref: "#/components/schemas/CriterionKey" }
+          additionalProperties: { type: integer, minimum: 1, maximum: 5 }
+          required: [site_condition, cultural_value, accessibility, guides_information, safety, value_for_money]
+        tags:
+          type: array
+          maxItems: 6
+          items: { $ref: "#/components/schemas/TagKey" }
+        comment: { type: string, maxLength: 1000 }
+        isAnonymous: { type: boolean }
+        media:
+          type: array
+          maxItems: 6
+          items:
+            type: object
+            required: [storagePath, mediaType, fileName, fileSizeBytes, mimeType]
+            properties:
+              storagePath:
+                type: string
+                pattern: '^[0-9a-f-]{36}/[0-9a-f-]{36}\.(jpg|png|webp|mp4|mov)$'
+              mediaType: { type: string, enum: [image, video] }
+              fileName: { type: string, minLength: 1, maxLength: 255 }
+              fileSizeBytes: { type: integer, exclusiveMinimum: 0 }
+              mimeType: { type: string, minLength: 1 }

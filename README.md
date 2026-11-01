@@ -107,6 +107,7 @@ client-side beyond what's explicitly prefixed `NEXT_PUBLIC_`.**
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key. **Server-only** — bypasses RLS. Never expose it client-side or commit it. |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key for the auth SDK. Public. |
 | `CLERK_SECRET_KEY` | Clerk secret key. **Server-only.** Never expose it client-side or commit it. |
+| `TAAL_PORTAL_ALLOWED_ORIGINS` | Comma-separated browser origins allowed to call the Taal portal API (`/api/v1/taal/*`), exact match, no wildcards. Empty blocks all browser origins. Server-only. See `docs/integrations/taal-portal.md`. |
 
 For the canonical, up-to-date list of variables and example values, see
 `.env.local.example` at the repo root — tracked under CHT-129.

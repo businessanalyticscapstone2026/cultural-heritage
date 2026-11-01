@@ -1,9 +1,7 @@
 "use server"
 
 import { cookies } from "next/headers"
-import { revalidateTag } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
-import { CACHE_TAGS } from "@/lib/cache-tags"
 import type { ReviewSortOption, ReviewListResponse, ReviewAggregate } from "@/types/review"
 import {
   getReviewsBySiteId,
@@ -20,6 +18,7 @@ import {
 } from "../services/review-write"
 import { createReviewMediaUpload, removeUnattachedReviewMedia } from "../services/review-media"
 import { isReviewWriteError } from "../services/review-errors"
+import { revalidateReviewCaches } from "../services/review-cache"
 import type { ReviewActionResult, ReviewMediaUploadTicket } from "../types"
 
 /**
@@ -36,10 +35,6 @@ async function getSessionContext() {
     data: { user },
   } = await supabase.auth.getUser()
   return { supabase, userId: user?.id ?? null }
-}
-
-function revalidateReviewInsights() {
-  revalidateTag(CACHE_TAGS.reviewInsights, "max")
 }
 
 function toActionError<T>(err: unknown, fallback: string): ReviewActionResult<T> {
@@ -87,7 +82,7 @@ export async function submitReviewAction(
 
   try {
     const data = await submitRichReview(supabase, userId, input)
-    revalidateReviewInsights()
+    revalidateReviewCaches()
     return { ok: true, data }
   } catch (err) {
     return toActionError(err, "Could not save your review. Please try again.")
@@ -103,7 +98,7 @@ export async function submitRatingOnlyReviewAction(
 
   try {
     const data = await submitRatingOnlyReview(supabase, userId, input)
-    revalidateReviewInsights()
+    revalidateReviewCaches()
     return { ok: true, data }
   } catch (err) {
     return toActionError(err, "Could not submit your feedback. Please try again.")
@@ -150,7 +145,7 @@ export async function deleteReviewAction(
   if (!userId) throw new Error("Unauthorized")
 
   const aggregate = await deleteReview(supabase, userId, reviewId, siteId)
-  revalidateReviewInsights()
+  revalidateReviewCaches()
   return aggregate
 }
 
@@ -171,5 +166,5 @@ export async function reportReviewAction(reviewId: string, reason: string) {
   if (!profile) throw new Error("Tourist profile not found")
 
   await reportReview(supabase, profile.id, reviewId, reason.trim())
-  revalidateReviewInsights()
+  revalidateReviewCaches()
 }

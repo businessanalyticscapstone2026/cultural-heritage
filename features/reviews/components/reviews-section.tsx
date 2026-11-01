@@ -76,7 +76,7 @@ export function ReviewsSection({ siteId }: ReviewsSectionProps) {
     setAggregate(newAggregate)
     setReviews((prev) => {
       if (!prev) return prev
-      return prev.filter((r) => r.touristId !== userReview?.touristId)
+      return prev.filter((r) => !r.isOwn)
     })
   }
 
@@ -118,6 +118,7 @@ export function ReviewsSection({ siteId }: ReviewsSectionProps) {
       )}
 
       <ReviewForm
+        key={userReview?.id ?? "new"}
         siteId={siteId}
         existingReview={userReview}
         onSubmit={handleSubmitReview}
@@ -129,7 +130,6 @@ export function ReviewsSection({ siteId }: ReviewsSectionProps) {
           siteId={siteId}
           initialReviews={displayReviews}
           totalCount={aggregate.reviewCount}
-          currentUserId={session?.user?.id ?? null}
           onSortChange={handleSortChange}
           currentSort={sort}
         />

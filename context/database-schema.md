@@ -169,6 +169,7 @@ comment text,
 status text NOT NULL DEFAULT 'published'::text CHECK (status = ANY (ARRAY['published'::text, 'flagged'::text, 'hidden'::text])),
 created_at timestamp with time zone NOT NULL DEFAULT now(),
 updated_at timestamp with time zone NOT NULL DEFAULT now(),
+is_anonymous boolean NOT NULL DEFAULT false, -- CHT-135; hides author identity in every read path
 CONSTRAINT reviews_pkey PRIMARY KEY (id),
 CONSTRAINT reviews_tourist_id_fkey FOREIGN KEY (tourist_id) REFERENCES public.tourist_profiles(id),
 CONSTRAINT reviews_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.heritage_sites(id)
@@ -405,3 +406,39 @@ CONSTRAINT generated_reports_pkey PRIMARY KEY (id),
 CONSTRAINT generated_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
 CONSTRAINT generated_reports_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id)
 );
+-- CHT-135 rich reviews (migration 20261101000000_rich_reviews.sql).
+-- reviews.rating stays the overall 1-5 rating; for rich reviews it is round(avg(criteria scores)).
+-- Writes go through public.submit_review(...) (SECURITY INVOKER, atomic).
+-- Index: reviews_site_status_updated_idx ON reviews (site_id, status, updated_at DESC).
+CREATE TABLE public.review_criteria_ratings (
+review_id uuid NOT NULL,
+criterion_key text NOT NULL CHECK (criterion_key ~ '^[a-z][a-z_]{0,39}$'), -- keys defined in features/reviews/constants.ts
+score smallint NOT NULL CHECK (score >= 1 AND score <= 5),
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT review_criteria_ratings_pkey PRIMARY KEY (review_id, criterion_key),
+CONSTRAINT review_criteria_ratings_review_id_fkey FOREIGN KEY (review_id) REFERENCES public.reviews(id) ON DELETE CASCADE
+);
+CREATE TABLE public.review_tags (
+review_id uuid NOT NULL,
+tag_key text NOT NULL CHECK (tag_key ~ '^[a-z][a-z_]{0,39}$'), -- keys defined in features/reviews/constants.ts
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT review_tags_pkey PRIMARY KEY (review_id, tag_key),
+CONSTRAINT review_tags_review_id_fkey FOREIGN KEY (review_id) REFERENCES public.reviews(id) ON DELETE CASCADE
+);
+CREATE TABLE public.review_media (
+id uuid NOT NULL DEFAULT gen_random_uuid(),
+review_id uuid NOT NULL,
+media_type text NOT NULL CHECK (media_type = ANY (ARRAY['image'::text, 'video'::text])),
+file_url text NOT NULL, -- public URL of storage_path in bucket review-media
+storage_path text NOT NULL UNIQUE, -- '<random uuid>/<random uuid>.<ext>', never contains the user id
+file_name text NOT NULL,
+file_size_bytes bigint NOT NULL CHECK (file_size_bytes > 0),
+mime_type text NOT NULL,
+sort_order smallint NOT NULL DEFAULT 0,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT review_media_pkey PRIMARY KEY (id),
+CONSTRAINT review_media_review_id_fkey FOREIGN KEY (review_id) REFERENCES public.reviews(id) ON DELETE CASCADE
+);
+-- Storage bucket review-media: public read, 30 MB bucket limit, image/jpeg|png|webp, video/mp4|quicktime.

@@ -8,6 +8,10 @@ interface StarRatingProps {
   onChange?: (rating: number) => void
   readonly?: boolean
   size?: "sm" | "md" | "lg"
+  /** Accessible name for the rating group (e.g. the criterion label). */
+  label?: string
+  /** id of an element describing the group (e.g. a validation message). */
+  describedBy?: string
 }
 
 const sizeMap = {
@@ -21,6 +25,8 @@ export function StarRating({
   onChange,
   readonly = false,
   size = "md",
+  label,
+  describedBy,
 }: StarRatingProps) {
   const [hoverValue, setHoverValue] = useState(0)
   const displayValue = hoverValue || value
@@ -43,7 +49,8 @@ export function StarRating({
     <div
       className="flex items-center gap-0.5"
       role={readonly ? "img" : "radiogroup"}
-      aria-label={readonly ? `Rating: ${value} out of 5 stars` : "Select a rating"}
+      aria-label={readonly ? `Rating: ${value} out of 5 stars` : (label ?? "Select a rating")}
+      aria-describedby={describedBy}
     >
       {[1, 2, 3, 4, 5].map((rating) => (
         <button
@@ -54,7 +61,7 @@ export function StarRating({
           onMouseEnter={() => !readonly && setHoverValue(rating)}
           onMouseLeave={() => !readonly && setHoverValue(0)}
           onKeyDown={(e) => handleKeyDown(e, rating)}
-          className={`transition-colors ${
+          className={`rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             readonly ? "cursor-default" : "cursor-pointer"
           }`}
           role={readonly ? undefined : "radio"}

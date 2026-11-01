@@ -8,32 +8,23 @@ import { StarDisplay } from "./star-display"
 import { ReviewReportDialog } from "./review-report-dialog"
 import { formatDistanceToNow } from "@/lib/format-time"
 import type { ReviewWithAuthor } from "@/types/review"
+import { ReviewCriteriaBreakdown } from "./review-criteria-breakdown"
+import { ReviewMediaGallery } from "./review-media-gallery"
+import { getReviewAuthorInitials, getReviewAuthorName } from "../utils/review-author"
 
 interface ReviewCardProps {
   review: ReviewWithAuthor
-  currentUserId: string | null
   siteId: string
 }
 
-function getInitials(firstName: string | null, lastName: string | null): string {
-  const f = firstName?.[0] ?? ""
-  const l = lastName?.[0] ?? ""
-  return (f + l).toUpperCase() || "?"
-}
-
-function getDisplayName(firstName: string | null, lastName: string | null): string {
-  const parts = [firstName, lastName].filter(Boolean)
-  return parts.length > 0 ? parts.join(" ") : "Anonymous"
-}
-
-export function ReviewCard({ review, currentUserId, siteId }: ReviewCardProps) {
+export function ReviewCard({ review, siteId }: ReviewCardProps) {
   const [showReport, setShowReport] = useState(false)
   const { session } = useAuth()
   const router = useRouter()
 
-  const isOwnReview = currentUserId === review.touristId
-  const authorName = getDisplayName(review.authorFirstName, review.authorLastName)
-  const initials = getInitials(review.authorFirstName, review.authorLastName)
+  const isOwnReview = review.isOwn
+  const authorName = getReviewAuthorName(review)
+  const initials = getReviewAuthorInitials(review)
   const date = new Date(review.createdAt)
 
   return (
@@ -47,7 +38,12 @@ export function ReviewCard({ review, currentUserId, siteId }: ReviewCardProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-medium text-heading">{authorName}</p>
+                <p className="text-sm font-medium text-heading">
+                  {authorName}
+                  {isOwnReview && review.isAnonymous && (
+                    <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you, posted anonymously)</span>
+                  )}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {formatDistanceToNow(date)}
                 </p>
@@ -60,6 +56,9 @@ export function ReviewCard({ review, currentUserId, siteId }: ReviewCardProps) {
                 {review.comment}
               </p>
             )}
+
+            <ReviewCriteriaBreakdown criteria={review.criteria} tags={review.tags} />
+            <ReviewMediaGallery media={review.media} authorLabel={authorName} />
           </div>
 
           {!isOwnReview && (

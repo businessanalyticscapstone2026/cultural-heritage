@@ -1,44 +1,57 @@
-import { createClient } from "@/utils/supabase/server"
-import { cookies } from "next/headers"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import type {
   ReviewWithAuthor,
   ReviewAggregate,
   ReviewListResponse,
   ReviewSortOption,
-  ReviewFormData,
 } from "@/types/review"
 import { REVIEWS_PER_PAGE, REPORT_FLAG_THRESHOLD } from "../constants"
+import {
+  REVIEW_COLUMNS,
+  PUBLISHED_FEED_COLUMNS,
+  mapReviewRow,
+  mapPublishedFeedRow,
+  type ReviewRow,
+  type PublishedFeedRow,
+  type PublishedReviewItem,
+} from "./review-mappers"
 
-function mapDbReview(row: Record<string, unknown>): ReviewWithAuthor {
-  const profile = row.tourist as Record<string, unknown> | null
-  const firstName = (profile?.first_name as string) ?? null
-  const lastName = (profile?.last_name as string) ?? null
+/**
+ * Review reads and simple mutations. Every function takes the caller's
+ * Supabase client (RLS applies) so it can be reused from Server Actions and
+ * plain route handlers. Reads are anonymity-safe: see review-mappers.ts.
+ */
+
+export type { PublishedReviewItem } from "./review-mappers"
+
+export async function getReviewAggregate(
+  supabase: SupabaseClient,
+  siteId: string
+): Promise<ReviewAggregate> {
+  const { data: siteRow, error } = await supabase
+    .from("heritage_sites")
+    .select("average_rating, review_count")
+    .eq("id", siteId)
+    .maybeSingle()
+
+  if (error) throw error
 
   return {
-    id: row.id as string,
-    touristId: row.tourist_id as string,
-    siteId: row.site_id as string,
-    rating: row.rating as number,
-    comment: (row.comment ?? null) as string | null,
-    status: (row.status as string) as ReviewWithAuthor["status"],
-    createdAt: row.created_at as string,
-    updatedAt: (row.updated_at ?? row.created_at) as string,
-    authorFirstName: firstName,
-    authorLastName: lastName,
+    averageRating: Number(siteRow?.average_rating ?? 0),
+    reviewCount: Number(siteRow?.review_count ?? 0),
   }
 }
 
 export async function getReviewsBySiteId(
+  supabase: SupabaseClient,
   siteId: string,
+  viewerId: string | null,
   options?: {
     sort?: ReviewSortOption
     limit?: number
     offset?: number
   }
 ): Promise<ReviewListResponse> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
   const sort = options?.sort ?? "recent"
   const limit = options?.limit ?? REVIEWS_PER_PAGE
   const offset = options?.offset ?? 0
@@ -46,13 +59,9 @@ export async function getReviewsBySiteId(
   const orderColumn = sort === "recent" ? "created_at" : "rating"
   const ascending = sort === "lowest"
 
-  // Fetch published reviews with author profile
   const { data, error } = await supabase
     .from("reviews")
-    .select(`
-      *,
-      tourist:tourist_profiles(first_name, last_name)
-    `)
+    .select(REVIEW_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "published")
     .order(orderColumn, { ascending })
@@ -60,126 +69,55 @@ export async function getReviewsBySiteId(
 
   if (error) throw error
 
-  const reviews = (data ?? []).map(mapDbReview)
-
-  // Read aggregate from denormalized columns on heritage_sites
-  const { data: siteRow } = await supabase
-    .from("heritage_sites")
-    .select("average_rating, review_count")
-    .eq("id", siteId)
-    .maybeSingle()
-
-  const aggregate: ReviewAggregate = {
-    averageRating: (siteRow?.average_rating as number) ?? 0,
-    reviewCount: (siteRow?.review_count as number) ?? 0,
-  }
+  const reviews = ((data ?? []) as unknown as ReviewRow[]).map((row) => mapReviewRow(row, viewerId))
+  const aggregate = await getReviewAggregate(supabase, siteId)
 
   return { aggregate, reviews }
 }
 
+/** The caller's own review for a site (any status), for preloading the edit form. */
 export async function getUserReviewForSite(
-  touristId: string,
+  supabase: SupabaseClient,
+  userId: string,
   siteId: string
 ): Promise<ReviewWithAuthor | null> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
   const { data, error } = await supabase
     .from("reviews")
-    .select(`
-      *,
-      tourist:tourist_profiles(first_name, last_name)
-    `)
-    .eq("tourist_id", touristId)
+    .select(REVIEW_COLUMNS)
+    .eq("tourist_id", userId)
     .eq("site_id", siteId)
     .maybeSingle()
 
   if (error) throw error
   if (!data) return null
 
-  return mapDbReview(data)
+  return mapReviewRow(data as unknown as ReviewRow, userId)
 }
 
-export async function createReview(
-  touristId: string,
-  siteId: string,
-  data: ReviewFormData
-): Promise<{ review: ReviewWithAuthor; aggregate: ReviewAggregate }> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
-  // Upsert: if unique constraint hit, update existing review
-  const { data: existing } = await supabase
+export async function getReviewById(
+  supabase: SupabaseClient,
+  reviewId: string,
+  viewerId: string | null
+): Promise<ReviewWithAuthor | null> {
+  const { data, error } = await supabase
     .from("reviews")
-    .select("id")
-    .eq("tourist_id", touristId)
-    .eq("site_id", siteId)
+    .select(REVIEW_COLUMNS)
+    .eq("id", reviewId)
     .maybeSingle()
 
-  let reviewRow: Record<string, unknown> | null = null
+  if (error) throw error
+  if (!data) return null
 
-  if (existing) {
-    const { data: updated, error } = await supabase
-      .from("reviews")
-      .update({
-        rating: data.rating,
-        comment: data.comment || null,
-        status: "published",
-      })
-      .eq("id", existing.id)
-      .select(`
-        *,
-        tourist:tourist_profiles(first_name, last_name)
-      `)
-      .maybeSingle()
-
-    if (error) throw error
-    reviewRow = updated
-  } else {
-    const { data: inserted, error } = await supabase
-      .from("reviews")
-      .insert({
-        tourist_id: touristId,
-        site_id: siteId,
-        rating: data.rating,
-        comment: data.comment || null,
-        status: "published",
-      })
-      .select(`
-        *,
-        tourist:tourist_profiles(first_name, last_name)
-      `)
-      .maybeSingle()
-
-    if (error) throw error
-    reviewRow = inserted
-  }
-
-  // Read updated aggregate
-  const { data: siteRow } = await supabase
-    .from("heritage_sites")
-    .select("average_rating, review_count")
-    .eq("id", siteId)
-    .maybeSingle()
-
-  return {
-    review: mapDbReview(reviewRow!),
-    aggregate: {
-      averageRating: (siteRow?.average_rating as number) ?? 0,
-      reviewCount: (siteRow?.review_count as number) ?? 0,
-    },
-  }
+  return mapReviewRow(data as unknown as ReviewRow, viewerId)
 }
 
+/** Soft-delete (status "hidden"); media rows stay for moderation history. */
 export async function deleteReview(
+  supabase: SupabaseClient,
   touristId: string,
   reviewId: string,
   siteId: string
 ): Promise<ReviewAggregate> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
-  // Verify ownership before soft-deleting
   const { data: existing, error: fetchError } = await supabase
     .from("reviews")
     .select("id, tourist_id")
@@ -198,28 +136,15 @@ export async function deleteReview(
 
   if (error) throw error
 
-  // Read updated aggregate
-  const { data: siteRow } = await supabase
-    .from("heritage_sites")
-    .select("average_rating, review_count")
-    .eq("id", siteId)
-    .maybeSingle()
-
-  return {
-    averageRating: (siteRow?.average_rating as number) ?? 0,
-    reviewCount: (siteRow?.review_count as number) ?? 0,
-  }
+  return getReviewAggregate(supabase, siteId)
 }
 
 export async function reportReview(
+  supabase: SupabaseClient,
   touristId: string,
   reviewId: string,
   reason: string
 ): Promise<void> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
-  // Insert report
   const { error } = await supabase
     .from("review_reports")
     .insert({
@@ -245,19 +170,6 @@ export async function reportReview(
   }
 }
 
-export interface PublishedReviewItem {
-  id: string
-  touristId: string
-  siteId: string
-  siteName: string
-  rating: number
-  comment: string | null
-  createdAt: string
-  updatedAt: string
-  authorFirstName: string | null
-  authorLastName: string | null
-}
-
 export interface PublishedReviewsResult {
   items: PublishedReviewItem[]
   total: number
@@ -271,64 +183,32 @@ export interface ReviewsPageStats {
   reviewCount: number
 }
 
-function unwrapJoin<T>(value: T | T[] | null | undefined): T | null {
-  if (value == null) return null
-  return Array.isArray(value) ? (value[0] ?? null) : value
-}
-
 /** Global newest-first feed of published reviews across all sites. */
 export async function getPublishedReviews(
+  supabase: SupabaseClient,
+  viewerId: string | null,
   page: number,
   pageSize: number
 ): Promise<PublishedReviewsResult> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
   const offset = page * pageSize
   const { data, error, count } = await supabase
     .from("reviews")
-    .select(
-      `
-      id, tourist_id, site_id, rating, comment, created_at, updated_at,
-      tourist:tourist_profiles(first_name, last_name),
-      site:heritage_sites(site_name)
-    `,
-      { count: "exact" }
-    )
+    .select(PUBLISHED_FEED_COLUMNS, { count: "exact" })
     .eq("status", "published")
     .order("created_at", { ascending: false })
     .range(offset, offset + pageSize - 1)
 
   if (error) throw error
 
-  const items = (data ?? []).map((row) => {
-    const r = row as Record<string, unknown>
-    const tourist = unwrapJoin(
-      r.tourist as { first_name: string | null; last_name: string | null } | null
-    )
-    const site = unwrapJoin(r.site as { site_name: string } | null)
-    return {
-      id: r.id as string,
-      touristId: r.tourist_id as string,
-      siteId: r.site_id as string,
-      siteName: site?.site_name ?? "Unknown site",
-      rating: r.rating as number,
-      comment: (r.comment ?? null) as string | null,
-      createdAt: r.created_at as string,
-      updatedAt: (r.updated_at ?? r.created_at) as string,
-      authorFirstName: tourist?.first_name ?? null,
-      authorLastName: tourist?.last_name ?? null,
-    }
-  })
+  const items = ((data ?? []) as unknown as PublishedFeedRow[]).map((row) =>
+    mapPublishedFeedRow(row, viewerId)
+  )
 
   return { items, total: count ?? 0, page, pageSize }
 }
 
-/** Aggregate stats for the Tourist Reviews page header. */
-export async function getReviewsPageStats(): Promise<ReviewsPageStats> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
+/** Aggregate stats for the Tourist Reviews page header (server-side only). */
+export async function getReviewsPageStats(supabase: SupabaseClient): Promise<ReviewsPageStats> {
   const { data, error } = await supabase
     .from("reviews")
     .select("rating, tourist_id")

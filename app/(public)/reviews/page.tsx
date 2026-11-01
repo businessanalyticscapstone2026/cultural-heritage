@@ -12,9 +12,11 @@ import {
   getPublishedReviewsAction,
   getReviewsPageStatsAction,
   deleteReviewAction,
+  getUserReviewAction,
 } from "@/features/reviews/actions/review"
 import type { PublishedReviewItem, ReviewsPageStats } from "@/features/reviews/services"
 import type { ReviewWithAuthor } from "@/types/review"
+import { getReviewAuthorName } from "@/features/reviews/utils/review-author"
 
 const PAGE_SIZE = 9
 
@@ -23,23 +25,7 @@ function formatCompact(value: number): string {
 }
 
 function displayName(item: PublishedReviewItem): string {
-  const full = [item.authorFirstName, item.authorLastName].filter(Boolean).join(" ")
-  return full || "Heritage traveler"
-}
-
-function toExistingReview(item: PublishedReviewItem): ReviewWithAuthor {
-  return {
-    id: item.id,
-    touristId: item.touristId,
-    siteId: item.siteId,
-    rating: item.rating,
-    comment: item.comment,
-    status: "published",
-    createdAt: item.createdAt,
-    updatedAt: item.updatedAt,
-    authorFirstName: item.authorFirstName,
-    authorLastName: item.authorLastName,
-  }
+  return getReviewAuthorName(item)
 }
 
 export default function ReviewsPage() {
@@ -51,6 +37,8 @@ export default function ReviewsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingReview, setEditingReview] = useState<ReviewWithAuthor | null>(null)
+  const [editLoadError, setEditLoadError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
@@ -103,7 +91,25 @@ export default function ReviewsPage() {
     setReloadKey((k) => k + 1)
   }
 
-  const ownId = profile?.id ?? null
+  // Load the full own review (criteria, tags, media) before opening the editor.
+  const startEdit = async (item: PublishedReviewItem) => {
+    setEditLoadError(null)
+    setEditingId(item.id)
+    setEditingReview(null)
+    try {
+      const review = await getUserReviewAction(item.siteId)
+      if (!review) throw new Error("Review not found")
+      setEditingReview(review)
+    } catch {
+      setEditingId(null)
+      setEditLoadError("Could not load your review for editing. Please try again.")
+    }
+  }
+
+  const stopEdit = () => {
+    setEditingId(null)
+    setEditingReview(null)
+  }
 
   const handleDelete = async (item: PublishedReviewItem) => {
     if (!confirm("Delete your review? This action cannot be undone.")) return
@@ -203,6 +209,12 @@ export default function ReviewsPage() {
           </h2>
         </motion.div>
 
+        {editLoadError && (
+          <p role="alert" className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+            {editLoadError}
+          </p>
+        )}
+
         {loading && items.length === 0 ? (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -236,7 +248,7 @@ export default function ReviewsPage() {
           <>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {items.map((item, i) => {
-                const isOwn = ownId != null && item.touristId === ownId
+                const isOwn = item.isOwn
                 const isEditing = editingId === item.id
                 return (
                   <motion.div
@@ -248,32 +260,40 @@ export default function ReviewsPage() {
                     className="group rounded-2xl border border-ink/10 bg-card p-6 transition-all duration-300 hover:shadow-lg hover:border-ink/20"
                   >
                     {isEditing ? (
-                      <ReviewForm
-                        siteId={item.siteId}
-                        existingReview={toExistingReview(item)}
-                        onSubmit={(updated) => {
-                          setItems((prev) =>
-                            prev.map((r) =>
-                              r.id === updated.id
-                                ? {
-                                    ...r,
-                                    rating: updated.rating,
-                                    comment: updated.comment,
-                                    updatedAt: updated.updatedAt,
-                                  }
-                                : r
+                      editingReview?.id === item.id ? (
+                        <ReviewForm
+                          siteId={item.siteId}
+                          existingReview={editingReview}
+                          onCancel={stopEdit}
+                          onSubmit={(updated) => {
+                            setItems((prev) =>
+                              prev.map((r) =>
+                                r.id === updated.id
+                                  ? {
+                                      ...r,
+                                      rating: updated.rating,
+                                      comment: updated.comment,
+                                      isAnonymous: updated.isAnonymous,
+                                      authorFirstName: updated.authorFirstName,
+                                      authorLastName: updated.authorLastName,
+                                      updatedAt: updated.updatedAt,
+                                    }
+                                  : r
+                              )
                             )
-                          )
-                          setEditingId(null)
-                          refreshStats()
-                        }}
-                        onDelete={() => {
-                          setItems((prev) => prev.filter((r) => r.id !== item.id))
-                          setTotal((prev) => Math.max(0, prev - 1))
-                          setEditingId(null)
-                          refreshStats()
-                        }}
-                      />
+                            stopEdit()
+                            refreshStats()
+                          }}
+                          onDelete={() => {
+                            setItems((prev) => prev.filter((r) => r.id !== item.id))
+                            setTotal((prev) => Math.max(0, prev - 1))
+                            stopEdit()
+                            refreshStats()
+                          }}
+                        />
+                      ) : (
+                        <div className="h-40 animate-pulse rounded-xl bg-muted" aria-label="Loading your review" />
+                      )
                     ) : (
                       <>
                         <div className="mb-4 flex items-center justify-between">
@@ -328,7 +348,7 @@ export default function ReviewsPage() {
                           <div className="mt-3 flex gap-3 border-t border-ink/10 pt-3">
                             <button
                               type="button"
-                              onClick={() => setEditingId(item.id)}
+                              onClick={() => void startEdit(item)}
                               className="text-xs font-medium text-accent hover:underline"
                             >
                               Edit

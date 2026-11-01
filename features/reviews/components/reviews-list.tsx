@@ -11,7 +11,6 @@ interface ReviewsListProps {
   siteId: string
   initialReviews: ReviewWithAuthor[]
   totalCount: number
-  currentUserId: string | null
   onSortChange: (sort: ReviewSortOption) => void
   currentSort: ReviewSortOption
 }
@@ -20,7 +19,6 @@ export function ReviewsList({
   siteId,
   initialReviews,
   totalCount,
-  currentUserId,
   onSortChange,
   currentSort,
 }: ReviewsListProps) {
@@ -48,7 +46,6 @@ export function ReviewsList({
             <ReviewCard
               key={review.id}
               review={review}
-              currentUserId={currentUserId}
               siteId={siteId}
             />
           ))}

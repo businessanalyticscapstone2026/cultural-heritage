@@ -1,10 +1,21 @@
 "use client"
 
 import { useState } from "react"
-import { Send } from "lucide-react"
-import { StarRating } from "./star-rating"
+import { Controller, useForm, useWatch } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { AlertCircle, Loader2, Send } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { notifySuccess } from "@/lib/toast"
+import { CriteriaRatingGroup } from "./criteria-rating-group"
+import { ReviewTagPills } from "./review-tag-pills"
+import { ReviewCommentField } from "./review-comment-field"
+import { AnonymousReviewToggle } from "./anonymous-review-toggle"
+import { ReviewMediaUploader } from "./review-media-uploader"
 import { submitReviewAction, deleteReviewAction } from "../actions/review"
-import { MAX_COMMENT_LENGTH } from "../constants"
+import { reviewSubmissionSchema, type ReviewFormValues } from "../schemas/review"
+import { useReviewMediaUpload } from "../hooks/use-review-media-upload"
+import { REVIEW_TAG_KEYS, type ReviewCriterionKey, type ReviewTagKey } from "../constants"
+import { criteriaScoresFromReview, emptyCriteriaScores } from "../utils/review-criteria"
 import type { ReviewWithAuthor, ReviewAggregate } from "@/types/review"
 
 interface ReviewFormProps {
@@ -12,82 +23,124 @@ interface ReviewFormProps {
   existingReview: ReviewWithAuthor | null
   onSubmit: (review: ReviewWithAuthor, aggregate: ReviewAggregate) => void
   onDelete: (aggregate: ReviewAggregate) => void
+  /** Shown as a Cancel button when the parent controls edit mode. */
+  onCancel?: () => void
 }
 
-export function ReviewForm({
-  siteId,
-  existingReview,
-  onSubmit,
-  onDelete,
-}: ReviewFormProps) {
-  const [rating, setRating] = useState(existingReview?.rating ?? 0)
-  const [comment, setComment] = useState(existingReview?.comment ?? "")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+function isKnownTag(tag: string): tag is ReviewTagKey {
+  return (REVIEW_TAG_KEYS as readonly string[]).includes(tag)
+}
+
+function buildDefaults(siteId: string, review: ReviewWithAuthor | null): ReviewFormValues {
+  return {
+    siteId,
+    criteria: review ? criteriaScoresFromReview(review.criteria) : emptyCriteriaScores(),
+    tags: review ? review.tags.filter(isKnownTag) : [],
+    comment: review?.comment ?? "",
+    isAnonymous: review?.isAnonymous ?? false,
+    media: [],
+  }
+}
+
+export function ReviewForm({ siteId, existingReview, onSubmit, onDelete, onCancel }: ReviewFormProps) {
   const [showForm, setShowForm] = useState(!existingReview)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const media = useReviewMediaUpload(existingReview?.media ?? [])
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    setValue,
+    setError,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ReviewFormValues>({
+    resolver: zodResolver(reviewSubmissionSchema),
+    defaultValues: buildDefaults(siteId, existingReview),
+  })
 
   const isEditing = !!existingReview
-  const isExpanded = showForm || isEditing
+  const isLegacyReview = isEditing && existingReview.criteria.length === 0
+  const commentLength = (useWatch({ control, name: "comment" }) ?? "").length
+  const busy = isSubmitting || isDeleting
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-
-    if (rating < 1 || rating > 5) {
-      setError("Please select a rating before submitting.")
+  const onValid = async (values: ReviewFormValues) => {
+    setFormError(null)
+    const result = await submitReviewAction(values)
+    if (!result.ok) {
+      setFormError(result.error)
+      for (const [path, messages] of Object.entries(result.fieldErrors ?? {})) {
+        if (path !== "_form") setError(path as keyof ReviewFormValues, { message: messages[0] })
+      }
       return
     }
+    media.markAllAttached()
+    notifySuccess(isEditing ? "Your review was updated." : "Thanks for sharing your experience!")
+    onSubmit(result.data.review, result.data.aggregate)
+    setShowForm(false)
+  }
 
-    setIsSubmitting(true)
-    try {
-      const result = await submitReviewAction(siteId, rating, comment)
-      onSubmit(result.review, result.aggregate)
-      setShowForm(false)
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again."
-      )
-    } finally {
-      setIsSubmitting(false)
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    setFormError(null)
+    if (media.isUploading) {
+      event.preventDefault()
+      setFormError("Please wait for your uploads to finish.")
+      return
     }
+    if (media.hasFailedUploads) {
+      event.preventDefault()
+      setFormError("Some files failed to upload. Retry or remove them before submitting.")
+      return
+    }
+    setValue("media", media.mediaRefs)
+    return handleSubmit(onValid, () => setFormError("Please fix the highlighted fields."))(event)
   }
 
   const handleDelete = async () => {
     if (!existingReview) return
-    setIsSubmitting(true)
+    setIsDeleting(true)
+    setFormError(null)
     try {
       const aggregate = await deleteReviewAction(existingReview.id, siteId)
       onDelete(aggregate)
-      setRating(0)
-      setComment("")
+      reset(buildDefaults(siteId, null))
       setShowForm(false)
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to delete review. Please try again."
-      )
+    } catch {
+      setFormError("Failed to delete review. Please try again.")
     } finally {
-      setIsSubmitting(false)
+      setIsDeleting(false)
     }
   }
 
-  if (!isExpanded) {
+  if (!showForm && !isEditing) {
     return (
       <button
+        type="button"
         onClick={() => setShowForm(true)}
-        className="w-full rounded-xl border border-dashed border-border bg-card p-4 text-left text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-heading"
+        className="w-full rounded-xl border border-dashed border-border bg-card p-4 text-left text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Share your experience with this site...
       </button>
     )
   }
 
+  const criteriaErrors = Object.fromEntries(
+    Object.entries(errors.criteria ?? {}).map(([key, err]) => [
+      key,
+      (err as { message?: string } | undefined)?.message,
+    ])
+  ) as Partial<Record<ReviewCriterionKey, string>>
+
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-5 space-y-4">
-      <div className="flex items-center justify-between">
+    <form
+      onSubmit={submit}
+      noValidate
+      aria-busy={busy}
+      className="space-y-5 rounded-xl border border-border bg-card p-4 sm:p-5"
+    >
+      <div className="flex items-center justify-between gap-2">
         <h3 className="font-heading text-sm font-semibold text-heading">
           {isEditing ? "Edit your review" : "Write a review"}
         </h3>
@@ -95,50 +148,89 @@ export function ReviewForm({
           <button
             type="button"
             onClick={handleDelete}
-            disabled={isSubmitting}
-            className="text-xs text-muted-foreground transition-colors hover:text-destructive"
+            disabled={busy}
+            className="rounded text-xs text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
-            Delete review
+            {isDeleting ? "Deleting..." : "Delete review"}
           </button>
         )}
       </div>
 
-      <div>
-        <StarRating value={rating} onChange={setRating} size="lg" />
-        {error && rating < 1 && (
-          <p className="mt-1 text-xs text-destructive">{error}</p>
-        )}
-      </div>
-
-      <div>
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="What did you think? (optional)"
-          maxLength={MAX_COMMENT_LENGTH}
-          rows={3}
-          className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-heading placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-        />
-        <div className="mt-1 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
-            {comment.length}/{MAX_COMMENT_LENGTH}
-          </span>
-        </div>
-      </div>
-
-      {error && rating >= 1 && (
-        <p className="text-xs text-destructive">{error}</p>
+      {isLegacyReview && (
+        <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+          Your earlier review had a single {existingReview.rating}-star rating. Please rate each
+          criterion below to update it.
+        </p>
       )}
 
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={isSubmitting || rating < 1}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+      <Controller
+        name="criteria"
+        control={control}
+        render={({ field }) => (
+          <CriteriaRatingGroup
+            value={field.value}
+            onChange={(key, score) => field.onChange({ ...field.value, [key]: score })}
+            errors={criteriaErrors}
+          />
+        )}
+      />
+
+      <Controller
+        name="tags"
+        control={control}
+        render={({ field }) => (
+          <ReviewTagPills value={field.value} onChange={field.onChange} error={errors.tags?.message} />
+        )}
+      />
+
+      <ReviewCommentField
+        id="review-comment"
+        length={commentLength}
+        error={errors.comment?.message}
+        {...register("comment")}
+      />
+
+      <ReviewMediaUploader
+        items={media.items}
+        rejections={media.rejections}
+        error={errors.media?.message}
+        onAddFiles={media.addFiles}
+        onRetry={media.retry}
+        onRemove={media.remove}
+      />
+
+      <Controller
+        name="isAnonymous"
+        control={control}
+        render={({ field }) => (
+          <AnonymousReviewToggle checked={field.value} onCheckedChange={field.onChange} />
+        )}
+      />
+
+      {formError && (
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive"
         >
-          <Send className="h-3.5 w-3.5" />
-          {isEditing ? "Update Review" : "Submit Review"}
-        </button>
+          <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden="true" />
+          {formError}
+        </p>
+      )}
+
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        {onCancel && (
+          <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
+            Cancel
+          </Button>
+        )}
+        <Button type="submit" disabled={busy || media.isUploading}>
+          {isSubmitting ? (
+            <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+          ) : (
+            <Send className="size-3.5" aria-hidden="true" />
+          )}
+          {isSubmitting ? "Saving..." : isEditing ? "Update Review" : "Submit Review"}
+        </Button>
       </div>
     </form>
   )

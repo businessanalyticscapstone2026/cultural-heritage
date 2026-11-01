@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Send, CheckCircle2 } from "lucide-react"
 import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
-import { submitReviewAction } from "@/features/reviews/actions/review"
+import { submitRatingOnlyReviewAction } from "@/features/reviews/actions/review"
 import { StarRating } from "@/features/reviews/components/star-rating"
 import { MAX_COMMENT_LENGTH } from "@/features/reviews/constants"
 
@@ -54,7 +54,15 @@ export function FeedbackForm({ sites }: { sites: { id: string; name: string }[] 
   const onSave = async (data: FeedbackFormValues) => {
     try {
       const comment = `[${FEEDBACK_CATEGORY_LABELS[data.category]}] ${data.message.trim()}`
-      await submitReviewAction(data.siteId, data.rating, comment)
+      const result = await submitRatingOnlyReviewAction({
+        siteId: data.siteId,
+        rating: data.rating,
+        comment,
+      })
+      if (!result.ok) {
+        notifyError(result.error)
+        return
+      }
       setSubmitted(true)
       notifySuccess("Thank you — your feedback was received.")
     } catch (err) {

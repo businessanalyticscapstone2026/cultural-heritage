@@ -18,6 +18,10 @@ import {
   getMTOSitesForMunicipality,
   deriveMTODashboardInsights,
 } from "../services"
+import { getActorScope } from "@/lib/mto-scope"
+import { getMunicipalityReviewInsights } from "@/features/review-insights/services"
+import { toDashboardInsights } from "@/features/review-insights/utils/build-insights"
+import type { DashboardInsight } from "@/types/mto-dashboard"
 
 async function resolveMunicipalityId(): Promise<string> {
   const cookieStore = await cookies()
@@ -83,6 +87,32 @@ export async function getResolvedMunicipalityId(): Promise<string> {
   return resolveMunicipalityId()
 }
 
+/**
+ * Review-derived DSS cards (satisfaction + maintenance/promotion alerts).
+ * Scoped server-side: MTO staff always get their own municipality, regardless
+ * of the municipalityId argument sent by the client. Failures degrade to no
+ * cards (logged) so the rest of the dashboard still renders.
+ */
+async function getReviewInsightCards(requestedMunicipalityId: string): Promise<DashboardInsight[]> {
+  try {
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return []
+
+    const scope = await getActorScope(supabase, user.id)
+    const municipalityId = scope.isMto ? scope.municipalityId : requestedMunicipalityId
+    if (!municipalityId) return []
+
+    return toDashboardInsights(await getMunicipalityReviewInsights(municipalityId))
+  } catch (err) {
+    console.error("[mto-dashboard] review insights failed:", err)
+    return []
+  }
+}
+
 export async function getAllDashboardDataAction(
   municipalityId: string
 ): Promise<DashboardData> {
@@ -92,7 +122,7 @@ export async function getAllDashboardDataAction(
   // service function below.
   const { siteIds, sites } = await getMTOSitesForMunicipality(municipalityId)
 
-  const [stats, visitsOverview, visitsByCategory, recentSites, visitorStats, recentScans, topAttractions, scanDeviceBreakdown, categoryDistribution] =
+  const [stats, visitsOverview, visitsByCategory, recentSites, visitorStats, recentScans, topAttractions, scanDeviceBreakdown, categoryDistribution, reviewInsightCards] =
     await Promise.all([
       getMTODashboardStats(municipalityId, siteIds),
       getMTOVisitsOverview(municipalityId),
@@ -103,16 +133,20 @@ export async function getAllDashboardDataAction(
       getMTOTopAttractions(municipalityId, 5, siteIds),
       getMTOScanDeviceBreakdown(municipalityId, siteIds),
       getMTOCategoryDistribution(municipalityId, sites),
+      getReviewInsightCards(municipalityId),
     ])
 
-  const insights = deriveMTODashboardInsights({
-    stats,
-    visitsOverview,
-    topAttractions,
-    categoryDistribution,
-    scanDeviceBreakdown,
-    visitorStats,
-  })
+  const insights = [
+    ...reviewInsightCards,
+    ...deriveMTODashboardInsights({
+      stats,
+      visitsOverview,
+      topAttractions,
+      categoryDistribution,
+      scanDeviceBreakdown,
+      visitorStats,
+    }),
+  ]
 
   return {
     stats,

@@ -13,6 +13,8 @@ export const CACHE_TAGS = {
   heritageCategories: "heritage-categories",
   municipalities: "municipalities",
   analytics: "analytics",
+  /** CHT-135 review-derived DSS insights (satisfaction, engagement, alerts) */
+  reviewInsights: "review-insights",
 } as const
 
 export type CacheTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS]

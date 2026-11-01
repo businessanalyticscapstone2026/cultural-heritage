@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { getAllDashboardDataAction } from "../actions/dashboard"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ScanLine, Trophy, LayoutGrid, Globe, TrendingUp, TrendingDown } from "lucide-react"
+import { ScanLine, Trophy, LayoutGrid, Globe, TrendingUp, TrendingDown, Wrench, Megaphone, Smile } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { DashboardInsight, InsightTone } from "@/types/mto-dashboard"
 
@@ -14,6 +14,9 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Globe,
   TrendingUp,
   TrendingDown,
+  Wrench,
+  Megaphone,
+  Smile,
 }
 
 const toneStyles: Record<InsightTone, string> = {

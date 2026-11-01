@@ -1,4 +1,6 @@
 import { cookies } from "next/headers"
+import { resolveAuthorNames } from "@/features/reviews/services/review-mappers"
+import { getReviewAuthorName } from "@/features/reviews/utils/review-author"
 import { createClient } from "@/utils/supabase/server"
 import { readSessionId } from "@/lib/session"
 import { generateRecommendations } from "@/features/recommendation/services"
@@ -403,7 +405,7 @@ async function getTestimonials(supabase: SupabaseServer): Promise<HomeTestimonia
   const { data, error } = await supabase
     .from("reviews")
     .select(`
-      id, rating, comment, created_at, site_id,
+      id, rating, comment, created_at, site_id, is_anonymous,
       tourist:tourist_profiles(first_name, last_name),
       site:heritage_sites(id, site_name, publication_status, visibility)
     `)
@@ -430,16 +432,19 @@ async function getTestimonials(supabase: SupabaseServer): Promise<HomeTestimonia
       continue
     }
 
-    const tourist = unwrapOne(
+    // Anonymous reviews never expose the author's name (CHT-135).
+    const { authorFirstName, authorLastName } = resolveAuthorNames(
+      row.is_anonymous === true,
       row.tourist as
         | { first_name: string | null; last_name: string | null }
         | { first_name: string | null; last_name: string | null }[]
         | null,
     )
-    const first = tourist?.first_name?.trim() ?? ""
-    const last = tourist?.last_name?.trim() ?? ""
-    const reviewerName =
-      [first, last].filter(Boolean).join(" ") || "Heritage traveler"
+    const reviewerName = getReviewAuthorName({
+      isAnonymous: row.is_anonymous === true,
+      authorFirstName,
+      authorLastName,
+    })
 
     results.push({
       id: row.id as string,

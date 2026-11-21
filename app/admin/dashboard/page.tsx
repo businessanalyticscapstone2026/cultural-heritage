@@ -108,49 +108,31 @@ export default async function AdminDashboardPage() {
         </div>
       </Reveal>
 
-      {/* Row 2: GIS Spatial Overview & Category Breakdown (Map 2 cols, Donut 1 col) */}
+      {/* Row 2: GIS Spatial Overview (Full-Width Showcase) */}
       <Reveal>
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Heritage Sites Map */}
-          <div className="flex flex-col rounded-xl border bg-card lg:col-span-2">
-            <div className="flex flex-wrap items-center justify-between gap-2 p-5 pb-3">
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold">Heritage Sites Map</h3>
-                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                  {data.mapMarkers.length} {data.mapMarkers.length === 1 ? "site" : "sites"} mapped
-                </span>
-              </div>
-              <Link
-                href="/admin/gis-admin"
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-              >
-                <span>Open GIS Admin</span>
-                <ArrowUpRight className="size-3.5" />
-              </Link>
+        <div className="flex flex-col rounded-xl border bg-card">
+          <div className="flex flex-wrap items-center justify-between gap-2 p-5 pb-3">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold">Heritage Sites Map</h3>
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                {data.mapMarkers.length} {data.mapMarkers.length === 1 ? "site" : "sites"} mapped
+              </span>
             </div>
-            <div className="h-[480px] w-full p-2 pt-0">
-              <HeritageMap markers={data.mapMarkers} />
-            </div>
+            <Link
+              href="/admin/gis-admin"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              <span>Open GIS Admin</span>
+              <ArrowUpRight className="size-3.5" />
+            </Link>
           </div>
-
-          {/* Heritage Sites by Category (Donut Chart) */}
-          <div className="flex flex-col rounded-xl border bg-card p-5 lg:col-span-1">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold">Heritage Sites by Category</h3>
-              <Link
-                href="/admin/heritage-repository"
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
-              >
-                <span>View all</span>
-                <ArrowUpRight className="size-3" />
-              </Link>
-            </div>
-            <DonutChart data={data.categoryBreakdown} total={totalCategoryCount} />
+          <div className="h-[450px] sm:h-[550px] lg:h-[640px] w-full p-2 pt-0">
+            <HeritageMap markers={data.mapMarkers} />
           </div>
         </div>
       </Reveal>
 
-      {/* Row 3: Tourist Visits Trend & Recently Added (Visits 2 cols, Recent Sites 1 col) */}
+      {/* Row 3: Analytics & Site Breakdown (Visits 2 cols, Donut 1 col) */}
       <Reveal>
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Tourist Visits Overview */}
@@ -171,8 +153,28 @@ export default async function AdminDashboardPage() {
             <VisitsLineChart data={data.visitOverview} total={totalVisits} heightClassName="h-60" />
           </div>
 
-          {/* Recently Added Heritage Sites */}
+          {/* Heritage Sites by Category (Donut Chart) */}
           <div className="flex flex-col rounded-xl border bg-card p-5 lg:col-span-1">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-semibold">Heritage Sites by Category</h3>
+              <Link
+                href="/admin/heritage-repository"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+              >
+                <span>View all</span>
+                <ArrowUpRight className="size-3" />
+              </Link>
+            </div>
+            <DonutChart data={data.categoryBreakdown} total={totalCategoryCount} />
+          </div>
+        </div>
+      </Reveal>
+
+      {/* Row 4: Operational Status & System Health (3 columns) */}
+      <Reveal>
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Recently Added Heritage Sites */}
+          <div className="flex flex-col rounded-xl border bg-card p-5">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold">Recently Added</h3>
               <Link
@@ -200,14 +202,9 @@ export default async function AdminDashboardPage() {
               </ul>
             )}
           </div>
-        </div>
-      </Reveal>
 
-      {/* Row 4: Decision Support & System Status (2 columns) */}
-      <Reveal>
-        <div className="grid gap-6 lg:grid-cols-2">
           {/* Recommendation Performance */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="flex flex-col rounded-xl border bg-card p-5">
             <h3 className="mb-4 font-semibold">Recommendation Performance</h3>
             <div className="grid grid-cols-2 gap-4">
               <MetricBox
@@ -243,14 +240,10 @@ export default async function AdminDashboardPage() {
                 progressTone="success"
               />
             </div>
-            {/* User Satisfaction is AVG(reviews.rating) for the current month,
-                 not a per-recommendation rate — the reviews table has no
-                 foreign key to recommendations (only site_id / tourist_id),
-                 so this is reported as an independent site-satisfaction metric. */}
           </div>
 
           {/* System Health */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="flex flex-col rounded-xl border bg-card p-5">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold">System Health</h3>
               <Link

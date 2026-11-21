@@ -1,11 +1,13 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import Link from "next/link"
 import { getAllDashboardDataAction } from "../actions/dashboard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TrendingUp, TrendingDown, Minus, MapPin, TrainFront, Globe } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ROUTES } from "@/lib/constants"
 import type { VisitorStats } from "@/types/mto-dashboard"
 
 const selectData = (data: { visitorStats: VisitorStats }) => data.visitorStats
@@ -35,8 +37,17 @@ export default function VisitorStatsSummary({ municipalityId }: { municipalityId
 
   return (
     <Card className="h-full">
-      <CardHeader>
-        <CardTitle className="text-base">Visitor Statistics (This Year)</CardTitle>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle className="text-base">Visitor Statistics</CardTitle>
+          <p className="text-xs text-muted-foreground">Breakdown this year</p>
+        </div>
+        <Link
+          href={ROUTES.MTO.VISITOR_STATS}
+          className="text-xs text-primary hover:underline"
+        >
+          View details
+        </Link>
       </CardHeader>
       <CardContent>
         {isError && (

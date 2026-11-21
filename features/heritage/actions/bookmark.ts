@@ -1,5 +1,7 @@
 "use server"
 
+import { revalidateTag } from "next/cache"
+import { CACHE_TAGS } from "@/lib/cache-tags"
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { toggleBookmark, getBookmarkedSites, getBookmarkedSiteIds } from "../services"
@@ -13,7 +15,9 @@ export async function toggleBookmarkAction(siteId: string) {
 
   if (!user) throw new Error("Unauthorized")
 
-  return toggleBookmark(user.id, siteId)
+  const result = await toggleBookmark(user.id, siteId)
+  revalidateTag(CACHE_TAGS.dashboardKpis, { expire: 0 })
+  return result
 }
 
 export async function getBookmarkedSitesAction() {

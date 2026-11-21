@@ -292,7 +292,9 @@ export async function generateRecommendations(
       .eq("visibility", "public"),
     supabase
       .from("tourist_visits")
-      .select("site_id"),
+      .select("site_id")
+      .order("created_at", { ascending: false })
+      .limit(2000),
   ])
 
   if (sitesResult.error) {
@@ -421,7 +423,10 @@ export async function generateRecommendations(
     }
   })
 
-  await persistRecommendations(supabase, results, preferences)
+  // Persist recommendations asynchronously without blocking the user response
+  persistRecommendations(supabase, results, preferences).catch((error) => {
+    console.error("Async persist recommendations failed:", error)
+  })
 
   return results
 }

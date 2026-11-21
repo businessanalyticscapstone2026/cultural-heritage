@@ -4,8 +4,19 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "motion",
+      "motion/react",
+      "recharts",
+      "@tanstack/react-query",
+      "date-fns",
+    ],
+  },
   images: {
-    qualities: [75, 90],
+    formats: ["image/avif", "image/webp"],
+    qualities: [75, 85],
     remotePatterns: [
       {
         protocol: "https",

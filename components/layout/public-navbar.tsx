@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Home, Compass, Map, Info, User, Search, Star } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
-import { createClient } from "@/utils/supabase/client"
+import { useAuth } from "@/context/auth-context"
 import { useScrollHide } from "@/hooks/use-scroll-hide"
 import { useScrolled } from "@/hooks/use-scrolled"
 import AuthPromptModal from "@/components/auth/auth-prompt-modal"
@@ -44,17 +44,11 @@ export default function PublicNavbar() {
   const mobileSearchRef = useRef<HTMLInputElement>(null)
   const [desktopSearchOpen, setDesktopSearchOpen] = useState(false)
   const desktopSearchRef = useRef<HTMLInputElement>(null)
-  const [user, setUser] = useState<object | null>(null)
+  const { session } = useAuth()
+  const user = session?.user ?? null
   const [authModal, setAuthModal] = useState<{ open: boolean; title: string; description: string }>({
     open: false, title: "", description: "",
   })
-
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setUser(data.user)
-    })
-  }, [])
 
   useEffect(() => {
     if (mobileSearchOpen && mobileSearchRef.current) {

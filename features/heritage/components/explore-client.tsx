@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { Search, X, SlidersHorizontal, Star, MapPin, Clock, ChevronRight, ChevronLeft, Sparkles } from "lucide-react"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
@@ -324,15 +325,12 @@ export default function ExploreClient({
                     >
                       <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#0f2747] to-[#1a3f6a]">
                         {site.media?.find(m => m.isPrimary || m.mediaType === "image")?.fileUrl && (
-                          <img
+                          <Image
                             src={site.media!.find(m => m.isPrimary || m.mediaType === "image")!.fileUrl}
                             alt={site.siteName}
-                            className="h-full w-full object-cover transition-transform duration-[1200px] group-hover:scale-105"
-                            loading="lazy"
-                            onError={(e) => {
-                              const t = e.currentTarget
-                              t.style.display = "none"
-                            }}
+                            fill
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            className="object-cover transition-transform duration-700 group-hover:scale-105"
                           />
                         )}
                         {site.category?.name && (

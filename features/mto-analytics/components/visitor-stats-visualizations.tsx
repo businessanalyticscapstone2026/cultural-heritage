@@ -14,6 +14,14 @@ const WeekdayBarChart = dynamic(() => import("./weekday-bar-chart"), {
   ssr: false,
   loading: ChartSkeleton,
 })
+const VisitsByAttractionPanel = dynamic(() => import("./visits-by-attraction-panel"), {
+  ssr: false,
+  loading: ChartSkeleton,
+})
+const ScanDeviceChart = dynamic(() => import("./scan-device-chart"), {
+  ssr: false,
+  loading: ChartSkeleton,
+})
 const DemographicsRow = dynamic(() => import("./demographics-row"), {
   ssr: false,
   loading: () => (
@@ -56,13 +64,58 @@ export default function VisitorStatsVisualizations({
         <div className="lg:col-span-2">
           <div id="demographics">
             <DemographicsRow filters={filters} initialData={initialData?.demographics} />
+    <div className="space-y-8">
+      {/* Volume & Growth Trajectory */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          Visitor Volume &amp; Trajectory
+        </h2>
+        <div id="visitor-trend">
+          <VisitorTrendChart key={`trend-${filterKey}`} filters={filters} />
+        </div>
+      </section>
+
+      {/* Demographics & Origin Distribution */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          Audience Composition &amp; Scanning Technology
+        </h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div id="scan-device">
+            <ScanDeviceChart key={`scan-device-${filterKey}`} filters={filters} />
+          </div>
+          <div className="lg:col-span-2">
+            <div id="demographics">
+              <DemographicsRow key={`demo-${filterKey}`} filters={filters} />
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div id="top-sites">
-        <TopSitesTable filters={filters} initialData={initialData?.topSites} />
-      </div>
+      {/* Temporal Distribution & Attraction Breakdown */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          Day-of-Week Patterns &amp; Attraction Popularity
+        </h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div id="weekday">
+            <WeekdayBarChart key={`weekday-${filterKey}`} filters={filters} />
+          </div>
+          <div id="visits-by-attraction">
+            <VisitsByAttractionPanel key={`attraction-${filterKey}`} filters={filters} />
+          </div>
+        </div>
+      </section>
+
+      {/* Site-Level Foot Traffic Rankings */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          Site Foot Traffic Rankings
+        </h2>
+        <div id="top-sites">
+          <TopSitesTable key={`sites-${filterKey}`} filters={filters} />
+        </div>
+      </section>
     </div>
   )
 }

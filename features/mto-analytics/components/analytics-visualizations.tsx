@@ -78,14 +78,13 @@ export default function AnalyticsVisualizations({
         <div id="weekday">
           <WeekdayBarChart filters={filters} initialData={initialData?.weekdayVisits} />
         </div>
-      </div>
 
       <div id="visits-by-attraction" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <VisitsByAttractionPanel filters={filters} initialData={initialData?.visitsByAttraction} />
         <div id="recommendation-funnel">
           <RecommendationFunnel filters={filters} initialData={initialData?.recommendationFunnel} />
         </div>
-      </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div id="scan-device">
@@ -96,7 +95,7 @@ export default function AnalyticsVisualizations({
             <DemographicsRow filters={filters} initialData={initialData?.demographics} />
           </div>
         </div>
-      </div>
+      </section>
 
       <div id="top-sites">
         <TopSitesTable filters={filters} initialData={initialData?.topSites} />

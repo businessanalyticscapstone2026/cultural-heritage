@@ -752,7 +752,6 @@ export default function TouristGISPanel({
             )}
           </div>
         </div>
-        </div>
       </aside>
 
       {/* Mobile sidebar backdrop */}

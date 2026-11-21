@@ -54,6 +54,8 @@ export default async function HeritageDetailPage({ params, searchParams }: PageP
       site_id: id,
       visit_date: today,
       visitor_origin: "domestic",
+      visitor_type: "domestic",
+      source: "direct_search",
       tourist_id: user?.id ?? null,
     })
   } catch {

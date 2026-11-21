@@ -2,6 +2,7 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
+import Image from "next/image"
 import {
   SearchIcon,
   FilterIcon,
@@ -258,9 +259,15 @@ export default function MtoHeritageListClient({
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="size-10 shrink-0 rounded-lg bg-muted overflow-hidden flex items-center justify-center">
+                      <div className="relative size-10 shrink-0 rounded-lg bg-muted overflow-hidden flex items-center justify-center">
                         {getThumbnail(site) ? (
-                          <img src={getThumbnail(site)!} alt="" className="h-full w-full object-cover" />
+                          <Image
+                            src={getThumbnail(site)!}
+                            alt=""
+                            fill
+                            sizes="40px"
+                            className="object-cover"
+                          />
                         ) : (
                           <span className="text-muted-foreground/60 text-xs">No img</span>
                         )}

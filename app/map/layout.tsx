@@ -2,9 +2,11 @@ import PublicNavbar from "@/components/layout/public-navbar"
 
 export default function MapLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <div className="flex h-dvh flex-col overflow-hidden bg-background">
       <PublicNavbar />
-      <div className="h-screen bg-background pt-14 max-md:pb-20 md:pt-0">{children}</div>
-    </>
+      <main className="relative flex-1 min-h-0 overflow-hidden pt-14 max-md:pb-16 md:pt-0">
+        {children}
+      </main>
+    </div>
   )
 }

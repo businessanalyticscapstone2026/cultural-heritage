@@ -63,9 +63,9 @@ export const useGisUiStore = create<GisUiState>((set) => ({
 
   showEntryState: true,
   mapBounds: null,
-  showStatsPanel: true,
+  showStatsPanel: false,
   showNearbyPanel: true,
-  showCuratedTrails: true,
+  showCuratedTrails: false,
   showRecommended: false,
   recommendedSiteIds: [],
 
@@ -103,12 +103,10 @@ export const useGisUiStore = create<GisUiState>((set) => ({
   setRecommendedSiteIds: (ids) => set({ recommendedSiteIds: ids }),
 
   setRoutePlanningMode: (mode) =>
-    set({
+    set((state) => ({
       routePlanningMode: mode,
-      activeRoute: mode ? null : null,
-      showRouteOnMap: false,
-      routeStopIds: mode ? [] : [],
-    }),
+      ...(!mode ? { showRouteOnMap: false } : {}),
+    })),
 
   addRouteStop: (siteId) =>
     set((state) => {

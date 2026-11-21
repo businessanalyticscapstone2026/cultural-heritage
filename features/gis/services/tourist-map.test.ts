@@ -27,6 +27,7 @@ function setup(rows: Record<string, unknown>[]) {
   const { from } = createFakeSupabase(rows)
   mock.module("next/headers", () => ({ cookies: async () => ({ getAll: () => [], set: () => {} }) }))
   mock.module("@/utils/supabase/server", () => ({ createClient: () => ({ from }) }))
+  mock.module("@/utils/supabase/cached", () => ({ createTokenClient: () => ({ from }) }))
 }
 
 const SITE_WITH_CATEGORY_ID = "11111111-1111-1111-1111-111111111111"

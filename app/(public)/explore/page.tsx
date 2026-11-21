@@ -27,29 +27,15 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const [globalSettings, categories, filterOptions] = await Promise.all([
+  const [globalSettings, categories, filterOptions, userResult] = await Promise.all([
     getGlobalSettingsPublic(),
     getExploreCategories(),
     getExploreFilterOptions(),
+    supabase.auth.getUser(),
   ])
 
+  const user = userResult.data.user
   const pageSize = globalSettings.itemsPerPage
-
-  const initialData = await getPublishedSites({
-    search: searchQuery || undefined,
-    categoryId: categoryId || undefined,
-    municipalityId: municipalityId || undefined,
-    historicalPeriod: historicalPeriod || undefined,
-    accessibility: accessibility || undefined,
-    page,
-    pageSize,
-  })
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  let recommendedSiteIds: string[] = []
-  const recommendedRecIdMap: Record<string, string> = {}
-  let bookmarkedSiteIds: string[] = []
 
   const sessionId = cookieStore.get("session_id")?.value
 
@@ -65,38 +51,42 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
     recQuery.eq("tourist_id", "00000000-0000-0000-0000-000000000000")
   }
 
-  if (user) {
-    const [recsResult, bookmarksResult] = await Promise.all([
-      recQuery,
-      supabase
-        .from("bookmarks")
-        .select("site_id")
-        .eq("tourist_id", user.id),
-    ])
+  const initialDataPromise = getPublishedSites({
+    search: searchQuery || undefined,
+    categoryId: categoryId || undefined,
+    municipalityId: municipalityId || undefined,
+    historicalPeriod: historicalPeriod || undefined,
+    accessibility: accessibility || undefined,
+    page,
+    pageSize,
+  })
 
-    if (!recsResult.error && recsResult.data) {
-      const seen = new Set<string>()
-      for (const row of recsResult.data) {
-        seen.add(row.site_id)
-        recommendedRecIdMap[row.site_id] = row.id
-      }
-      recommendedSiteIds = [...seen]
-    }
+  const [initialData, recsResult, bookmarksResult] = await Promise.all([
+    initialDataPromise,
+    recQuery,
+    user
+      ? supabase
+          .from("bookmarks")
+          .select("site_id")
+          .eq("tourist_id", user.id)
+      : Promise.resolve({ data: [] as { site_id: string }[], error: null }),
+  ])
 
-    if (!bookmarksResult.error && bookmarksResult.data) {
-      bookmarkedSiteIds = bookmarksResult.data.map((row) => row.site_id)
-    }
-  } else if (sessionId) {
-    const recsResult = await recQuery
+  let recommendedSiteIds: string[] = []
+  const recommendedRecIdMap: Record<string, string> = {}
+  let bookmarkedSiteIds: string[] = []
 
-    if (!recsResult.error && recsResult.data) {
-      const seen = new Set<string>()
-      for (const row of recsResult.data) {
-        seen.add(row.site_id)
-        recommendedRecIdMap[row.site_id] = row.id
-      }
-      recommendedSiteIds = [...seen]
+  if (!recsResult.error && recsResult.data) {
+    const seen = new Set<string>()
+    for (const row of recsResult.data) {
+      seen.add(row.site_id)
+      recommendedRecIdMap[row.site_id] = row.id
     }
+    recommendedSiteIds = [...seen]
+  }
+
+  if (user && !bookmarksResult.error && bookmarksResult.data) {
+    bookmarkedSiteIds = bookmarksResult.data.map((row) => row.site_id)
   }
 
   return (

@@ -422,7 +422,7 @@ export default function TouristGISPanel({
         aria-label="Map sidebar with site list and filters"
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between border-b border-ink/10 px-4 py-3">
+        <div className="flex shrink-0 items-center justify-between border-b border-ink/10 px-4 py-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
             <MapIcon className="size-4 text-accent" />
             Heritage Map
@@ -437,7 +437,9 @@ export default function TouristGISPanel({
           </button>
         </div>
 
-        {/* Search */}
+        {/* Scrollable sidebar body */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          {/* Search */}
         <div className="border-b border-ink/10 p-3">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-soft" />
@@ -644,7 +646,7 @@ export default function TouristGISPanel({
         </div>
 
         {/* Full Site List */}
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
               Heritage Sites
@@ -725,6 +727,7 @@ export default function TouristGISPanel({
               })}
             </ul>
           )}
+        </div>
         </div>
       </aside>
 

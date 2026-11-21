@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { getAllDashboardDataAction } from "../actions/dashboard"
 import ChartCard from "@/components/charts/chart-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { formatCategoryName } from "@/lib/format-category"
 import type { CategoryDistributionPoint } from "@/types/mto-dashboard"
 
 const selectData = (data: { categoryDistribution: CategoryDistributionPoint[] }) => data.categoryDistribution
@@ -43,7 +44,7 @@ export default function CategoryProgress({ municipalityId }: { municipalityId: s
               <div className="mb-1.5 flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
-                  <span className="font-medium">{entry.name}</span>
+                  <span className="font-medium">{formatCategoryName(entry.name)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{entry.count}</span>

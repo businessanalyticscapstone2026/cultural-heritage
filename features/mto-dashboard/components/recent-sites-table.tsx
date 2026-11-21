@@ -14,6 +14,7 @@ import { ROUTES } from "@/lib/constants"
 import HeritageDetailPanel from "@/features/heritage/components/heritage-detail-panel"
 import ConfirmDialog from "@/components/confirm-dialog"
 import type { SiteWithDetails } from "@/features/heritage/services/mto-sites"
+import { formatCategoryName } from "@/lib/format-category"
 
 const statusStyles: Record<string, string> = {
   draft: "bg-yellow-100 text-yellow-800",
@@ -159,7 +160,7 @@ export default function RecentSitesTable({ municipalityId }: { municipalityId: s
                     </td>
                     <td className="py-2.5 pr-3">
                       {site.categoryName ? (
-                        <Badge variant="secondary" className="text-[10px]">{site.categoryName}</Badge>
+                        <Badge variant="secondary" className="text-[10px]">{formatCategoryName(site.categoryName)}</Badge>
                       ) : (
                         <span className="text-muted-foreground">&mdash;</span>
                       )}

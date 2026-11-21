@@ -7,6 +7,7 @@ import ChartCard from "@/components/charts/chart-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
 import { ROUTES } from "@/lib/constants"
+import { formatCategoryName } from "@/lib/format-category"
 import type { CategoryBreakdownPoint } from "@/types/mto-dashboard"
 
 const selectData = (data: { visitsByCategory: CategoryBreakdownPoint[] }) => data.visitsByCategory
@@ -87,7 +88,7 @@ export default function VisitsByAttractionChart({ municipalityId }: { municipali
                 <div key={entry.name} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span>{entry.name}</span>
+                    <span>{formatCategoryName(entry.name)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{entry.value.toLocaleString()}</span>

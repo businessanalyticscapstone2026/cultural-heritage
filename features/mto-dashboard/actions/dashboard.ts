@@ -125,11 +125,11 @@ export async function getAllDashboardDataAction(
   const [stats, visitsOverview, visitsByCategory, recentSites, visitorStats, recentScans, topAttractions, scanDeviceBreakdown, categoryDistribution, reviewInsightCards] =
     await Promise.all([
       getMTODashboardStats(municipalityId, siteIds),
-      getMTOVisitsOverview(municipalityId),
+      getMTOVisitsOverview(municipalityId, siteIds),
       getMTOVisitsByCategory(municipalityId, sites),
       getMTORecentSites(municipalityId),
       getMTOVisitorStats(municipalityId, siteIds),
-      getMTORecentScans(municipalityId),
+      getMTORecentScans(municipalityId, siteIds),
       getMTOTopAttractions(municipalityId, 5, siteIds),
       getMTOScanDeviceBreakdown(municipalityId, siteIds),
       getMTOCategoryDistribution(municipalityId, sites),

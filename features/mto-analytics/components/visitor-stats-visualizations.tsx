@@ -52,18 +52,6 @@ export default function VisitorStatsVisualizations({
   initialData?: MTOAnalyticsBundle
 }) {
   return (
-    <div className="space-y-6">
-      <div id="visitor-trend">
-        <VisitorTrendChart filters={filters} initialData={initialData?.visitorTrend} />
-      </div>
-
-      <div id="weekday-demographics" className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div id="weekday">
-          <WeekdayBarChart filters={filters} initialData={initialData?.weekdayVisits} />
-        </div>
-        <div className="lg:col-span-2">
-          <div id="demographics">
-            <DemographicsRow filters={filters} initialData={initialData?.demographics} />
     <div className="space-y-8">
       {/* Volume & Growth Trajectory */}
       <section className="space-y-3">
@@ -71,7 +59,7 @@ export default function VisitorStatsVisualizations({
           Visitor Volume &amp; Trajectory
         </h2>
         <div id="visitor-trend">
-          <VisitorTrendChart key={`trend-${filterKey}`} filters={filters} />
+          <VisitorTrendChart filters={filters} initialData={initialData?.visitorTrend} />
         </div>
       </section>
 
@@ -82,11 +70,11 @@ export default function VisitorStatsVisualizations({
         </h2>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div id="scan-device">
-            <ScanDeviceChart key={`scan-device-${filterKey}`} filters={filters} />
+            <ScanDeviceChart filters={filters} initialData={initialData?.scanDeviceBreakdown} />
           </div>
           <div className="lg:col-span-2">
             <div id="demographics">
-              <DemographicsRow key={`demo-${filterKey}`} filters={filters} />
+              <DemographicsRow filters={filters} initialData={initialData?.demographics} />
             </div>
           </div>
         </div>
@@ -99,10 +87,10 @@ export default function VisitorStatsVisualizations({
         </h2>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div id="weekday">
-            <WeekdayBarChart key={`weekday-${filterKey}`} filters={filters} />
+            <WeekdayBarChart filters={filters} initialData={initialData?.weekdayVisits} />
           </div>
           <div id="visits-by-attraction">
-            <VisitsByAttractionPanel key={`attraction-${filterKey}`} filters={filters} />
+            <VisitsByAttractionPanel filters={filters} initialData={initialData?.visitsByAttraction} />
           </div>
         </div>
       </section>
@@ -113,7 +101,7 @@ export default function VisitorStatsVisualizations({
           Site Foot Traffic Rankings
         </h2>
         <div id="top-sites">
-          <TopSitesTable key={`sites-${filterKey}`} filters={filters} />
+          <TopSitesTable filters={filters} initialData={initialData?.topSites} />
         </div>
       </section>
     </div>

@@ -24,7 +24,7 @@ export const Route = createFileRoute("/profile")({
 });
 
 const interestLabels: Record<string, string> = {
-  colonial: "Colonial Architecture", sacred: "Sacred Sites", nature: "Natural Heritage",
+  colonial: "Colonial Architecture", sacred: "Sacred Sites", nature: "Natural Attraction",
   art: "Art & Craft", music: "Living Culture", stories: "Stories & Lore",
   adventure: "Outdoor Trekking", coastal: "Coastal Heritage",
 };

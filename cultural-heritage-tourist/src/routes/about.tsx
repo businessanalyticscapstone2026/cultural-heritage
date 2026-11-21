@@ -56,7 +56,7 @@ function AboutPage() {
           </h2>
           <p className="mt-6 text-ink-soft leading-relaxed">
             The Philippines is home to thousands of heritage sites — from centuries-old churches
-            and colonial houses to archaeological treasures and natural wonders. Many of these
+            and colonial houses to archaeological treasures and natural attractions. Many of these
             sites lack digital documentation, making them invisible to modern travelers.
           </p>
           <p className="mt-4 text-ink-soft leading-relaxed">

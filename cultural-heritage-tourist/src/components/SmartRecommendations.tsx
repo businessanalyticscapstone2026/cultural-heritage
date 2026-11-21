@@ -31,7 +31,7 @@ interface Interest {
 const interests: Interest[] = [
   { id: "sacred", label: "Sacred Sites", icon: Church, keywords: ["sacred", "church", "basilica", "baroque"], weight: 1.0 },
   { id: "colonial", label: "Colonial Heritage", icon: Landmark, keywords: ["colonial", "spanish", "fort", "walled"], weight: 1.0 },
-  { id: "nature", label: "Natural Wonders", icon: TreePine, keywords: ["unesco", "terraces", "hills", "geological"], weight: 0.9 },
+  { id: "nature", label: "Natural Attraction", icon: TreePine, keywords: ["unesco", "terraces", "hills", "geological"], weight: 0.9 },
   { id: "adventure", label: "Adventure", icon: Mountain, keywords: ["hiking", "trek", "outdoor"], weight: 0.8 },
   { id: "history", label: "Deep History", icon: Clock, keywords: ["prehistoric", "2,000", "1571", "1572", "1587"], weight: 1.0 },
   { id: "architecture", label: "Architecture", icon: Palette, keywords: ["buttress", "facade", "cobblestone", "triangular"], weight: 0.85 },

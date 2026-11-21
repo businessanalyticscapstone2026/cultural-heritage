@@ -23,6 +23,7 @@ import {
 import { motion, AnimatePresence } from "motion/react"
 import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
 import { sanitizeHtml } from "@/lib/sanitize-html"
+import { formatCategoryName } from "@/lib/format-category"
 import type { HeritageSite, HeritageSiteTag, HeritageSiteReferenceLink } from "../types"
 import { BookmarkButton } from "./bookmark-button"
 import NearbySitesSidebar from "./nearby-sites-sidebar"
@@ -253,7 +254,7 @@ export default function HeritageDetailClient({
                       aria-hidden="true"
                     />
                   )}
-                  {site.category.name}
+                  {formatCategoryName(site.category.name)}
                   <span className="text-white/50" aria-hidden="true">·</span>
                   <span>Cultural Heritage</span>
                 </p>

@@ -20,13 +20,13 @@ const destinations = [
   { id: "lian-church", img: "/dest-1.jpg", name: "Lian Church (San Juan Bautista)", municipality: "Lian", category: "Sacred", era: "1855", rating: 4.6, description: "A 19th-century coral stone church with a neoclassical facade." },
   { id: "nasugbu-church", img: "/dest-4.jpg", name: "Our Lady of the Assumption", municipality: "Nasugbu", category: "Sacred", era: "1611", rating: 4.7, description: "A historic church that served as fortress against Moro raids." },
   { id: "calatagan-ruins", img: "/dest-2.jpg", name: "Calatagan Ruins", municipality: "Calatagan", category: "Colonial", era: "1800s", rating: 4.4, description: "Ruins of a grand Spanish colonial estate overlooking the coastline." },
-  { id: "gulod-park", img: "/dest-3.jpg", name: "Gulod National Park", municipality: "Tuy", category: "Natural", era: "Natural", rating: 4.2, description: "Protected forest reserve with endemic flora and pre-colonial trail networks." },
+  { id: "gulod-park", img: "/dest-3.jpg", name: "Gulod National Park", municipality: "Tuy", category: "Natural Attraction", era: "Natural Attraction", rating: 4.2, description: "Protected forest reserve with endemic flora and pre-colonial trail networks." },
   { id: "tuy-church", img: "/dest-1.jpg", name: "San Jose Parish Church", municipality: "Tuy", category: "Sacred", era: "1875", rating: 4.5, description: "A sturdy Spanish colonial church built from volcanic stone." },
   { id: "malaruhatan-tower", img: "/dest-4.jpg", name: "Malaruhatan Watchtower", municipality: "Lian", category: "Colonial", era: "1700s", rating: 4.1, description: "Remnants of a Spanish-era coastal defense watchtower." },
 ];
 
 const municipalities = ["All", "Balayan", "Calatagan", "Lian", "Nasugbu", "Tuy"];
-const categories = ["All", "Sacred", "Colonial", "UNESCO", "Natural"];
+const categories = ["All", "Sacred", "Colonial", "UNESCO", "Natural Attraction"];
 
 function ExplorePage() {
   const { q } = Route.useSearch();
@@ -79,7 +79,7 @@ function ExplorePage() {
             Browse all heritage sites
           </h1>
           <p className="mt-4 max-w-lg text-ink-soft">
-            Discover colonial churches, archaeological treasures, and natural heritage across Batangas 1st District.
+            Discover colonial churches, archaeological treasures, and natural attractions across Batangas 1st District.
           </p>
         </div>
       </section>

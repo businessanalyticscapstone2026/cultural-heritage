@@ -10,6 +10,7 @@ import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
 import { useDebounce } from "@/hooks/use-debounce"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
 import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
+import { formatCategoryName } from "@/lib/format-category"
 import type { HeritageSite } from "@/types/heritage"
 import type { ExploreResult, ExploreCategory } from "../services/explore"
 
@@ -140,7 +141,7 @@ export default function ExploreClient({
               Browse all heritage sites
             </h1>
             <p className="mt-4 max-w-lg text-ink-soft">
-              Discover colonial churches, archaeological treasures, and natural heritage across Batangas 1st District.
+              Discover colonial churches, archaeological treasures, and natural attractions across Batangas 1st District.
             </p>
           </div>
         </Reveal>
@@ -213,7 +214,7 @@ export default function ExploreClient({
                   }`}
                 >
                   {cat.icon && <span>{cat.icon} </span>}
-                  {cat.name}
+                  {formatCategoryName(cat.name)}
                 </button>
               ))}
             </div>
@@ -335,7 +336,7 @@ export default function ExploreClient({
                         )}
                         {site.category?.name && (
                           <span className="absolute left-3 top-3 rounded-full bg-cream/90 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-ink backdrop-blur">
-                            {site.category.name}
+                            {formatCategoryName(site.category.name)}
                           </span>
                         )}
                         {isRecommended && (

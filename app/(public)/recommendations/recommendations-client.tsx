@@ -6,6 +6,7 @@ import { CardBookmarkButton } from "@/features/bookmarks/components"
 import type { RecommendationResult } from "@/types/recommendation"
 import Link from "next/link"
 import Image from "next/image"
+import { formatCategoryName } from "@/lib/format-category"
 
 interface Props {
   initialResults: RecommendationResult[]
@@ -99,7 +100,7 @@ export default function RecommendationsClient({ initialResults }: Props) {
                 <div className="flex items-center gap-2">
                   {r.site.category && (
                     <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                      {r.site.category.name}
+                      {formatCategoryName(r.site.category.name)}
                     </span>
                   )}
                   {r.site.yearEstablished && (

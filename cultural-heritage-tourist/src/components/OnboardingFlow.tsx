@@ -11,7 +11,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 const interestOptions = [
   { id: "colonial", label: "Colonial Architecture", icon: Landmark, description: "Spanish-era houses, plazas, and fortifications" },
   { id: "sacred", label: "Sacred Sites", icon: Church, description: "Historic churches, basilicas, and shrines" },
-  { id: "nature", label: "Natural Heritage", icon: TreePine, description: "Terraces, parks, and geological wonders" },
+  { id: "nature", label: "Natural Attraction", icon: TreePine, description: "Terraces, parks, and geological wonders" },
   { id: "art", label: "Art & Craft", icon: Palette, description: "Traditional weaving, pottery, and visual arts" },
   { id: "music", label: "Living Culture", icon: Music, description: "Festivals, dances, and musical traditions" },
   { id: "stories", label: "Stories & Lore", icon: BookOpen, description: "Local legends, oral histories, and folklore" },

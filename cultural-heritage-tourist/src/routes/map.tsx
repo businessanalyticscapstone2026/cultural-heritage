@@ -25,7 +25,7 @@ const allSites = [
   { id: "nasugbu-church", name: "Our Lady of the Assumption", municipality: "Nasugbu", category: "Sacred", img: "/dest-4.jpg" },
   { id: "fortune-island", name: "Fortune Island Ruins", municipality: "Nasugbu", category: "Colonial", img: "/dest-3.jpg" },
   { id: "tuy-church", name: "San Jose Parish Church", municipality: "Tuy", category: "Sacred", img: "/dest-1.jpg" },
-  { id: "gulod-nature", name: "Gulod National Park", municipality: "Tuy", category: "Natural", img: "/dest-3.jpg" },
+  { id: "gulod-nature", name: "Gulod National Park", municipality: "Tuy", category: "Natural Attraction", img: "/dest-3.jpg" },
   { id: "malaruhatan-fort", name: "Malaruhatan Watchtower", municipality: "Lian", category: "Colonial", img: "/dest-4.jpg" },
 ];
 

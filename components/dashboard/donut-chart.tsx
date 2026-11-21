@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "motion/react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { ChartTooltip } from "@/components/charts/chart-tooltip"
 import { cn } from "@/lib/utils"
+import { formatCategoryName } from "@/lib/format-category"
 import type { CategoryBreakdown } from "@/features/dashboard/types"
 
 interface DonutChartProps {
@@ -47,7 +48,7 @@ export function DonutChart({ data, total }: DonutChartProps) {
             <Tooltip
               content={
                 <ChartTooltip
-                  labelFormatter={(label) => String(label)}
+                  labelFormatter={(label) => formatCategoryName(String(label))}
                   valueFormatter={(value) => `${value.toLocaleString()} site${value === 1 ? "" : "s"}`}
                 />
               }
@@ -72,7 +73,7 @@ export function DonutChart({ data, total }: DonutChartProps) {
                       className="inline-block size-2.5 rounded-full"
                       style={{ backgroundColor: entry.color }}
                     />
-                    {entry.name}
+                    {formatCategoryName(entry.name)}
                   </span>
                   <span className="flex items-center gap-2">
                     <span className="font-medium tabular-nums">{entry.count}</span>

@@ -12,6 +12,7 @@ export const CACHE_TAGS = {
   heritageSites: "heritage-sites",
   heritageCategories: "heritage-categories",
   municipalities: "municipalities",
+  routes: "routes",
   analytics: "analytics",
   /** CHT-135 review-derived DSS insights (satisfaction, engagement, alerts) */
   reviewInsights: "review-insights",

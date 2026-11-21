@@ -29,15 +29,17 @@ export default async function HomeExplorePage({ searchParams }: Props) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const [globalSettings, categories, filterOptions] = await Promise.all([
+  const [globalSettings, categories, filterOptions, userResult] = await Promise.all([
     getGlobalSettingsPublic(),
     getExploreCategories(),
     getExploreFilterOptions(),
+    supabase.auth.getUser(),
   ])
 
+  const user = userResult.data.user
   const pageSize = globalSettings.itemsPerPage
 
-  const initialData = await getPublishedSites({
+  const initialDataPromise = getPublishedSites({
     search: searchQuery || undefined,
     categoryId: categoryId || undefined,
     municipalityId: municipalityId || undefined,
@@ -47,23 +49,26 @@ export default async function HomeExplorePage({ searchParams }: Props) {
     pageSize,
   })
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const [initialData, recsResult, bookmarksResult] = await Promise.all([
+    initialDataPromise,
+    user
+      ? supabase
+          .from("recommendations")
+          .select("site_id")
+          .eq("tourist_id", user.id)
+      : Promise.resolve({ data: [] as { site_id: string }[], error: null }),
+    user
+      ? supabase
+          .from("bookmarks")
+          .select("site_id")
+          .eq("tourist_id", user.id)
+      : Promise.resolve({ data: [] as { site_id: string }[], error: null }),
+  ])
 
   let recommendedSiteIds: string[] = []
   let bookmarkedSiteIds: string[] = []
 
   if (user) {
-    const [recsResult, bookmarksResult] = await Promise.all([
-      supabase
-        .from("recommendations")
-        .select("site_id")
-        .eq("tourist_id", user.id),
-      supabase
-        .from("bookmarks")
-        .select("site_id")
-        .eq("tourist_id", user.id),
-    ])
-
     if (!recsResult.error && recsResult.data) {
       const seen = new Set<string>()
       for (const row of recsResult.data) {

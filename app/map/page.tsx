@@ -1,5 +1,5 @@
 import { cookies } from "next/headers"
-import { createClient } from "@/utils/supabase/server"
+import { createClient, getAuthenticatedUser } from "@/utils/supabase/server"
 import { getTouristMapSites, getTouristMapCategories, getCuratedTrails } from "@/features/gis/services/tourist-map"
 import { getMunicipalityBoundaries } from "@/features/gis/services"
 import { getMunicipalityOptions } from "@/features/municipalities/services"
@@ -11,11 +11,16 @@ interface MapPageProps {
 }
 
 export default async function MapPage({ searchParams }: MapPageProps) {
-  const sp = await searchParams
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+  // 1. Kick off cached public map data queries immediately in parallel with auth
+  const mapDataPromise = Promise.all([
+    getTouristMapSites(),
+    getTouristMapCategories(),
+    getCuratedTrails(),
+    getMunicipalityOptions(),
+    getMunicipalityBoundaries(),
+  ])
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const [sp, user] = await Promise.all([searchParams, getAuthenticatedUser()])
 
   if (!user) {
     return (
@@ -26,27 +31,21 @@ export default async function MapPage({ searchParams }: MapPageProps) {
     )
   }
 
-  let homeLatitude: number | null = null
-  let homeLongitude: number | null = null
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
 
-  if (user) {
-    const { data: profile } = await supabase
+  // 2. Fetch user profile and await map data concurrently
+  const [profileResult, [sites, categories, curatedTrails, municipalities, boundaries]] = await Promise.all([
+    supabase
       .from("tourist_profiles")
       .select("home_latitude, home_longitude")
       .eq("id", user.id)
-      .maybeSingle()
-
-    homeLatitude = profile?.home_latitude ?? null
-    homeLongitude = profile?.home_longitude ?? null
-  }
-
-  const [sites, categories, curatedTrails, municipalities, boundaries] = await Promise.all([
-    getTouristMapSites(),
-    getTouristMapCategories(),
-    getCuratedTrails(),
-    getMunicipalityOptions(),
-    getMunicipalityBoundaries(),
+      .maybeSingle(),
+    mapDataPromise,
   ])
+
+  const homeLatitude = profileResult.data?.home_latitude ?? null
+  const homeLongitude = profileResult.data?.home_longitude ?? null
 
   return (
     <TouristMapClient

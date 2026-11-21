@@ -1,5 +1,8 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { unstable_cache } from "next/cache"
+import { createTokenClient } from "@/utils/supabase/cached"
+import { CACHE_TAGS } from "@/lib/cache-tags"
 import { mapRoleNameToUserRole } from "@/features/auth/services"
 import type {
   Municipality,
@@ -245,9 +248,8 @@ export async function resolveAndValidateMunicipality(
   return data as Municipality
 }
 
-export async function getMunicipalityOptions(): Promise<{ id: string; name: string }[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+async function fetchMunicipalityOptions(): Promise<{ id: string; name: string }[]> {
+  const supabase = createTokenClient("")
 
   const { data, error } = await supabase
     .from("municipalities")
@@ -258,4 +260,19 @@ export async function getMunicipalityOptions(): Promise<{ id: string; name: stri
   if (error) throw new Error(`Failed to fetch municipality options: ${error.message}`)
 
   return (data ?? []) as { id: string; name: string }[]
+}
+
+const getCachedMunicipalityOptions = unstable_cache(
+  async (): Promise<{ id: string; name: string }[]> => {
+    return fetchMunicipalityOptions()
+  },
+  ["municipality-options"],
+  { revalidate: 3600, tags: [CACHE_TAGS.municipalities] },
+)
+
+export async function getMunicipalityOptions(): Promise<{ id: string; name: string }[]> {
+  if (process.env.NODE_ENV === "test") {
+    return fetchMunicipalityOptions()
+  }
+  return getCachedMunicipalityOptions()
 }

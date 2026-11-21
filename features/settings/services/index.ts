@@ -1,5 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { unstable_cache } from "next/cache"
+import { createTokenClient } from "@/utils/supabase/cached"
 import type {
   GlobalSettings,
   RecommendationWeights,
@@ -116,9 +118,8 @@ export async function getSettingsData(): Promise<SettingsData> {
   }
 }
 
-export async function getGlobalSettingsPublic(): Promise<GlobalSettings> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+async function fetchGlobalSettingsPublic(): Promise<GlobalSettings> {
+  const supabase = createTokenClient("")
 
   const { data } = await supabase
     .from("system_settings")
@@ -127,6 +128,21 @@ export async function getGlobalSettingsPublic(): Promise<GlobalSettings> {
     .maybeSingle()
 
   return parseGlobalSettings((data?.value as Record<string, unknown>) ?? null)
+}
+
+const getCachedGlobalSettingsPublic = unstable_cache(
+  async (): Promise<GlobalSettings> => {
+    return fetchGlobalSettingsPublic()
+  },
+  ["global-settings-public"],
+  { revalidate: 300, tags: ["system-settings"] },
+)
+
+export async function getGlobalSettingsPublic(): Promise<GlobalSettings> {
+  if (process.env.NODE_ENV === "test") {
+    return fetchGlobalSettingsPublic()
+  }
+  return getCachedGlobalSettingsPublic()
 }
 
 export async function upsertSystemSetting(

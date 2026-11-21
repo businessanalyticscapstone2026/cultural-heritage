@@ -1,5 +1,7 @@
-import { createClient } from "@/utils/supabase/server"
-import { cookies } from "next/headers"
+import { unstable_cache } from "next/cache"
+import { createTokenClient } from "@/utils/supabase/cached"
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
 export interface TouristMapSite {
   id: string
@@ -27,14 +29,27 @@ export interface TouristMapCategory {
   siteCount: number
 }
 
+export interface CuratedTrail {
+  id: string
+  name: string
+  totalDistanceKm: number | null
+  totalDurationMinutes: number | null
+  stops: {
+    siteId: string
+    siteName: string
+    stopOrder: number
+    latitude: number
+    longitude: number
+  }[]
+}
+
 /**
  * Query 1: Fetch all published + public heritage sites with coordinates and
  *          category / municipality / primary-image joins.
  * Feeds: map markers, sidebar site list, detail panel.
  */
-export async function getTouristMapSites(): Promise<TouristMapSite[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+async function fetchTouristMapSites(client?: SupabaseClient): Promise<TouristMapSite[]> {
+  const supabase = client ?? createTokenClient("")
 
   const { data, error } = await supabase
     .from("heritage_sites")
@@ -83,39 +98,35 @@ export async function getTouristMapSites(): Promise<TouristMapSite[]> {
       categoryName: cat?.name ?? null,
       categoryColor: cat?.color ?? null,
       categoryIcon: cat?.icon ?? null,
-      primaryImage: primaryImg?.file_url as string | null ?? null,
+      primaryImage: (primaryImg?.file_url as string | null) ?? null,
       averageRating: (row.average_rating ?? 0) as number,
       reviewCount: (row.review_count ?? 0) as number,
     }
   })
 }
 
-/**
- * Query 2: Fetch active heritage categories with site counts.
- * Feeds: category filter dropdown, legend, layer toggles.
- */
-export interface CuratedTrail {
-  id: string
-  name: string
-  totalDistanceKm: number | null
-  totalDurationMinutes: number | null
-  stops: {
-    siteId: string
-    siteName: string
-    stopOrder: number
-    latitude: number
-    longitude: number
-  }[]
+const getCachedTouristMapSites = unstable_cache(
+  async (): Promise<TouristMapSite[]> => {
+    return fetchTouristMapSites()
+  },
+  ["tourist-map-sites"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.heritageSites] },
+)
+
+export async function getTouristMapSites(client?: SupabaseClient): Promise<TouristMapSite[]> {
+  if (client || process.env.NODE_ENV === "test") {
+    return fetchTouristMapSites(client)
+  }
+  return getCachedTouristMapSites()
 }
 
 /**
- * Query 3: Fetch curated trails (routes with is_curated = true),
+ * Query 2: Fetch curated trails (routes with is_curated = true),
  *          including their stops with site details.
  * Feeds: CuratedTrailsPanel.
  */
-export async function getCuratedTrails(): Promise<CuratedTrail[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+async function fetchCuratedTrails(client?: SupabaseClient): Promise<CuratedTrail[]> {
+  const supabase = client ?? createTokenClient("")
 
   const { data: routes, error } = await supabase
     .from("routes")
@@ -157,38 +168,72 @@ export async function getCuratedTrails(): Promise<CuratedTrail[]> {
   })
 }
 
-export async function getTouristMapCategories(): Promise<TouristMapCategory[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+const getCachedCuratedTrails = unstable_cache(
+  async (): Promise<CuratedTrail[]> => {
+    return fetchCuratedTrails()
+  },
+  ["tourist-curated-trails"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.routes, CACHE_TAGS.heritageSites] },
+)
 
-  const { data: categories, error: catError } = await supabase
-    .from("heritage_categories")
-    .select("id, name, color, icon")
-    .eq("status", "active")
-    .order("display_order", { ascending: true, nullsFirst: false })
+export async function getCuratedTrails(client?: SupabaseClient): Promise<CuratedTrail[]> {
+  if (client || process.env.NODE_ENV === "test") {
+    return fetchCuratedTrails(client)
+  }
+  return getCachedCuratedTrails()
+}
 
-  if (catError) throw new Error(`Failed to fetch categories: ${catError.message}`)
+/**
+ * Query 3: Fetch active heritage categories with site counts.
+ * Feeds: category filter dropdown, legend, layer toggles.
+ * Aggregates site counts in a single batch query (no N+1 loop).
+ */
+async function fetchTouristMapCategories(client?: SupabaseClient): Promise<TouristMapCategory[]> {
+  const supabase = client ?? createTokenClient("")
 
-  const results: TouristMapCategory[] = []
-
-  for (const cat of categories ?? []) {
-    const { count, error: countError } = await supabase
+  const [categoriesRes, sitesRes] = await Promise.all([
+    supabase
+      .from("heritage_categories")
+      .select("id, name, color, icon")
+      .eq("status", "active")
+      .order("display_order", { ascending: true, nullsFirst: false }),
+    supabase
       .from("heritage_sites")
-      .select("id", { count: "exact", head: true })
-      .eq("category_id", cat.id)
+      .select("category_id")
       .eq("publication_status", "published")
       .eq("visibility", "public")
+      .not("category_id", "is", null),
+  ])
 
-    if (countError) throw new Error(`Failed to count sites: ${countError.message}`)
+  if (categoriesRes.error) throw new Error(`Failed to fetch categories: ${categoriesRes.error.message}`)
 
-    results.push({
-      id: cat.id as string,
-      name: cat.name as string,
-      color: (cat.color ?? null) as string | null,
-      icon: (cat.icon ?? null) as string | null,
-      siteCount: count ?? 0,
-    })
+  const counts = new Map<string, number>()
+  for (const row of sitesRes.data ?? []) {
+    if (row.category_id) {
+      counts.set(row.category_id, (counts.get(row.category_id) ?? 0) + 1)
+    }
   }
 
-  return results
+  return (categoriesRes.data ?? []).map((cat) => ({
+    id: cat.id as string,
+    name: cat.name as string,
+    color: (cat.color ?? null) as string | null,
+    icon: (cat.icon ?? null) as string | null,
+    siteCount: counts.get(cat.id) ?? 0,
+  }))
+}
+
+const getCachedTouristMapCategories = unstable_cache(
+  async (): Promise<TouristMapCategory[]> => {
+    return fetchTouristMapCategories()
+  },
+  ["tourist-map-categories"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.heritageCategories, CACHE_TAGS.heritageSites] },
+)
+
+export async function getTouristMapCategories(client?: SupabaseClient): Promise<TouristMapCategory[]> {
+  if (client || process.env.NODE_ENV === "test") {
+    return fetchTouristMapCategories(client)
+  }
+  return getCachedTouristMapCategories()
 }

@@ -79,20 +79,6 @@ export async function getMTODashboardStats(
 
   const siteIds = preloadedSiteIds ?? (await resolveSiteIds(supabase, municipalityId))
 
-  const [sitesCount, sitesCountPrev] = await Promise.all([
-    supabase
-      .from("heritage_sites")
-      .select("id", { count: "exact", head: true })
-      .eq("municipality_id", municipalityId)
-      .eq("publication_status", "published"),
-    supabase
-      .from("heritage_sites")
-      .select("id", { count: "exact", head: true })
-      .eq("municipality_id", municipalityId)
-      .eq("publication_status", "published")
-      .lte("created_at", lastMonth.end),
-  ])
-
   const qrCodeIds =
     siteIds.length === 0
       ? []
@@ -139,19 +125,31 @@ export async function getMTODashboardStats(
     return count ?? 0
   }
 
-  const [visitsCount, visitsCountPrev, bookmarksCount, bookmarksCountPrev, recsCount, recsCountPrev, qrCount, qrCountPrev] =
-    await Promise.all([
-      countScans(thisMonth.start, thisMonth.end),
-      countScans(lastMonth.start, lastMonth.end),
-      countBookmarks(),
-      countBookmarks(lastMonth.end),
-      countRecommendationClicks(thisMonth.start, thisMonth.end),
-      countRecommendationClicks(lastMonth.start, lastMonth.end),
-      countActiveQr(),
-      countActiveQr(lastMonth.end),
-    ])
+  const [
+    sitesCount,
+    visitsCount,
+    visitsCountPrev,
+    bookmarksCount,
+    bookmarksCountPrev,
+    recsCount,
+    recsCountPrev,
+    qrCount,
+    qrCountPrev,
+  ] = await Promise.all([
+    supabase
+      .from("heritage_sites")
+      .select("id", { count: "exact", head: true })
+      .eq("municipality_id", municipalityId),
+    countScans(thisMonth.start, thisMonth.end),
+    countScans(lastMonth.start, lastMonth.end),
+    countBookmarks(),
+    countBookmarks(lastMonth.end),
+    countRecommendationClicks(thisMonth.start, thisMonth.end),
+    countRecommendationClicks(lastMonth.start, lastMonth.end),
+    countActiveQr(),
+    countActiveQr(lastMonth.end),
+  ])
 
-  const sitesChange = computeChange(sitesCount.count ?? 0, sitesCountPrev.count ?? 0)
   const visitsChange = computeChange(visitsCount.count ?? 0, visitsCountPrev.count ?? 0)
   const bookmarksChange = computeChange(bookmarksCount.count ?? 0, bookmarksCountPrev.count ?? 0)
   const recsChange = computeChange(recsCount, recsCountPrev)
@@ -161,10 +159,10 @@ export async function getMTODashboardStats(
     {
       label: "Heritage Sites",
       value: sitesCount.count ?? 0,
-      changePercent: sitesChange.changePercent,
-      changeDirection: sitesChange.changeDirection,
+      changePercent: null,
+      changeDirection: null,
       icon: "Landmark",
-      description: "vs last month",
+      description: null,
     },
     {
       label: "QR Scans",
@@ -473,7 +471,8 @@ export async function getMTOVisitorStats(
 
   const stats: VisitorStats = { local: 0, domestic: 0, international: 0, priorYearTotal: priorResult.count ?? 0 }
   for (const row of currentResult.data ?? []) {
-    const type = (row as unknown as { visitor_origin: string }).visitor_origin as "local" | "domestic" | "international"
+    const rawOrigin = (row as unknown as { visitor_origin: string | null }).visitor_origin
+    const type = (rawOrigin && rawOrigin in stats ? rawOrigin : "domestic") as "local" | "domestic" | "international"
     if (type in stats) stats[type]++
   }
   return stats

@@ -71,20 +71,31 @@ export async function recordScanEvent(codeValue: string, deviceType?: string): P
     device_type: deviceType ?? null,
   })
 
-  if (error) return
+  if (error) {
+    console.error("[QR] Failed to insert qr_scan_logs:", error)
+    return
+  }
 
   // Mirror the scan as a tourist_visit so visit-based dashboard charts
   // (Monthly Visits Overview, Top Attractions, Visits by Attraction,
   // Visitor Statistics, Analytics) reflect real QR traffic instead of
   // remaining empty when tourist_visits has no rows.
   if (qrCode.site_id) {
-    await supabase.from("tourist_visits").insert({
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const { error: visitError } = await supabase.from("tourist_visits").insert({
       site_id: qrCode.site_id,
       visit_date: new Date().toISOString().slice(0, 10),
-      visitor_origin: null,
-      tourist_id: null,
+      visitor_origin: "domestic",
+      visitor_type: "domestic",
+      source: "qr_scan",
+      tourist_id: user?.id ?? null,
     })
-    // Best-effort: ignore insert errors — the qr_scan_logs row is already committed.
+    if (visitError) {
+      console.warn("[QR] Failed to mirror tourist_visits:", visitError)
+    }
   }
 
   revalidateTag(CACHE_TAGS.dashboardKpis, { expire: CACHE_REVALIDATE_SECONDS })

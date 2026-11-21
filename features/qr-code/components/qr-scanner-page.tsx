@@ -63,6 +63,7 @@ export default function QRScannerPage() {
         fetch("/api/qr/scan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          keepalive: true,
           body: JSON.stringify({
             codeValue: code,
             siteId: data.siteId,

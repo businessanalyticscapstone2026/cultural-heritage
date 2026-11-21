@@ -16,4 +16,5 @@ export function revalidateReviewCaches(): void {
   revalidateTag(CACHE_TAGS.reviewInsights, "max")
   revalidateTag(CACHE_TAGS.portalReviews, { expire: 0 })
   revalidateTag(CACHE_TAGS.portalHeritageSites, { expire: 0 })
+  revalidateTag(CACHE_TAGS.heritageSites, { expire: 0 })
 }

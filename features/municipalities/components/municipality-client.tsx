@@ -91,6 +91,15 @@ export function MunicipalityClient({ initialMunicipalities }: MunicipalityClient
     }
   }
 
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl bg-primary p-6 text-primary-foreground">
+        <h1 className="text-2xl font-bold">Municipality Management</h1>
+        <p className="mt-1 text-sm opacity-80">
+          Register and manage participating municipalities in the First District of Batangas
+        </p>
+      </div>
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {municipalities.length} municipalit{municipalities.length !== 1 ? "ies" : "y"}

@@ -636,7 +636,7 @@ export default function OnboardingPage() {
       <div className="hidden lg:flex lg:w-1/2 relative flex-col overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/images/municipalities/taal/Basilica Minore de San Martin de Tours - Taal Batangas.jfif')" }}
+          style={{ backgroundImage: "url('/images/municipalities/taal/basilica-san-martin-de-tours.jpg')" }}
           aria-hidden="true"
         />
         <div

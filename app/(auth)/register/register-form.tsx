@@ -163,7 +163,7 @@ export default function RegisterForm() {
         >
           <div
             className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: "url('/images/municipalities/taal/Basilica Minore de San Martin de Tours - Taal Batangas.jfif')" }}
+            style={{ backgroundImage: "url('/images/municipalities/taal/basilica-san-martin-de-tours.jpg')" }}
             aria-hidden="true"
           />
           <div

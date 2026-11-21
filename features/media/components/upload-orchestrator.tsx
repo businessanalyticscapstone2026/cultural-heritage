@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from "react"
 import UploadZone from "./upload-zone"
 import FileValidationFeedback from "./file-validation-feedback"
 import UploadProgressList, { type UploadItem } from "./upload-progress-list"
+import { compressImage } from "@/lib/image-compression"
 import {
   requestUploadUrlAction,
   completeUploadAction,
@@ -76,18 +77,20 @@ export default function UploadOrchestrator({
       updateUpload(id, { status: "uploading", progress: 0 })
 
       try {
+        const fileToUpload = await compressImage(file)
+
         const metadata: MediaUploadMetadata = {
           siteId,
-          mediaType: getMediaTypeFromMime(file.type),
-          fileName: file.name,
-          fileSizeBytes: file.size,
-          mimeType: file.type,
+          mediaType: getMediaTypeFromMime(fileToUpload.type),
+          fileName: fileToUpload.name,
+          fileSizeBytes: fileToUpload.size,
+          mimeType: fileToUpload.type,
         }
 
         const { uploadUrl, filePath, token } = await requestUploadUrlAction(
           siteId,
-          file.name,
-          file.type
+          fileToUpload.name,
+          fileToUpload.type
         )
 
         const controller = new AbortController()
@@ -96,7 +99,8 @@ export default function UploadOrchestrator({
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest()
           xhr.open("PUT", uploadUrl)
-          xhr.setRequestHeader("Content-Type", file.type)
+          xhr.setRequestHeader("Content-Type", fileToUpload.type)
+          xhr.setRequestHeader("Cache-Control", "max-age=604800, public")
 
           xhr.upload.addEventListener("progress", (e) => {
             if (e.lengthComputable) {
@@ -118,7 +122,7 @@ export default function UploadOrchestrator({
 
           controller.signal.addEventListener("abort", () => xhr.abort())
 
-          xhr.send(file)
+          xhr.send(fileToUpload)
         })
 
         const media = await completeUploadAction(siteId, filePath, token, metadata)

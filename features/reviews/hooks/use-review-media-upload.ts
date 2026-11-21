@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { compressImage } from "@/lib/image-compression"
 import type { ReviewMedia } from "@/types/review"
 import {
   createReviewMediaUploadAction,
@@ -59,6 +60,7 @@ function putFile(
     const xhr = new XMLHttpRequest()
     xhr.open("PUT", url)
     xhr.setRequestHeader("Content-Type", file.type)
+    xhr.setRequestHeader("Cache-Control", "max-age=604800, public")
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
     })
@@ -93,10 +95,16 @@ export function useReviewMediaUpload(initialMedia: readonly ReviewMedia[]) {
     async (item: ReviewMediaItem) => {
       if (!item.file) return
       patch(item.localId, { status: "uploading", progress: 0, error: null })
+
+      let fileToUpload = item.file
+      if (item.mediaType === "image") {
+        fileToUpload = await compressImage(item.file)
+      }
+
       const ticket = await createReviewMediaUploadAction({
-        fileName: item.fileName,
-        mimeType: item.mimeType,
-        fileSizeBytes: item.fileSizeBytes,
+        fileName: fileToUpload.name,
+        mimeType: fileToUpload.type,
+        fileSizeBytes: fileToUpload.size,
       })
       if (!ticket.ok) {
         patch(item.localId, { status: "error", error: ticket.error })
@@ -104,7 +112,7 @@ export function useReviewMediaUpload(initialMedia: readonly ReviewMedia[]) {
       }
       patch(item.localId, { storagePath: ticket.data.storagePath })
       try {
-        await putFile(ticket.data.signedUrl, item.file, (progress) =>
+        await putFile(ticket.data.signedUrl, fileToUpload, (progress) =>
           patch(item.localId, { progress })
         )
         patch(item.localId, { status: "uploaded", progress: 100 })

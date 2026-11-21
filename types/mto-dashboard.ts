@@ -1,10 +1,10 @@
 export interface DashboardStat {
   label: string
   value: number
-  changePercent: number | null
-  changeDirection: "up" | "down" | "stable"
+  changePercent?: number | null
+  changeDirection?: "up" | "down" | "stable" | null
   icon: string
-  description: string
+  description?: string | null
 }
 
 export interface MonthlyVisitsPoint {

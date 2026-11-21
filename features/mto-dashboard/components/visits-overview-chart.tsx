@@ -34,7 +34,7 @@ export default function VisitsOverviewChart({ municipalityId }: { municipalityId
   return (
     <ChartCard
       title="Monthly Visits Overview"
-      description="Tourist visits: This year vs last year"
+      description="Tourist visits via onsite qr code scans: This year vs last year"
       action={
         <Link href={ROUTES.MTO.ANALYTICS} className="text-xs text-primary hover:underline">
           View details

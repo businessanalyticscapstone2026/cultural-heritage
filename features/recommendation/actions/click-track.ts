@@ -32,6 +32,8 @@ export async function trackRecommendationClickAction(recommendationId: string) {
         site_id: rec.site_id,
         visit_date: today,
         visitor_origin: "domestic",
+        visitor_type: "domestic",
+        source: "recommendation",
         tourist_id: rec.tourist_id ?? null,
       })
     } catch {

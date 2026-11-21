@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
-import { parseMTOFiltersFromSearchParams } from "@/features/mto-analytics"
+import { parseMTOFiltersFromSearchParams, type TrendGranularity } from "@/features/mto-analytics"
+import { resolveMunicipalityId, getAllMTOAnalyticsData } from "@/features/mto-analytics/services"
 import FilterBar from "@/features/mto-analytics/components/filter-bar"
 import SummaryMetricsRow from "@/features/mto-analytics/components/summary-metrics-row"
 import VisitorStatsVisualizations from "@/features/mto-analytics/components/visitor-stats-visualizations"
@@ -13,13 +14,20 @@ export default async function VisitorStatsPage({
 }) {
   const params = await searchParams
   const filters = parseMTOFiltersFromSearchParams(params)
+  const granularity = (params.granularity as TrendGranularity) ?? "monthly"
 
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
-  const { data: categories } = await supabase
-    .from("heritage_categories")
-    .select("id, name")
-    .order("name")
+
+  const municipalityId = await resolveMunicipalityId()
+
+  const [{ data: categories }, bundle] = await Promise.all([
+    supabase
+      .from("heritage_categories")
+      .select("id, name")
+      .order("name"),
+    getAllMTOAnalyticsData(municipalityId, filters, granularity),
+  ])
 
   const filterKey = JSON.stringify(params)
 
@@ -50,13 +58,7 @@ export default async function VisitorStatsPage({
         <FilterBar categories={categories ?? []} />
       </div>
 
-      {/* Key Metric Highlights */}
-      <div id="summary-metrics">
-        <SummaryMetricsRow key={`metrics-${filterKey}`} searchParams={params} />
-      </div>
-
-      {/* Visualizations Grid */}
-      <VisitorStatsVisualizations filters={filters} filterKey={filterKey} />
+      <VisitorStatsVisualizations filters={filters} filterKey={filterKey} initialData={bundle} />
     </div>
   )
 }

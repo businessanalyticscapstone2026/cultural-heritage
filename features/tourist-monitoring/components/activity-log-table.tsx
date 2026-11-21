@@ -22,6 +22,7 @@ interface ActivityLogTableProps {
   searchParams: Record<string, string | undefined>
   /** Optional polling fallback interval in ms */
   pollIntervalMs?: number
+  initialData?: ActivityLogResult
 }
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -56,8 +57,8 @@ function formatUpdatedAgo(timestamp: number | null, now: number): string {
 
 const ACTIVITY_PAGE_SIZE = 20
 
-export default function ActivityLogTable({ searchParams, pollIntervalMs }: ActivityLogTableProps) {
-  const [result, setResult] = useState<ActivityLogResult | null>(null)
+export default function ActivityLogTable({ searchParams, pollIntervalMs, initialData }: ActivityLogTableProps) {
+  const [result, setResult] = useState<ActivityLogResult | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [lastUpdated, setLastUpdated] = useState<number | null>(null)
@@ -77,6 +78,10 @@ export default function ActivityLogTable({ searchParams, pollIntervalMs }: Activ
   }
 
   useEffect(() => {
+    if (initialData && page === 1) {
+      applyResult(initialData)
+      return
+    }
     const requestId = ++requestIdRef.current
     let cancelled = false
     getActivityLogAction(searchParams, page, ACTIVITY_PAGE_SIZE)
@@ -90,7 +95,7 @@ export default function ActivityLogTable({ searchParams, pollIntervalMs }: Activ
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spKey, page])
+  }, [initialData, spKey, page])
 
   const refresh = useCallback(async () => {
     const requestId = ++requestIdRef.current

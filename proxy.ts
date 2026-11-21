@@ -37,6 +37,31 @@ function isPublicRoute(pathname: string): boolean {
 let cachedGlobalSettings: { value: Record<string, unknown> | null; timestamp: number } | null = null
 const SETTINGS_CACHE_TTL_MS = 60_000
 
+const staffProfileCache = new Map<
+  string,
+  { profile: { id: string; account_status: string; roles?: { name: string } | null } | null; timestamp: number }
+>()
+const STAFF_CACHE_TTL_MS = 30_000
+
+async function getCachedStaffProfile(supabase: ReturnType<typeof createServerClient>, userId: string) {
+  const now = Date.now()
+  const cached = staffProfileCache.get(userId)
+  if (cached && now - cached.timestamp < STAFF_CACHE_TTL_MS) {
+    return cached.profile
+  }
+
+  const { data: staffProfile } = await supabase
+    .from("staff_profiles")
+    .select("id, account_status, roles(name)")
+    .eq("id", userId)
+    .maybeSingle()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  staffProfileCache.set(userId, { profile: staffProfile as any, timestamp: now })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return staffProfile as any
+}
+
 async function getGlobalSetting(supabase: ReturnType<typeof createServerClient>, key: string): Promise<Record<string, unknown> | null> {
   const now = Date.now()
   if (key === "global_settings" && cachedGlobalSettings && now - cachedGlobalSettings.timestamp < SETTINGS_CACHE_TTL_MS) {
@@ -125,12 +150,8 @@ async function proxyHandler(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Authenticated user — resolve role
-  const { data: staffProfile } = await supabase
-    .from("staff_profiles")
-    .select("id, account_status, roles(name)")
-    .eq("id", user!.id)
-    .maybeSingle()
+  // Authenticated user — resolve role (cached for 30s to prevent roundtrip storm)
+  const staffProfile = await getCachedStaffProfile(supabase, user!.id)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const roleName: string | undefined = (staffProfile as any)?.roles?.name

@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { cache } from "react"
 import { unwrapOne } from "@/lib/unwrap-one"
 import { ATTRACTION_COLORS, computeChange } from "../utils"
 import { normalizeDeviceType } from "@/lib/device-type"
@@ -17,9 +18,10 @@ import type {
   ComparisonPoint,
   ScanDevicePoint,
   MTOAnalyticsFilters,
+  MTOAnalyticsBundle,
 } from "../types"
 
-export async function resolveMunicipalityId(): Promise<string> {
+export const resolveMunicipalityId = cache(async (): Promise<string> => {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
   const {
@@ -37,18 +39,24 @@ export async function resolveMunicipalityId(): Promise<string> {
   if (!profile?.municipality_id) throw new Error("No municipality assigned to this account")
 
   return profile.municipality_id as string
-}
+})
 
-async function getSiteIds(
-  supabase: ReturnType<typeof createClient>,
-  municipalityId: string
-): Promise<string[]> {
+export const getCachedSiteIds = cache(async (municipalityId: string): Promise<string[]> => {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
   const { data } = await supabase
     .from("heritage_sites")
     .select("id")
     .eq("municipality_id", municipalityId)
 
   return data?.map((r) => r.id as string) ?? []
+})
+
+async function getSiteIds(
+  _supabase: ReturnType<typeof createClient>,
+  municipalityId: string
+): Promise<string[]> {
+  return getCachedSiteIds(municipalityId)
 }
 
 function getPriorPeriodStart(dateFrom: string, dateTo: string): string {
@@ -129,20 +137,21 @@ export async function getSummaryMetrics(
   const priorDateTo = getPriorPeriodEnd(dateFrom)
 
   // Route plans scoped to municipality: routes that include a stop at a site in this municipality
-  const routeIdsNow = await supabase
-    .from("route_stops")
-    .select("route_id")
-    .in("site_id", siteIds)
-
-  const routeIdsPrior = await supabase
-    .from("route_stops")
-    .select("route_id")
-    .in("site_id", siteIds)
-
-  const uniqueRouteIdsNow = [...new Set(routeIdsNow.data?.map((r) => r.route_id as string) ?? [])]
-  const uniqueRouteIdsPrior = [...new Set(routeIdsPrior.data?.map((r) => r.route_id as string) ?? [])]
-
-  const [visitsNow, visitsPrior, sitesNow, sitesPrior, recsNow, recsPrior, scansNow, scansPrior] = await Promise.all([
+  const [routesNowRes, routesPriorRes, visitsNow, visitsPrior, sitesNow, sitesPrior, recsNow, recsPrior, scansNow, scansPrior] = await Promise.all([
+    supabase
+      .from("route_stops")
+      .select("route_id, routes!inner(id, created_at, is_curated)")
+      .in("site_id", siteIds)
+      .eq("routes.is_curated", false)
+      .gte("routes.created_at", dateFrom)
+      .lte("routes.created_at", dateTo + "T23:59:59"),
+    supabase
+      .from("route_stops")
+      .select("route_id, routes!inner(id, created_at, is_curated)")
+      .in("site_id", siteIds)
+      .eq("routes.is_curated", false)
+      .gte("routes.created_at", priorDateFrom)
+      .lte("routes.created_at", priorDateTo + "T23:59:59"),
     supabase.from("tourist_visits").select("id", { count: "exact", head: true }).in("site_id", siteIds).gte("visit_date", dateFrom).lte("visit_date", dateTo),
     supabase.from("tourist_visits").select("id", { count: "exact", head: true }).in("site_id", siteIds).gte("visit_date", priorDateFrom).lte("visit_date", priorDateTo),
     supabase.from("tourist_visits").select("site_id").in("site_id", siteIds).gte("visit_date", dateFrom).lte("visit_date", dateTo),
@@ -157,14 +166,17 @@ export async function getSummaryMetrics(
     ).gte("scanned_at", priorDateFrom + "T00:00:00").lte("scanned_at", priorDateTo + "T23:59:59"),
   ])
 
+  const uniqueRouteIdsNow = new Set(routesNowRes.data?.map((r) => r.route_id as string) ?? [])
+  const uniqueRouteIdsPrior = new Set(routesPriorRes.data?.map((r) => r.route_id as string) ?? [])
+
   const uniqueSitesNow = new Set(sitesNow.data?.map((r) => r.site_id)).size
   const uniqueSitesPrior = new Set(sitesPrior.data?.map((r) => r.site_id)).size
 
   const avgDurationNow = calculateAvgVisitDuration(scansNow.data ?? [])
   const avgDurationPrior = calculateAvgVisitDuration(scansPrior.data ?? [])
 
-  const routesNow = uniqueRouteIdsNow.length
-  const routesPrior = uniqueRouteIdsPrior.length
+  const routesNow = uniqueRouteIdsNow.size
+  const routesPrior = uniqueRouteIdsPrior.size
 
   const visitorsChange = computeChange(visitsNow.count ?? 0, visitsPrior.count ?? 0)
   const sitesChange = computeChange(uniqueSitesNow, uniqueSitesPrior)
@@ -609,16 +621,14 @@ export async function getScanDeviceBreakdown(
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
+  const siteIds = await getCachedSiteIds(municipalityId)
+  if (siteIds.length === 0) return []
+
   const qrCodeIds = (
     await supabase
       .from("qr_codes")
       .select("id")
-      .in(
-        "site_id",
-        (
-          await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
-        ).data?.map((s) => s.id as string) ?? []
-      )
+      .in("site_id", siteIds)
   ).data?.map((q) => q.id as string) ?? []
 
   if (qrCodeIds.length === 0) return []
@@ -645,4 +655,48 @@ export async function getScanDeviceBreakdown(
       color: CHART_PALETTE[i % CHART_PALETTE.length],
     }))
     .sort((a, b) => b.count - a.count)
+}
+
+/**
+ * Batched aggregator for all MTO analytics data.
+ * Executes all component queries in parallel on the server with memoized site IDs.
+ */
+export async function getAllMTOAnalyticsData(
+  municipalityId: string,
+  filters: MTOAnalyticsFilters,
+  granularity: TrendGranularity = "monthly"
+): Promise<MTOAnalyticsBundle> {
+  const [
+    summaryMetrics,
+    visitorTrend,
+    visitorTrendComparison,
+    weekdayVisits,
+    visitsByAttraction,
+    recommendationFunnel,
+    scanDeviceBreakdown,
+    demographics,
+    topSites,
+  ] = await Promise.all([
+    getSummaryMetrics(municipalityId, filters),
+    getVisitorTrend(municipalityId, filters, granularity),
+    getVisitorTrendComparison(municipalityId, filters, granularity),
+    getVisitsByWeekday(municipalityId, filters),
+    getVisitsByAttraction(municipalityId, filters),
+    getRecommendationPerformance(municipalityId, filters),
+    getScanDeviceBreakdown(municipalityId, filters),
+    getDemographics(municipalityId, filters),
+    getTopSites(municipalityId, filters),
+  ])
+
+  return {
+    summaryMetrics,
+    visitorTrend,
+    visitorTrendComparison,
+    weekdayVisits,
+    visitsByAttraction,
+    recommendationFunnel,
+    scanDeviceBreakdown,
+    demographics,
+    topSites,
+  }
 }

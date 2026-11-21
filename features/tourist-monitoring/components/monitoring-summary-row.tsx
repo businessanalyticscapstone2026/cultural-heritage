@@ -13,19 +13,26 @@ interface MonitoringSummaryRowProps {
   searchParams: Record<string, string | undefined>
   activeDrillDown: MonitoringActivityType | "all" | null
   onDrillDownToggle: (type: MonitoringActivityType | "all") => void
+  initialMetrics?: MonitoringMetric[]
 }
 
 export default function MonitoringSummaryRow({
   searchParams,
   activeDrillDown,
   onDrillDownToggle,
+  initialMetrics,
 }: MonitoringSummaryRowProps) {
-  const [metrics, setMetrics] = useState<MonitoringMetric[] | null>(null)
+  const [metrics, setMetrics] = useState<MonitoringMetric[] | null>(initialMetrics ?? null)
   const [error, setError] = useState<string | null>(null)
 
   const spKey = JSON.stringify(searchParams)
 
   useEffect(() => {
+    if (initialMetrics) {
+      setMetrics(initialMetrics)
+      return
+    }
+
     let cancelled = false
 
     getMonitoringSummaryAction(searchParams)
@@ -46,7 +53,7 @@ export default function MonitoringSummaryRow({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spKey])
+  }, [initialMetrics, spKey])
 
   if (error) {
     return (

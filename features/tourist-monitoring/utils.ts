@@ -13,9 +13,16 @@ function getDefaultDateTo(): string {
 export function parseMonitoringFilters(
   searchParams: Record<string, string | undefined>
 ): MonitoringFilters {
+  const today = getDefaultDateTo()
+  const rawDateTo = searchParams.dateTo ?? today
+  const dateTo = rawDateTo > today ? today : rawDateTo
+
+  const rawDateFrom = searchParams.dateFrom ?? getDefaultDateFrom()
+  const dateFrom = rawDateFrom > dateTo ? dateTo : rawDateFrom
+
   return {
-    dateFrom: searchParams.dateFrom ?? getDefaultDateFrom(),
-    dateTo: searchParams.dateTo ?? getDefaultDateTo(),
+    dateFrom,
+    dateTo,
     siteId: searchParams.siteId ?? null,
     categoryId: searchParams.category ?? null,
     activityType: (searchParams.activityType as MonitoringActivityType) ?? null,

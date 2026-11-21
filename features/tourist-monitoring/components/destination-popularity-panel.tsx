@@ -9,18 +9,25 @@ import type { SitePopularity } from "../types"
 
 interface DestinationPopularityPanelProps {
   searchParams: Record<string, string | undefined>
+  initialData?: SitePopularity[]
 }
 
 export default function DestinationPopularityPanel({
   searchParams,
+  initialData,
 }: DestinationPopularityPanelProps) {
-  const [data, setData] = useState<SitePopularity[] | null>(null)
+  const [data, setData] = useState<SitePopularity[] | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
   const [sortAsc, setSortAsc] = useState(false)
 
   const spKey = JSON.stringify(searchParams)
 
   useEffect(() => {
+    if (initialData) {
+      setData(initialData)
+      return
+    }
+
     let cancelled = false
     async function load() {
       try {
@@ -37,7 +44,7 @@ export default function DestinationPopularityPanel({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spKey])
+  }, [initialData, spKey])
 
   const sorted = data
     ? [...data].sort((a, b) =>

@@ -330,6 +330,7 @@ export default function ExploreClient({
                             src={site.media!.find(m => m.isPrimary || m.mediaType === "image")!.fileUrl}
                             alt={site.siteName}
                             fill
+                            unoptimized
                             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                             className="object-cover transition-transform duration-700 group-hover:scale-105"
                           />

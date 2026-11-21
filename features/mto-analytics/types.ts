@@ -72,3 +72,18 @@ export interface MTOAnalyticsFilters {
   dateTo: string
   categoryId: string | null
 }
+
+export interface MTOAnalyticsBundle {
+  summaryMetrics: MTOMetric[]
+  visitorTrend: VisitorTrendPoint[]
+  visitorTrendComparison: ComparisonPoint[]
+  weekdayVisits: WeekdayVisits[]
+  visitsByAttraction: AttractionVisit[]
+  recommendationFunnel: RecommendationFunnel
+  scanDeviceBreakdown: ScanDevicePoint[]
+  demographics: {
+    ageGroups: AgeGroupBreakdown[]
+    visitorTypes: VisitorTypeBreakdown[]
+  }
+  topSites: TopVisitedSite[]
+}

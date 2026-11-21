@@ -9,15 +9,21 @@ import type { ScanDevicePoint, MTOAnalyticsFilters } from "../types"
 
 export default function ScanDeviceChart({
   filters,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
+  initialData?: ScanDevicePoint[]
 }) {
-  const [data, setData] = useState<ScanDevicePoint[] | null>(null)
+  const [data, setData] = useState<ScanDevicePoint[] | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
 
   const filterKey = JSON.stringify(filters)
 
   useEffect(() => {
+    if (initialData) {
+      setData(initialData)
+      return
+    }
     let cancelled = false
     getScanDeviceBreakdownAction({
       dateFrom: filters.dateFrom,
@@ -27,7 +33,7 @@ export default function ScanDeviceChart({
       .then((d) => { if (!cancelled) setData(d) })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Failed") })
     return () => { cancelled = true }
-  }, [filterKey])
+  }, [initialData, filterKey])
 
   const total = data ? data.reduce((sum, d) => sum + d.count, 0) : 0
 

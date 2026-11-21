@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { MTOAnalyticsFilters } from "../types"
+import type { MTOAnalyticsFilters, MTOAnalyticsBundle } from "../types"
 
 const ChartSkeleton = () => <Skeleton className="h-[300px] w-full rounded-xl" />
 
@@ -45,11 +45,25 @@ const TopSitesTable = dynamic(() => import("./top-sites-table"), {
 export default function VisitorStatsVisualizations({
   filters,
   filterKey,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
-  filterKey: string
+  filterKey?: string
+  initialData?: MTOAnalyticsBundle
 }) {
   return (
+    <div className="space-y-6">
+      <div id="visitor-trend">
+        <VisitorTrendChart filters={filters} initialData={initialData?.visitorTrend} />
+      </div>
+
+      <div id="weekday-demographics" className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div id="weekday">
+          <WeekdayBarChart filters={filters} initialData={initialData?.weekdayVisits} />
+        </div>
+        <div className="lg:col-span-2">
+          <div id="demographics">
+            <DemographicsRow filters={filters} initialData={initialData?.demographics} />
     <div className="space-y-8">
       {/* Volume & Growth Trajectory */}
       <section className="space-y-3">

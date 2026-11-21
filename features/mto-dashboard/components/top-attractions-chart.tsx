@@ -15,8 +15,8 @@ export default function TopAttractionsChart({ municipalityId }: { municipalityId
     queryKey: ["mto-dashboard", municipalityId],
     queryFn: () => getAllDashboardDataAction(municipalityId),
     select: selectData,
-    staleTime: 0,
-    refetchInterval: 30_000,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
   })
 
   return (

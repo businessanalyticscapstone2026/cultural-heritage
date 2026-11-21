@@ -11,6 +11,7 @@ export type {
   ComparisonPoint,
   ScanDevicePoint,
   MTOAnalyticsFilters,
+  MTOAnalyticsBundle,
 } from "./types"
 
 export {

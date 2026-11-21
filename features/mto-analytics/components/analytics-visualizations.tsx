@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { MTOAnalyticsFilters } from "../types"
+import type { MTOAnalyticsFilters, MTOAnalyticsBundle } from "../types"
 
 const ChartSkeleton = () => <Skeleton className="h-[300px] w-full rounded-xl" />
 
@@ -59,58 +59,47 @@ const RecommendationFunnel = dynamic(() => import("./recommendation-funnel"), {
 export default function AnalyticsVisualizations({
   filters,
   filterKey,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
-  filterKey: string
+  filterKey?: string
+  initialData?: MTOAnalyticsBundle
 }) {
   return (
-    <div className="space-y-8">
-      {/* Trends & Longitudinal Comparison */}
-      <section className="space-y-4">
-        <div id="visitor-trend">
-          <VisitorTrendChart key={`trend-${filterKey}`} filters={filters} />
+    <div className="space-y-6">
+      <div id="visitor-trend">
+        <VisitorTrendChart filters={filters} initialData={initialData?.visitorTrend} />
+      </div>
+
+      <div id="visitor-trend-comparison" className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <VisitorTrendComparison filters={filters} initialData={initialData?.visitorTrendComparison} />
+        </div>
+        <div id="weekday">
+          <WeekdayBarChart filters={filters} initialData={initialData?.weekdayVisits} />
         </div>
 
-        <div id="visitor-trend-comparison" className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <VisitorTrendComparison key={`comparison-${filterKey}`} filters={filters} />
-          </div>
-          <div id="weekday">
-            <WeekdayBarChart key={`weekday-${filterKey}`} filters={filters} />
+      <div id="visits-by-attraction" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <VisitsByAttractionPanel filters={filters} initialData={initialData?.visitsByAttraction} />
+        <div id="recommendation-funnel">
+          <RecommendationFunnel filters={filters} initialData={initialData?.recommendationFunnel} />
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div id="scan-device">
+          <ScanDeviceChart filters={filters} initialData={initialData?.scanDeviceBreakdown} />
+        </div>
+        <div className="lg:col-span-2">
+          <div id="demographics">
+            <DemographicsRow filters={filters} initialData={initialData?.demographics} />
           </div>
         </div>
       </section>
 
-      {/* Attraction Visits & Recommendation Funnel */}
-      <section className="space-y-4">
-        <div id="visits-by-attraction" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <VisitsByAttractionPanel key={`attraction-${filterKey}`} filters={filters} />
-          <div id="recommendation-funnel">
-            <RecommendationFunnel key={`funnel-${filterKey}`} filters={filters} />
-          </div>
-        </div>
-      </section>
-
-      {/* Scans by Device & Demographics Breakdown */}
-      <section className="space-y-4">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div id="scan-device">
-            <ScanDeviceChart key={`scan-device-${filterKey}`} filters={filters} />
-          </div>
-          <div className="lg:col-span-2">
-            <div id="demographics">
-              <DemographicsRow key={`demo-${filterKey}`} filters={filters} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Top Performing Heritage Sites */}
-      <section className="space-y-4">
-        <div id="top-sites">
-          <TopSitesTable key={`sites-${filterKey}`} filters={filters} />
-        </div>
-      </section>
+      <div id="top-sites">
+        <TopSitesTable filters={filters} initialData={initialData?.topSites} />
+      </div>
     </div>
   )
 }

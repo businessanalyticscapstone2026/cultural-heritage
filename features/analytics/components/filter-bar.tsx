@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCallback } from "react"
 import { FIRST_DISTRICT_MUNICIPALITIES } from "@/lib/constants"
+import { getLocalTodayDate } from "@/lib/date-utils"
 
 interface FilterBarProps {
   categories: { id: string; name: string }[]
@@ -11,18 +12,32 @@ interface FilterBarProps {
 export default function FilterBar({ categories }: FilterBarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const today = getLocalTodayDate()
+
+  const dateFrom = searchParams.get("dateFrom") ?? ""
+  const dateTo = searchParams.get("dateTo") ?? ""
 
   const update = useCallback(
     (key: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString())
       if (value) {
-        params.set(key, value)
+        let safeValue = value
+        if (key === "dateFrom" || key === "dateTo") {
+          if (safeValue > today) safeValue = today
+          if (key === "dateFrom" && dateTo && safeValue > dateTo) {
+            safeValue = dateTo
+          }
+          if (key === "dateTo" && dateFrom && safeValue < dateFrom) {
+            safeValue = dateFrom
+          }
+        }
+        params.set(key, safeValue)
       } else {
         params.delete(key)
       }
       router.push(`?${params.toString()}`)
     },
-    [router, searchParams]
+    [router, searchParams, today, dateFrom, dateTo]
   )
 
   return (
@@ -32,7 +47,8 @@ export default function FilterBar({ categories }: FilterBarProps) {
         <input
           id="dateFrom"
           type="date"
-          value={searchParams.get("dateFrom") ?? ""}
+          value={dateFrom}
+          max={dateTo && dateTo < today ? dateTo : today}
           onChange={(e) => update("dateFrom", e.target.value)}
           className="h-9 rounded-md border bg-card px-3 text-sm"
         />
@@ -42,7 +58,9 @@ export default function FilterBar({ categories }: FilterBarProps) {
         <input
           id="dateTo"
           type="date"
-          value={searchParams.get("dateTo") ?? ""}
+          value={dateTo}
+          min={dateFrom || undefined}
+          max={today}
           onChange={(e) => update("dateTo", e.target.value)}
           className="h-9 rounded-md border bg-card px-3 text-sm"
         />

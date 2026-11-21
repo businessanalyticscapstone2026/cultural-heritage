@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
-import { parseMTOFiltersFromSearchParams } from "@/features/mto-analytics"
+import { parseMTOFiltersFromSearchParams, type TrendGranularity } from "@/features/mto-analytics"
+import { resolveMunicipalityId, getAllMTOAnalyticsData } from "@/features/mto-analytics/services"
 import FilterBar from "@/features/mto-analytics/components/filter-bar"
 import SummaryMetricsRow from "@/features/mto-analytics/components/summary-metrics-row"
 import AnalyticsVisualizations from "@/features/mto-analytics/components/analytics-visualizations"
@@ -13,13 +14,20 @@ export default async function MTOAnalyticsPage({
 }) {
   const params = await searchParams
   const filters = parseMTOFiltersFromSearchParams(params)
+  const granularity = (params.granularity as TrendGranularity) ?? "monthly"
 
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
-  const { data: categories } = await supabase
-    .from("heritage_categories")
-    .select("id, name")
-    .order("name")
+
+  const municipalityId = await resolveMunicipalityId()
+
+  const [{ data: categories }, bundle] = await Promise.all([
+    supabase
+      .from("heritage_categories")
+      .select("id, name")
+      .order("name"),
+    getAllMTOAnalyticsData(municipalityId, filters, granularity),
+  ])
 
   const filterKey = JSON.stringify(params)
 
@@ -45,10 +53,17 @@ export default async function MTOAnalyticsPage({
         </div>
       </div>
 
-      {/* Main Full-Width Visualizations Container */}
-      <div className="space-y-6">
-        <div id="filter-settings">
-          <FilterBar categories={categories ?? []} />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_240px]">
+        <div className="space-y-6">
+          <div id="filter-settings">
+            <FilterBar categories={categories ?? []} />
+          </div>
+
+          <div id="summary-metrics">
+            <SummaryMetricsRow searchParams={params} initialData={bundle.summaryMetrics} />
+          </div>
+
+          <AnalyticsVisualizations filters={filters} filterKey={filterKey} initialData={bundle} />
         </div>
 
         <div id="summary-metrics">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { ScrollText, LogIn, ShieldAlert } from "lucide-react"
 import { getAuditStatsAction, getAuditLogsAction, getLoginAttemptsAction, getSecurityEventsAction } from "../actions"
+import { getLocalTodayDate } from "@/lib/date-utils"
 import AuditStatsOverview from "./audit-stats-overview"
 import AuditLogsTable from "./audit-logs-table"
 import LoginAttemptsTable from "./login-attempts-table"
@@ -35,6 +36,7 @@ export default function AuditTrailClient({
   const [outcomeFilter, setOutcomeFilter] = useState<LoginOutcome | "">("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
+  const today = getLocalTodayDate()
 
   const fetchTabData = useCallback(async () => {
     if (activeTab === "audit_logs") {
@@ -158,7 +160,11 @@ export default function AuditTrailClient({
           <input
             type="date"
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            max={endDate && endDate < today ? endDate : today}
+            onChange={(e) => {
+              const v = e.target.value
+              setStartDate(v > today ? today : v)
+            }}
             className="h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </div>
@@ -168,7 +174,12 @@ export default function AuditTrailClient({
           <input
             type="date"
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            min={startDate || undefined}
+            max={today}
+            onChange={(e) => {
+              const v = e.target.value
+              setEndDate(v > today ? today : v)
+            }}
             className="h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </div>

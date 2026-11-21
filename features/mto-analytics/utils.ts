@@ -16,9 +16,16 @@ function getDefaultDateTo(): string {
 export function parseMTOFiltersFromSearchParams(
   searchParams: Record<string, string | undefined>
 ): MTOAnalyticsFilters {
+  const today = getDefaultDateTo()
+  const rawDateTo = searchParams.dateTo ?? today
+  const dateTo = rawDateTo > today ? today : rawDateTo
+
+  const rawDateFrom = searchParams.dateFrom ?? getDefaultDateFrom()
+  const dateFrom = rawDateFrom > dateTo ? dateTo : rawDateFrom
+
   return {
-    dateFrom: searchParams.dateFrom ?? getDefaultDateFrom(),
-    dateTo: searchParams.dateTo ?? getDefaultDateTo(),
+    dateFrom,
+    dateTo,
     categoryId: searchParams.category ?? null,
   }
 }

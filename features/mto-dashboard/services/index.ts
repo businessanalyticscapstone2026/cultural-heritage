@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { cache } from "react"
 import { unwrapOne } from "@/lib/unwrap-one"
 import { CHART_PALETTE } from "@/lib/chart-colors"
 import { normalizeDeviceType } from "@/lib/device-type"
@@ -42,19 +43,19 @@ function getMonthBounds(monthsAgo: number) {
   }
 }
 
-async function resolveSiteIds(
+const resolveSiteIds = cache(async (
   supabase: ReturnType<typeof createClient>,
   municipalityId: string,
-): Promise<string[]> {
+): Promise<string[]> => {
   const { data } = await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
   return data?.map((s) => s.id as string) ?? []
-}
+})
 
 type SiteWithCategory = { id: string; category_id: string | null; category: unknown }
 
-export async function getMTOSitesForMunicipality(
+export const getMTOSitesForMunicipality = cache(async (
   municipalityId: string,
-): Promise<{ siteIds: string[]; sites: SiteWithCategory[] }> {
+): Promise<{ siteIds: string[]; sites: SiteWithCategory[] }> => {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
@@ -65,7 +66,7 @@ export async function getMTOSitesForMunicipality(
 
   const sites = data ?? []
   return { siteIds: sites.map((s) => s.id as string), sites }
-}
+})
 
 export async function getMTODashboardStats(
   municipalityId: string,

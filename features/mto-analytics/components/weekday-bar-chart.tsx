@@ -10,15 +10,21 @@ import type { WeekdayVisits, MTOAnalyticsFilters } from "../types"
 
 export default function WeekdayBarChart({
   filters,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
+  initialData?: WeekdayVisits[]
 }) {
-  const [data, setData] = useState<WeekdayVisits[] | null>(null)
+  const [data, setData] = useState<WeekdayVisits[] | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
 
   const filterKey = JSON.stringify(filters)
 
   useEffect(() => {
+    if (initialData) {
+      setData(initialData)
+      return
+    }
     let cancelled = false
     getVisitsByWeekdayAction({
       dateFrom: filters.dateFrom,
@@ -28,7 +34,7 @@ export default function WeekdayBarChart({
       .then((d) => { if (!cancelled) setData(d) })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Failed") })
     return () => { cancelled = true }
-  }, [filterKey])
+  }, [initialData, filterKey])
 
   const maxDay = data && data.length > 0
     ? data.reduce((max, d) => (d.visits > max.visits ? d : max), data[0])

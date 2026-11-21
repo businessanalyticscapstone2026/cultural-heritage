@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Settings2, Play } from "lucide-react"
+import { getLocalTodayDate } from "@/lib/date-utils"
 import type { MTOReportFilters, ReportType } from "../types"
 import { REPORT_TYPE_MAP } from "../constants"
 
@@ -28,11 +29,17 @@ export default function ReportConfigPanel({
   const [filters, setFilters] = useState<MTOReportFilters>(initialFilters)
   const reportDef = REPORT_TYPE_MAP[reportType]
 
+  const today = getLocalTodayDate()
+
   const updateFilter = <K extends keyof MTOReportFilters>(
     key: K,
     value: MTOReportFilters[K],
   ) => {
-    setFilters((prev) => ({ ...prev, [key]: value }))
+    let safeValue = value
+    if (typeof safeValue === "string" && (key === "dateFrom" || key === "dateTo")) {
+      if (safeValue > today) safeValue = today as MTOReportFilters[K]
+    }
+    setFilters((prev) => ({ ...prev, [key]: safeValue }))
   }
 
   return (
@@ -52,6 +59,7 @@ export default function ReportConfigPanel({
           <input
             type="date"
             value={filters.dateFrom}
+            max={filters.dateTo && filters.dateTo < today ? filters.dateTo : today}
             onChange={(e) => updateFilter("dateFrom", e.target.value)}
             className="block rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           />
@@ -62,6 +70,8 @@ export default function ReportConfigPanel({
           <input
             type="date"
             value={filters.dateTo}
+            min={filters.dateFrom || undefined}
+            max={today}
             onChange={(e) => updateFilter("dateTo", e.target.value)}
             className="block rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           />

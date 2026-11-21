@@ -2,6 +2,8 @@
 "use client"
 
 import { useState, useMemo, useCallback, startTransition } from "react"
+import Image from "next/image"
+import SiteThumbnail from "@/components/ui/site-thumbnail"
 import {
   SearchIcon,
   FilterIcon,
@@ -358,13 +360,11 @@ export default function QRCodeListClient({
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="size-10 shrink-0 rounded-lg bg-muted overflow-hidden flex items-center justify-center">
-                            {qr.siteThumbnail ? (
-                              <img src={qr.siteThumbnail} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              <span className="text-muted-foreground text-xs">No img</span>
-                            )}
-                          </div>
+                      <SiteThumbnail
+                        src={qr.siteThumbnail}
+                        alt={qr.siteName}
+                        className="size-10 rounded-lg"
+                      />
                           <div className="min-w-0">
                             <p className="font-medium truncate">{qr.siteName}</p>
                           </div>

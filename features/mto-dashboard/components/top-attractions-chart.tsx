@@ -16,6 +16,7 @@ export default function TopAttractionsChart({ municipalityId }: { municipalityId
     queryFn: () => getAllDashboardDataAction(municipalityId),
     select: selectData,
     staleTime: 60_000,
+    refetchInterval: 60_000,
   })
 
   return (

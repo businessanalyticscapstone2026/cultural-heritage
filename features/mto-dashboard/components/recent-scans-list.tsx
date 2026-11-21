@@ -18,6 +18,7 @@ export default function RecentScansList({ municipalityId }: { municipalityId: st
     queryFn: () => getAllDashboardDataAction(municipalityId),
     select: selectData,
     staleTime: 60_000,
+    refetchInterval: 60_000,
   })
 
   return (

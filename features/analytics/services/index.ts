@@ -80,8 +80,8 @@ async function fetchProvinceSummary(
     supabase.from("qr_scan_logs").select("scanned_at").in("qr_code_id",
       (await supabase.from("qr_codes").select("id").in("site_id", siteIds)).data?.map((r) => r.id as string) ?? []
     ).gte("scanned_at", priorDateFrom + "T00:00:00").lte("scanned_at", priorDateTo + "T23:59:59"),
-    supabase.from("routes").select("id", { count: "exact", head: true }).gte("created_at", dateFrom).lte("created_at", dateTo + "T23:59:59"),
-    supabase.from("routes").select("id", { count: "exact", head: true }).gte("created_at", priorDateFrom).lte("created_at", priorDateTo + "T23:59:59"),
+    supabase.from("routes").select("id", { count: "exact", head: true }).eq("is_curated", false).gte("created_at", dateFrom).lte("created_at", dateTo + "T23:59:59"),
+    supabase.from("routes").select("id", { count: "exact", head: true }).eq("is_curated", false).gte("created_at", priorDateFrom).lte("created_at", priorDateTo + "T23:59:59"),
   ])
 
   const uniqueSitesNow = new Set(sitesNow.data?.map((r) => r.site_id)).size
@@ -281,7 +281,7 @@ async function fetchDemographics(
 
   const { data } = await supabase
     .from("tourist_visits")
-    .select("age_group, visitor_type")
+    .select("age_group, visitor_origin")
     .in("site_id", siteIds)
     .gte("visit_date", filters.dateFrom)
     .lte("visit_date", filters.dateTo)
@@ -293,7 +293,7 @@ async function fetchDemographics(
 
   for (const row of data) {
     const age = (row.age_group as string) ?? "Unknown"
-    const type = (row.visitor_type as string) ?? "Unknown"
+    const type = ((row as unknown as { visitor_origin: string }).visitor_origin) ?? "Unknown"
     ageCounts.set(age, (ageCounts.get(age) ?? 0) + 1)
     typeCounts.set(type, (typeCounts.get(type) ?? 0) + 1)
   }

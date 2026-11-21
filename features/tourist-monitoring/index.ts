@@ -9,6 +9,7 @@ export type {
   RecommendationPerf,
   UnderPromotedSite,
   MonitoringSiteOption,
+  TouristMonitoringBundle,
 } from "./types"
 
 export {

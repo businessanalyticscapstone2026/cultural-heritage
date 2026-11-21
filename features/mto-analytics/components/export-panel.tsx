@@ -1,9 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Printer } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Printer, CheckSquare, Square, FileText } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const SECTIONS = [
   { id: "summary-metrics", label: "Summary Metrics" },
@@ -18,7 +26,18 @@ const SECTIONS = [
   { id: "filter-settings", label: "Filter Settings" },
 ] as const
 
-export default function ExportPanel() {
+interface ExportPanelProps {
+  buttonVariant?: "default" | "outline" | "secondary" | "ghost"
+  buttonSize?: "default" | "sm" | "lg"
+  className?: string
+}
+
+export default function ExportPanel({
+  buttonVariant = "outline",
+  buttonSize = "sm",
+  className,
+}: ExportPanelProps) {
+  const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(SECTIONS.map((s) => s.id))
   )
@@ -39,77 +58,109 @@ export default function ExportPanel() {
   const selectNone = () => setSelected(new Set())
 
   const handlePrint = () => {
-    document.documentElement.setAttribute("data-exporting", "true")
-    for (const section of SECTIONS) {
-      const el = document.getElementById(section.id)
-      if (el) {
-        el.setAttribute("data-export-visible", selected.has(section.id) ? "true" : "false")
+    setOpen(false)
+    setTimeout(() => {
+      document.documentElement.setAttribute("data-exporting", "true")
+      for (const section of SECTIONS) {
+        const el = document.getElementById(section.id)
+        if (el) {
+          el.setAttribute("data-export-visible", selected.has(section.id) ? "true" : "false")
+        }
       }
-    }
 
-    window.print()
+      window.print()
 
-    document.documentElement.removeAttribute("data-exporting")
-    for (const section of SECTIONS) {
-      const el = document.getElementById(section.id)
-      if (el) {
-        el.removeAttribute("data-export-visible")
+      document.documentElement.removeAttribute("data-exporting")
+      for (const section of SECTIONS) {
+        const el = document.getElementById(section.id)
+        if (el) {
+          el.removeAttribute("data-export-visible")
+        }
       }
-    }
+    }, 150)
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Export Dashboard</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
-          Select sections to include in the exported report.
-        </p>
+    <>
+      <Button
+        variant={buttonVariant}
+        size={buttonSize}
+        onClick={() => setOpen(true)}
+        className={cn("gap-1.5 shadow-xs", className)}
+      >
+        <Printer className="size-4" />
+        <span>Export Report</span>
+      </Button>
 
-        <div className="flex items-center gap-2 mb-3">
-          <Button variant="ghost" size="sm" onClick={selectAll} className="h-7 text-xs">
-            Select All
-          </Button>
-          <Button variant="ghost" size="sm" onClick={selectNone} className="h-7 text-xs">
-            None
-          </Button>
-        </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <FileText className="size-5 text-primary" />
+              Export Analytics Report
+            </DialogTitle>
+            <DialogDescription>
+              Choose which sections to include in your printed report or PDF document.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-2 mb-4">
-          {SECTIONS.map((section) => (
-            <label
-              key={section.id}
-              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer transition-colors"
+          <div className="flex items-center justify-between border-b pb-2 text-xs text-muted-foreground">
+            <span>{selected.size} of {SECTIONS.length} sections selected</span>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={selectAll} className="h-7 px-2 text-xs">
+                <CheckSquare className="mr-1 size-3.5" /> Select All
+              </Button>
+              <Button variant="ghost" size="sm" onClick={selectNone} className="h-7 px-2 text-xs">
+                <Square className="mr-1 size-3.5" /> None
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 max-h-[320px] overflow-y-auto py-2 pr-1">
+            {SECTIONS.map((section) => {
+              const isChecked = selected.has(section.id)
+              return (
+                <label
+                  key={section.id}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-lg border p-2.5 text-xs transition-colors cursor-pointer select-none",
+                    isChecked
+                      ? "border-primary/40 bg-primary/5 text-foreground font-medium"
+                      : "border-border/60 hover:bg-muted/50 text-muted-foreground"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggle(section.id)}
+                    className="size-4 rounded border-muted-foreground/40 accent-primary"
+                  />
+                  <span>{section.label}</span>
+                </label>
+              )
+            })}
+          </div>
+
+          <div className="rounded-md bg-muted/60 p-2.5 text-xs text-muted-foreground">
+            💡 <span className="font-medium text-foreground">Tip:</span> Set destination to &quot;Save as PDF&quot; in the print window to download.
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePrint}
+              disabled={selected.size === 0}
+              size="sm"
+              className="gap-1.5"
             >
-              <input
-                type="checkbox"
-                checked={selected.has(section.id)}
-                onChange={() => toggle(section.id)}
-                className="size-4 rounded border-muted-foreground/40 accent-primary"
-              />
-              <span className="text-foreground">{section.label}</span>
-            </label>
-          ))}
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            onClick={handlePrint}
-            disabled={selected.size === 0}
-            className="flex-1"
-            size="sm"
-          >
-            <Printer className="mr-2 size-4" />
-            Print / Save PDF
-          </Button>
-        </div>
-
-        <p className="mt-3 text-xs text-muted-foreground">
-          Tip: Use your browser&apos;s &quot;Save as PDF&quot; option in the print dialog to export as PDF.
-        </p>
-      </CardContent>
-    </Card>
+              <Printer className="size-3.5" />
+              Print / Save PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

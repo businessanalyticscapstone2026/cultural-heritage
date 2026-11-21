@@ -82,6 +82,7 @@ export default function RecommendationsClient({ initialResults }: Props) {
                     src={r.site.media.find((m) => m.isPrimary)!.fileUrl}
                     alt={r.site.siteName}
                     fill
+                    unoptimized
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                     className="object-cover"
                   />

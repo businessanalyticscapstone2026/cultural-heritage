@@ -1,7 +1,9 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
-import { useCallback } from "react"
+import { useCallback, useTransition } from "react"
+import { RotateCcw, Loader2 } from "lucide-react"
+import { getLocalTodayDate } from "@/lib/date-utils"
 
 interface MonitoringFilterBarProps {
   categories: { id: string; name: string }[]
@@ -11,19 +13,50 @@ interface MonitoringFilterBarProps {
 export default function MonitoringFilterBar({ categories, sites }: MonitoringFilterBarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+  const today = getLocalTodayDate()
+
+  const dateFrom = searchParams.get("dateFrom") ?? ""
+  const dateTo = searchParams.get("dateTo") ?? ""
 
   const update = useCallback(
     (key: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString())
       if (value) {
-        params.set(key, value)
+        let safeValue = value
+        if (key === "dateFrom" || key === "dateTo") {
+          if (safeValue > today) safeValue = today
+          if (key === "dateFrom" && dateTo && safeValue > dateTo) {
+            safeValue = dateTo
+          }
+          if (key === "dateTo" && dateFrom && safeValue < dateFrom) {
+            safeValue = dateFrom
+          }
+        }
+        params.set(key, safeValue)
       } else {
         params.delete(key)
       }
-      router.push(`?${params.toString()}`)
+      startTransition(() => {
+        router.push(`?${params.toString()}`, { scroll: false })
+      })
     },
-    [router, searchParams]
+    [router, searchParams, today, dateFrom, dateTo]
   )
+
+  const reset = useCallback(() => {
+    startTransition(() => {
+      router.push("?", { scroll: false })
+    })
+  }, [router])
+
+  const hasFilters = [
+    searchParams.get("dateFrom"),
+    searchParams.get("dateTo"),
+    searchParams.get("siteId"),
+    searchParams.get("category"),
+    searchParams.get("activityType"),
+  ].some(Boolean)
 
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -32,7 +65,8 @@ export default function MonitoringFilterBar({ categories, sites }: MonitoringFil
         <input
           id="dateFrom"
           type="date"
-          value={searchParams.get("dateFrom") ?? ""}
+          value={dateFrom}
+          max={dateTo && dateTo < today ? dateTo : today}
           onChange={(e) => update("dateFrom", e.target.value)}
           className="h-9 rounded-md border bg-card px-3 text-sm"
         />
@@ -42,7 +76,9 @@ export default function MonitoringFilterBar({ categories, sites }: MonitoringFil
         <input
           id="dateTo"
           type="date"
-          value={searchParams.get("dateTo") ?? ""}
+          value={dateTo}
+          min={dateFrom || undefined}
+          max={today}
           onChange={(e) => update("dateTo", e.target.value)}
           className="h-9 rounded-md border bg-card px-3 text-sm"
         />
@@ -91,6 +127,23 @@ export default function MonitoringFilterBar({ categories, sites }: MonitoringFil
           <option value="review">Review</option>
         </select>
       </div>
+      {hasFilters && (
+        <button
+          type="button"
+          onClick={reset}
+          disabled={isPending}
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+        >
+          <RotateCcw className="size-3.5" />
+          Reset
+        </button>
+      )}
+      {isPending && (
+        <div className="flex items-center gap-1.5 pb-2 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" />
+          <span>Updating...</span>
+        </div>
+      )}
     </div>
   )
 }

@@ -17,16 +17,26 @@ import type { AgeGroupBreakdown, VisitorTypeBreakdown, MTOAnalyticsFilters } fro
 
 export default function DemographicsRow({
   filters,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
+  initialData?: {
+    ageGroups: AgeGroupBreakdown[]
+    visitorTypes: VisitorTypeBreakdown[]
+  }
 }) {
-  const [ageData, setAgeData] = useState<AgeGroupBreakdown[] | null>(null)
-  const [typeData, setTypeData] = useState<VisitorTypeBreakdown[] | null>(null)
+  const [ageData, setAgeData] = useState<AgeGroupBreakdown[] | null>(initialData?.ageGroups ?? null)
+  const [typeData, setTypeData] = useState<VisitorTypeBreakdown[] | null>(initialData?.visitorTypes ?? null)
   const [error, setError] = useState<string | null>(null)
 
   const filterKey = JSON.stringify(filters)
 
   useEffect(() => {
+    if (initialData) {
+      setAgeData(initialData.ageGroups)
+      setTypeData(initialData.visitorTypes)
+      return
+    }
     let cancelled = false
     getDemographicsAction(
       { dateFrom: filters.dateFrom, dateTo: filters.dateTo, category: filters.categoryId ?? undefined }
@@ -39,7 +49,7 @@ export default function DemographicsRow({
       })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Failed") })
     return () => { cancelled = true }
-  }, [filterKey])
+  }, [initialData, filterKey])
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

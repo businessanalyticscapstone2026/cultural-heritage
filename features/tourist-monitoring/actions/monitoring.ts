@@ -9,8 +9,18 @@ import {
   getUnderPromotedSites,
   getMonitoringSites,
   getMonitoringCategories,
+  getTouristMonitoringBundle,
 } from "../services"
 import { parseMonitoringFilters } from "../utils"
+import type { TouristMonitoringBundle } from "../types"
+
+export async function getTouristMonitoringBundleAction(
+  searchParams: Record<string, string | undefined>
+): Promise<TouristMonitoringBundle> {
+  const { municipalityId } = await resolveMTOUserId()
+  const filters = parseMonitoringFilters(searchParams)
+  return getTouristMonitoringBundle(municipalityId, filters)
+}
 
 export async function getMonitoringSummaryAction(
   searchParams: Record<string, string | undefined>

@@ -26,19 +26,25 @@ const GRANULARITIES: { label: string; value: TrendGranularity }[] = [
 
 export default function VisitorTrendChart({
   filters,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
+  initialData?: VisitorTrendPoint[]
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const granularity = (searchParams.get("granularity") as TrendGranularity) ?? "monthly"
-  const [data, setData] = useState<VisitorTrendPoint[] | null>(null)
+  const [data, setData] = useState<VisitorTrendPoint[] | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
 
   const filterKey = JSON.stringify(filters)
   const granKey = granularity
 
   useEffect(() => {
+    if (initialData && granularity === "monthly") {
+      setData(initialData)
+      return
+    }
     let cancelled = false
     getVisitorTrendAction(
       { dateFrom: filters.dateFrom, dateTo: filters.dateTo, category: filters.categoryId ?? undefined },
@@ -47,13 +53,13 @@ export default function VisitorTrendChart({
       .then((d) => { if (!cancelled) setData(d) })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Failed") })
     return () => { cancelled = true }
-  }, [filterKey, granKey])
+  }, [initialData, filterKey, granKey])
 
   const setGranularity = (g: string | null) => {
     if (!g) return
     const params = new URLSearchParams(searchParams.toString())
     params.set("granularity", g)
-    router.push(`?${params.toString()}`)
+    router.push(`?${params.toString()}`, { scroll: false })
   }
 
   return (

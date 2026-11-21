@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { createClient } from "@/utils/supabase/client"
 import { getActivityLogAction } from "../actions/monitoring"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -13,17 +14,15 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
-  Pause,
-  Play,
 } from "lucide-react"
 import type { ActivityLogEntry, ActivityLogResult } from "../types"
 import { ACTIVITY_TYPE_CONFIG } from "../utils"
 
 interface ActivityLogTableProps {
   searchParams: Record<string, string | undefined>
-  /** When set, the table auto-refetches every N ms (paused when tab hidden). */
+  /** Optional polling fallback interval in ms */
   pollIntervalMs?: number
+  initialData?: ActivityLogResult
 }
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -58,38 +57,20 @@ function formatUpdatedAgo(timestamp: number | null, now: number): string {
 
 const ACTIVITY_PAGE_SIZE = 20
 
-export default function ActivityLogTable({ searchParams, pollIntervalMs }: ActivityLogTableProps) {
-  const [result, setResult] = useState<ActivityLogResult | null>(null)
+export default function ActivityLogTable({ searchParams, pollIntervalMs, initialData }: ActivityLogTableProps) {
+  const [result, setResult] = useState<ActivityLogResult | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [lastUpdated, setLastUpdated] = useState<number | null>(null)
-  const [autoRefresh, setAutoRefresh] = useState(true)
-  const [newCount, setNewCount] = useState(0)
   const [now, setNow] = useState(() => Date.now())
 
-  const live = pollIntervalMs != null
-  const baselineRef = useRef<number | null>(null)
-  const filterKeyRef = useRef<string | null>(null)
   const requestIdRef = useRef(0)
-
   const spKey = JSON.stringify(searchParams)
 
-  // Applies a fetched page. Only ever called from async continuations and
-  // event handlers — never synchronously inside an effect body.
-  function applyResult(d: ActivityLogResult, markSeen: boolean) {
+  function applyResult(d: ActivityLogResult) {
     setResult(d)
     setError(null)
     setLastUpdated(Date.now())
-    if (page === 1) {
-      const freshFilters = filterKeyRef.current !== spKey
-      filterKeyRef.current = spKey
-      if (markSeen || freshFilters || baselineRef.current == null) {
-        baselineRef.current = d.total
-        setNewCount(0)
-      } else {
-        setNewCount(Math.max(0, d.total - baselineRef.current))
-      }
-    }
   }
 
   function applyError(e: unknown) {
@@ -97,11 +78,15 @@ export default function ActivityLogTable({ searchParams, pollIntervalMs }: Activ
   }
 
   useEffect(() => {
+    if (initialData && page === 1) {
+      applyResult(initialData)
+      return
+    }
     const requestId = ++requestIdRef.current
     let cancelled = false
     getActivityLogAction(searchParams, page, ACTIVITY_PAGE_SIZE)
       .then((d) => {
-        if (!cancelled && requestIdRef.current === requestId) applyResult(d, false)
+        if (!cancelled && requestIdRef.current === requestId) applyResult(d)
       })
       .catch((e) => {
         if (!cancelled && requestIdRef.current === requestId) applyError(e)
@@ -110,43 +95,59 @@ export default function ActivityLogTable({ searchParams, pollIntervalMs }: Activ
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData, spKey, page])
+
+  const refresh = useCallback(async () => {
+    const requestId = ++requestIdRef.current
+    try {
+      const d = await getActivityLogAction(searchParams, page, ACTIVITY_PAGE_SIZE)
+      if (requestIdRef.current !== requestId) return
+      applyResult(d)
+    } catch (e) {
+      if (requestIdRef.current !== requestId) return
+      applyError(e)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spKey, page])
 
-  const refresh = useCallback(
-    async (opts?: { markSeen?: boolean }) => {
-      const requestId = ++requestIdRef.current
-      try {
-        const d = await getActivityLogAction(searchParams, page, ACTIVITY_PAGE_SIZE)
-        if (requestIdRef.current !== requestId) return
-        applyResult(d, opts?.markSeen ?? false)
-      } catch (e) {
-        if (requestIdRef.current !== requestId) return
-        applyError(e)
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [spKey, page]
-  )
-
-  // Live polling: refetch on an interval, paused while the tab is hidden.
+  // Instant real-time updates when new tourist activities occur
   useEffect(() => {
-    if (!live || !autoRefresh) return undefined
+    const supabase = createClient()
+    const channel = supabase
+      .channel("realtime-activity-log")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "tourist_visits" }, () => {
+        void refresh()
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "qr_scan_logs" }, () => {
+        void refresh()
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bookmarks" }, () => {
+        void refresh()
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reviews" }, () => {
+        void refresh()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [refresh])
+
+  // Optional background poll if pollIntervalMs is provided
+  useEffect(() => {
+    if (!pollIntervalMs) return undefined
     const id = setInterval(() => {
       if (!document.hidden) void refresh()
     }, pollIntervalMs)
     return () => clearInterval(id)
-  }, [live, autoRefresh, pollIntervalMs, refresh])
+  }, [pollIntervalMs, refresh])
 
-  // Tick the "Updated Xs ago" label while live mode is on.
+  // Tick the relative "Updated Xs ago" label
   useEffect(() => {
-    if (!live) return undefined
     const id = setInterval(() => setNow(Date.now()), 15000)
     return () => clearInterval(id)
-  }, [live])
-
-  const handleManualRefresh = () => {
-    void refresh({ markSeen: true })
-  }
+  }, [])
 
   if (error) {
     return (
@@ -199,59 +200,15 @@ export default function ActivityLogTable({ searchParams, pollIntervalMs }: Activ
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            Activity Log
-            {live && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
-                <span className="relative flex size-1.5">
-                  {autoRefresh && (
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
-                  )}
-                  <span className="relative inline-flex size-1.5 rounded-full bg-success" />
-                </span>
-                Live
-              </span>
-            )}
-          </CardTitle>
-          {live && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground" aria-live="off">
-                {formatUpdatedAgo(lastUpdated, now)}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setAutoRefresh((v) => !v)}
-                aria-pressed={autoRefresh}
-                aria-label={autoRefresh ? "Pause auto-refresh" : "Resume auto-refresh"}
-              >
-                {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleManualRefresh}
-                aria-label="Refresh activity log now"
-              >
-                <RefreshCw className="size-4" />
-                Refresh
-              </Button>
-            </div>
+          <CardTitle className="text-base">Activity Log</CardTitle>
+          {lastUpdated && (
+            <span className="text-xs text-muted-foreground" aria-live="off">
+              {formatUpdatedAgo(lastUpdated, now)}
+            </span>
           )}
         </div>
       </CardHeader>
       <CardContent>
-        {live && newCount > 0 && page === 1 && (
-          <div aria-live="polite">
-            <button
-              type="button"
-              onClick={handleManualRefresh}
-              className="mb-3 w-full rounded-lg bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
-            >
-              {newCount} new {newCount === 1 ? "activity" : "activities"} — refresh to view
-            </button>
-          </div>
-        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { createTokenClient, resolveAccessToken } from "@/utils/supabase/cached"
 import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
+import { FIRST_DISTRICT_MUNICIPALITIES } from "@/lib/constants"
 import type {
   KpiData,
   CategoryBreakdown,
@@ -24,80 +25,44 @@ async function fetchKpiData(supabase: SupabaseServer): Promise<KpiData> {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0]
 
-  // Each KPI exposes both its current value and the value at the start of the
-  // current month (or previous full month for visits), so the UI can show
-  // trend indicators / % change without changing how metrics are computed.
-  const { count: totalHeritageSites, error: errSites } = await supabase
-    .from("heritage_sites")
-    .select("*", { count: "exact", head: true })
+  // Bug 3 fix: run all 10 independent count queries in parallel instead of sequentially.
+  // Bug 1 fix: count tourist_visits (not qr_scan_logs) for "Visitors This Month" —
+  //   tourist_visits includes page-load visits, QR-originated visits, and rec-click visits.
+  const [
+    { count: totalHeritageSites, error: errSites },
+    { count: prevHeritageSites, error: errSitesPrev },
+    { count: totalMunicipalities, error: errMuns },
+    { count: prevMunicipalities, error: errMunsPrev },
+    { count: staffCount, error: errStaff },
+    { count: touristCount, error: errTourist },
+    { count: prevStaffCount, error: errStaffPrev },
+    { count: prevTouristCount, error: errTouristPrev },
+    { count: totalVisitsThisMonth, error: errVisits },
+    { count: prevVisits, error: errVisitsPrev },
+  ] = await Promise.all([
+    supabase.from("heritage_sites").select("*", { count: "exact", head: true }),
+    supabase.from("heritage_sites").select("*", { count: "exact", head: true }).lt("created_at", monthStart),
+    supabase.from("municipalities").select("*", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("municipalities").select("*", { count: "exact", head: true }).eq("status", "active").lt("created_at", monthStart),
+    supabase.from("staff_profiles").select("*", { count: "exact", head: true }),
+    supabase.from("tourist_profiles").select("*", { count: "exact", head: true }),
+    supabase.from("staff_profiles").select("*", { count: "exact", head: true }).lt("created_at", monthStart),
+    supabase.from("tourist_profiles").select("*", { count: "exact", head: true }).lt("created_at", monthStart),
+    // Bug 1 fix: tourist_visits instead of qr_scan_logs
+    supabase.from("tourist_visits").select("*", { count: "exact", head: true }).gte("visit_date", monthStart),
+    supabase.from("tourist_visits").select("*", { count: "exact", head: true }).gte("visit_date", prevMonthStart).lt("visit_date", monthStart),
+  ])
 
   if (errSites) throw new Error(`Failed to count heritage_sites: ${errSites.message}`)
-
-  const { count: prevHeritageSites, error: errSitesPrev } = await supabase
-    .from("heritage_sites")
-    .select("*", { count: "exact", head: true })
-    .lt("created_at", monthStart)
-
   if (errSitesPrev) throw new Error(`Failed to count prior heritage_sites: ${errSitesPrev.message}`)
-
-  const { count: totalMunicipalities, error: errMuns } = await supabase
-    .from("municipalities")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "active")
-
   if (errMuns) throw new Error(`Failed to count municipalities: ${JSON.stringify(errMuns)}`)
-
-  const { count: prevMunicipalities, error: errMunsPrev } = await supabase
-    .from("municipalities")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "active")
-    .lt("created_at", monthStart)
-
   if (errMunsPrev) throw new Error(`Failed to count prior municipalities: ${JSON.stringify(errMunsPrev)}`)
-
-  // "Registered Users" means both staff and tourist profile counts combined
-  // since the schema has no unified users table. Two separate COUNT queries
-  // are used and summed in code — no JOIN/UNION across tables without shared key.
-  const { count: staffCount, error: errStaff } = await supabase
-    .from("staff_profiles")
-    .select("*", { count: "exact", head: true })
-
   if (errStaff) throw new Error(`Failed to count staff_profiles: ${errStaff.message}`)
-
-  const { count: touristCount, error: errTourist } = await supabase
-    .from("tourist_profiles")
-    .select("*", { count: "exact", head: true })
-
   if (errTourist) throw new Error(`Failed to count tourist_profiles: ${errTourist.message}`)
-
-  const { count: prevStaffCount, error: errStaffPrev } = await supabase
-    .from("staff_profiles")
-    .select("*", { count: "exact", head: true })
-    .lt("created_at", monthStart)
-
   if (errStaffPrev) throw new Error(`Failed to count prior staff_profiles: ${errStaffPrev.message}`)
-
-  const { count: prevTouristCount, error: errTouristPrev } = await supabase
-    .from("tourist_profiles")
-    .select("*", { count: "exact", head: true })
-    .lt("created_at", monthStart)
-
   if (errTouristPrev) throw new Error(`Failed to count prior tourist_profiles: ${errTouristPrev.message}`)
-
-  const { count: totalVisitsThisMonth, error: errVisits } = await supabase
-    .from("qr_scan_logs")
-    .select("*", { count: "exact", head: true })
-    .gte("scanned_at", monthStart)
-
-  if (errVisits) throw new Error(`Failed to count qr_scan_logs: ${errVisits.message}`)
-
-  const { count: prevVisits, error: errVisitsPrev } = await supabase
-    .from("qr_scan_logs")
-    .select("*", { count: "exact", head: true })
-    .gte("scanned_at", prevMonthStart)
-    .lt("scanned_at", monthStart)
-
-  if (errVisitsPrev) throw new Error(`Failed to count prior qr_scan_logs: ${errVisitsPrev.message}`)
+  if (errVisits) throw new Error(`Failed to count tourist_visits: ${errVisits.message}`)
+  if (errVisitsPrev) throw new Error(`Failed to count prior tourist_visits: ${errVisitsPrev.message}`)
 
   return {
     heritageSites: { value: totalHeritageSites ?? 0, previous: prevHeritageSites ?? 0 },
@@ -173,17 +138,19 @@ async function fetchVisitOverview(supabase: SupabaseServer): Promise<VisitOvervi
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split("T")[0]
 
+  // Bug 2 fix: group tourist_visits by visit_date instead of qr_scan_logs by scanned_at.
+  // tourist_visits includes all visit sources (page loads, QR scans, rec clicks).
   const { data, error } = await supabase
-    .from("qr_scan_logs")
-    .select("scanned_at")
-    .gte("scanned_at", monthStart)
-    .lt("scanned_at", nextMonthStart)
+    .from("tourist_visits")
+    .select("visit_date")
+    .gte("visit_date", monthStart)
+    .lt("visit_date", nextMonthStart)
 
-  if (error) throw new Error(`Failed to fetch qr_scan_logs: ${error.message}`)
+  if (error) throw new Error(`Failed to fetch tourist_visits: ${error.message}`)
 
   const grouped = new Map<string, number>()
   for (const row of data ?? []) {
-    const key = (row.scanned_at as string).split("T")[0]
+    const key = row.visit_date as string
     grouped.set(key, (grouped.get(key) ?? 0) + 1)
   }
 
@@ -238,39 +205,45 @@ async function fetchRecommendationPerformance(
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
-  const { count: totalRecommendations, error: errTotal } = await supabase
-    .from("recommendations")
-    .select("*", { count: "exact", head: true })
-    .gte("generated_at", monthStart)
+  // Bug 4 fix: scope recommendations to First District sites only.
+  const { data: firstDistrictMunis } = await supabase
+    .from("municipalities")
+    .select("id")
+    .in("name", [...FIRST_DISTRICT_MUNICIPALITIES])
+
+  const muniIds = (firstDistrictMunis ?? []).map((m) => m.id as string)
+  const { data: siteRows } = muniIds.length > 0
+    ? await supabase.from("heritage_sites").select("id").in("municipality_id", muniIds)
+    : { data: [] }
+  const siteIds = (siteRows ?? []).map((s) => s.id as string)
+
+  const [
+    { count: totalRecommendations, error: errTotal },
+    { count: clickedCount, error: errClicked },
+    { count: routePlansCreated, error: errRoute },
+    { data: monthlyReviews, error: errReviews },
+  ] = await Promise.all([
+    siteIds.length > 0
+      ? supabase.from("recommendations").select("*", { count: "exact", head: true }).in("site_id", siteIds).gte("generated_at", monthStart)
+      : Promise.resolve({ count: 0, error: null }),
+    siteIds.length > 0
+      ? supabase.from("recommendations").select("*", { count: "exact", head: true }).in("site_id", siteIds).gte("generated_at", monthStart).eq("was_clicked", true)
+      : Promise.resolve({ count: 0, error: null }),
+    siteIds.length > 0
+      ? supabase.from("recommendations").select("*", { count: "exact", head: true }).in("site_id", siteIds).gte("generated_at", monthStart).eq("led_to_route", true)
+      : Promise.resolve({ count: 0, error: null }),
+    // User Satisfaction is AVG(reviews.rating) for the current month. The
+    // reviews table has no foreign key to recommendations (only site_id /
+    // tourist_id), so this is reported as an independent site-satisfaction
+    // metric rather than a per-recommendation rate.
+    siteIds.length > 0
+      ? supabase.from("reviews").select("rating").in("site_id", siteIds).eq("status", "published").gte("created_at", monthStart)
+      : Promise.resolve({ data: [], error: null }),
+  ])
 
   if (errTotal) throw new Error(`Failed to count recommendations: ${errTotal.message}`)
-
-  const { count: clickedCount, error: errClicked } = await supabase
-    .from("recommendations")
-    .select("*", { count: "exact", head: true })
-    .gte("generated_at", monthStart)
-    .eq("was_clicked", true)
-
   if (errClicked) throw new Error(`Failed to count clicked recommendations: ${errClicked.message}`)
-
-  const { count: routePlansCreated, error: errRoute } = await supabase
-    .from("recommendations")
-    .select("*", { count: "exact", head: true })
-    .gte("generated_at", monthStart)
-    .eq("led_to_route", true)
-
   if (errRoute) throw new Error(`Failed to count recommendation routes: ${errRoute.message}`)
-
-  // User Satisfaction is AVG(reviews.rating) for the current month. The
-  // reviews table has no foreign key to recommendations (only site_id /
-  // tourist_id), so this is reported as an independent site-satisfaction
-  // metric rather than a per-recommendation rate.
-  const { data: monthlyReviews, error: errReviews } = await supabase
-    .from("reviews")
-    .select("rating")
-    .eq("status", "published")
-    .gte("created_at", monthStart)
-
   if (errReviews) throw new Error(`Failed to fetch reviews: ${errReviews.message}`)
 
   const ratings = (monthlyReviews ?? []).map((r) => r.rating as number)
@@ -295,22 +268,31 @@ async function fetchRecommendationPerformance(
 }
 
 async function fetchSystemHealth(supabase: SupabaseServer): Promise<SystemHealth> {
-  const { data: latestBackup, error: errBackup } = await supabase
-    .from("backups")
-    .select("created_at, status, type")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const [backupResult, siteInfoResult] = await Promise.all([
+    supabase
+      .from("backups")
+      .select("created_at, status, type")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("site_information")
+      .select("system_version")
+      .limit(1)
+      .maybeSingle(),
+  ])
 
-  if (errBackup) throw new Error(`Failed to fetch latest backup: ${errBackup.message}`)
+  // Bug 5 fix: treat missing tables (42P01 = undefined_table) as graceful nulls
+  // so the dashboard doesn't crash if backups or site_information don't exist.
+  const { data: latestBackup, error: errBackup } = backupResult
+  const { data: siteInfo, error: errSite } = siteInfoResult
 
-  const { data: siteInfo, error: errSite } = await supabase
-    .from("site_information")
-    .select("system_version")
-    .limit(1)
-    .maybeSingle()
-
-  if (errSite) throw new Error(`Failed to fetch site_information: ${errSite.message}`)
+  if (errBackup && (errBackup as { code?: string }).code !== "42P01") {
+    throw new Error(`Failed to fetch latest backup: ${errBackup.message}`)
+  }
+  if (errSite && (errSite as { code?: string }).code !== "42P01") {
+    throw new Error(`Failed to fetch site_information: ${errSite.message}`)
+  }
 
   return {
     lastBackupAt: latestBackup?.created_at ?? null,

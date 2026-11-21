@@ -83,6 +83,7 @@ export default function QRScannerOverlay({ open, onClose }: QRScannerOverlayProp
         fetch("/api/qr/scan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          keepalive: true,
           body: JSON.stringify({
             codeValue: code,
             siteId: data.siteId,

@@ -485,12 +485,18 @@ export async function regenerateQrCode(
   }
 }
 
+const VALID_QR_STATUSES: QRCodeStatus[] = ["active", "inactive", "revoked"]
+
 /** Toggle QR code status */
 export async function updateQrCodeStatus(
   qrCodeId: string,
   status: QRCodeStatus,
   municipalityId: string,
 ): Promise<void> {
+  if (!VALID_QR_STATUSES.includes(status)) {
+    throw new Error(`Invalid QR code status: ${status}`)
+  }
+
   const supabase = await getSupabase()
   const siteIds = await getMunicipalitySiteIds(municipalityId)
 

@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { MTOAnalyticsFilters } from "../types"
+import type { MTOAnalyticsFilters, MTOAnalyticsBundle } from "../types"
 
 const ChartSkeleton = () => <Skeleton className="h-[300px] w-full rounded-xl" />
 
@@ -59,45 +59,47 @@ const RecommendationFunnel = dynamic(() => import("./recommendation-funnel"), {
 export default function AnalyticsVisualizations({
   filters,
   filterKey,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
-  filterKey: string
+  filterKey?: string
+  initialData?: MTOAnalyticsBundle
 }) {
   return (
     <div className="space-y-6">
       <div id="visitor-trend">
-        <VisitorTrendChart key={`trend-${filterKey}`} filters={filters} />
+        <VisitorTrendChart filters={filters} initialData={initialData?.visitorTrend} />
       </div>
 
       <div id="visitor-trend-comparison" className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <VisitorTrendComparison key={`comparison-${filterKey}`} filters={filters} />
+          <VisitorTrendComparison filters={filters} initialData={initialData?.visitorTrendComparison} />
         </div>
         <div id="weekday">
-          <WeekdayBarChart key={`weekday-${filterKey}`} filters={filters} />
+          <WeekdayBarChart filters={filters} initialData={initialData?.weekdayVisits} />
         </div>
       </div>
 
       <div id="visits-by-attraction" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <VisitsByAttractionPanel key={`attraction-${filterKey}`} filters={filters} />
+        <VisitsByAttractionPanel filters={filters} initialData={initialData?.visitsByAttraction} />
         <div id="recommendation-funnel">
-          <RecommendationFunnel key={`funnel-${filterKey}`} filters={filters} />
+          <RecommendationFunnel filters={filters} initialData={initialData?.recommendationFunnel} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div id="scan-device">
-          <ScanDeviceChart key={`scan-device-${filterKey}`} filters={filters} />
+          <ScanDeviceChart filters={filters} initialData={initialData?.scanDeviceBreakdown} />
         </div>
         <div className="lg:col-span-2">
           <div id="demographics">
-            <DemographicsRow key={`demo-${filterKey}`} filters={filters} />
+            <DemographicsRow filters={filters} initialData={initialData?.demographics} />
           </div>
         </div>
       </div>
 
       <div id="top-sites">
-        <TopSitesTable key={`sites-${filterKey}`} filters={filters} />
+        <TopSitesTable filters={filters} initialData={initialData?.topSites} />
       </div>
     </div>
   )

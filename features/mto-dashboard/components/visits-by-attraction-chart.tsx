@@ -18,6 +18,7 @@ export default function VisitsByAttractionChart({ municipalityId }: { municipali
     queryFn: () => getAllDashboardDataAction(municipalityId),
     select: selectData,
     staleTime: 60_000,
+    refetchInterval: 60_000,
   })
 
   const total = data ? data.reduce((sum, d) => sum + d.value, 0) : 0

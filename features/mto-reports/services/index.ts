@@ -181,16 +181,29 @@ export async function getRecommendationQRData(
   let uniqueSiteCount = 0
 
   if (siteIds.length > 0) {
-    const { data: scans } = await supabase
-      .from("qr_scan_logs")
-      .select("site_id")
+    // Bug 2 fix: qr_scan_logs has no site_id column — join through qr_codes first
+    const { data: qrCodes } = await supabase
+      .from("qr_codes")
+      .select("id, site_id")
       .in("site_id", siteIds)
-      .gte("scanned_at", filters.dateFrom)
-      .lte("scanned_at", filters.dateTo)
 
-    totalScans = scans?.length ?? 0
-    const uniqueSites = new Set((scans ?? []).map((s) => s.site_id))
-    uniqueSiteCount = uniqueSites.size
+    const qrCodeIds = (qrCodes ?? []).map((q) => q.id as string)
+    const qrCodeToSite = new Map<string, string>(
+      (qrCodes ?? []).map((q) => [q.id as string, q.site_id as string])
+    )
+
+    if (qrCodeIds.length > 0) {
+      const { data: scans } = await supabase
+        .from("qr_scan_logs")
+        .select("qr_code_id")
+        .in("qr_code_id", qrCodeIds)
+        .gte("scanned_at", filters.dateFrom + "T00:00:00")
+        .lte("scanned_at", filters.dateTo + "T23:59:59")
+
+      totalScans = scans?.length ?? 0
+      const uniqueSites = new Set((scans ?? []).map((s) => qrCodeToSite.get(s.qr_code_id as string)))
+      uniqueSiteCount = uniqueSites.size
+    }
   }
 
   const daysDiff = Math.max(

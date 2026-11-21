@@ -7,29 +7,36 @@ import ActivityLogTable from "@/features/tourist-monitoring/components/activity-
 import RecommendationMonitoringPanel from "@/features/tourist-monitoring/components/recommendation-monitoring-panel"
 import DestinationPopularityPanel from "@/features/tourist-monitoring/components/destination-popularity-panel"
 import UnderPromotedCallout from "@/features/tourist-monitoring/components/under-promoted-callout"
-import type { MonitoringActivityType, MonitoringFilters, UnderPromotedSite } from "@/features/tourist-monitoring/types"
+import type { MonitoringActivityType, MonitoringFilters, UnderPromotedSite, TouristMonitoringBundle } from "@/features/tourist-monitoring/types"
 import { getUnderPromotedSitesAction } from "@/features/tourist-monitoring/actions/monitoring"
 
 export default function MonitoringPageClient({
   searchParams,
   filters,
+  initialData,
 }: {
   searchParams: Record<string, string | undefined>
   filters: MonitoringFilters
+  initialData?: TouristMonitoringBundle
 }) {
   const [activeDrillDown, setActiveDrillDown] = useState<MonitoringActivityType | "all" | null>(null)
-  const [underPromoted, setUnderPromoted] = useState<UnderPromotedSite[] | null>(null)
+  const [underPromoted, setUnderPromoted] = useState<UnderPromotedSite[] | null>(initialData?.underPromoted ?? null)
 
   const filterKey = JSON.stringify(filters)
 
   useEffect(() => {
+    if (initialData) {
+      setUnderPromoted(initialData.underPromoted)
+      return
+    }
+
     let cancelled = false
     getUnderPromotedSitesAction(searchParams)
       .then((d) => { if (!cancelled) setUnderPromoted(d) })
       .catch(() => { if (!cancelled) setUnderPromoted([]) })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKey])
+  }, [initialData, filterKey])
 
   const handleDrillDownToggle = (type: MonitoringActivityType | "all") => {
     setActiveDrillDown((prev) => (prev === type ? null : type))
@@ -38,15 +45,14 @@ export default function MonitoringPageClient({
   return (
     <>
       <MonitoringSummaryRow
-        key={`summary-${filterKey}`}
         searchParams={searchParams}
         activeDrillDown={activeDrillDown}
         onDrillDownToggle={handleDrillDownToggle}
+        initialMetrics={initialData?.summary?.metrics}
       />
 
       {activeDrillDown && (
         <DrillDownPanel
-          key={`drilldown-${filterKey}-${activeDrillDown}`}
           searchParams={searchParams}
           drillDownType={activeDrillDown}
           onClose={() => setActiveDrillDown(null)}
@@ -54,15 +60,15 @@ export default function MonitoringPageClient({
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ActivityLogTable key={`activity-${filterKey}`} searchParams={searchParams} />
+        <ActivityLogTable searchParams={searchParams} initialData={initialData?.recentActivity} />
         <div className="space-y-6">
-          <RecommendationMonitoringPanel key={`recs-${filterKey}`} searchParams={searchParams} />
+          <RecommendationMonitoringPanel searchParams={searchParams} initialData={initialData?.recommendationPerf} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <DestinationPopularityPanel key={`popularity-${filterKey}`} searchParams={searchParams} />
+          <DestinationPopularityPanel searchParams={searchParams} initialData={initialData?.popularity} />
         </div>
         <div>
           {underPromoted && underPromoted.length > 0 && (

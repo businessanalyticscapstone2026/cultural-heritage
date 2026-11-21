@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import Image from "next/image"
 
 interface ParallaxImageProps {
@@ -28,11 +28,13 @@ export function ParallaxImage({
   imageRef,
   placeholder,
 }: ParallaxImageProps) {
-  if (!src) {
+  const [hasError, setHasError] = useState(false)
+
+  if (!src || hasError) {
     return (
       <div
         ref={imageRef}
-        className={`flex items-center justify-center bg-parchment ${className ?? ""}`}
+        className={`flex items-center justify-center bg-ink/20 ${className ?? ""}`}
         aria-hidden
       >
         {placeholder}
@@ -53,6 +55,7 @@ export function ParallaxImage({
         className={`object-cover transition-transform duration-[1200ms] group-hover:scale-[1.08] ${
           imgClassName ?? ""
         }`}
+        onError={() => setHasError(true)}
       />
     </div>
   )

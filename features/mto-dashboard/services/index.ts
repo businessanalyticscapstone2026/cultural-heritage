@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { cache } from "react"
 import { unwrapOne } from "@/lib/unwrap-one"
 import { CHART_PALETTE } from "@/lib/chart-colors"
 import { normalizeDeviceType } from "@/lib/device-type"
@@ -42,19 +43,19 @@ function getMonthBounds(monthsAgo: number) {
   }
 }
 
-async function resolveSiteIds(
+const resolveSiteIds = cache(async (
   supabase: ReturnType<typeof createClient>,
   municipalityId: string,
-): Promise<string[]> {
+): Promise<string[]> => {
   const { data } = await supabase.from("heritage_sites").select("id").eq("municipality_id", municipalityId)
   return data?.map((s) => s.id as string) ?? []
-}
+})
 
 type SiteWithCategory = { id: string; category_id: string | null; category: unknown }
 
-export async function getMTOSitesForMunicipality(
+export const getMTOSitesForMunicipality = cache(async (
   municipalityId: string,
-): Promise<{ siteIds: string[]; sites: SiteWithCategory[] }> {
+): Promise<{ siteIds: string[]; sites: SiteWithCategory[] }> => {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
@@ -65,7 +66,7 @@ export async function getMTOSitesForMunicipality(
 
   const sites = data ?? []
   return { siteIds: sites.map((s) => s.id as string), sites }
-}
+})
 
 export async function getMTODashboardStats(
   municipalityId: string,
@@ -78,20 +79,6 @@ export async function getMTODashboardStats(
   const lastMonth = getMonthBounds(1)
 
   const siteIds = preloadedSiteIds ?? (await resolveSiteIds(supabase, municipalityId))
-
-  const [sitesCount, sitesCountPrev] = await Promise.all([
-    supabase
-      .from("heritage_sites")
-      .select("id", { count: "exact", head: true })
-      .eq("municipality_id", municipalityId)
-      .eq("publication_status", "published"),
-    supabase
-      .from("heritage_sites")
-      .select("id", { count: "exact", head: true })
-      .eq("municipality_id", municipalityId)
-      .eq("publication_status", "published")
-      .lte("created_at", lastMonth.end),
-  ])
 
   const qrCodeIds =
     siteIds.length === 0
@@ -139,19 +126,31 @@ export async function getMTODashboardStats(
     return count ?? 0
   }
 
-  const [visitsCount, visitsCountPrev, bookmarksCount, bookmarksCountPrev, recsCount, recsCountPrev, qrCount, qrCountPrev] =
-    await Promise.all([
-      countScans(thisMonth.start, thisMonth.end),
-      countScans(lastMonth.start, lastMonth.end),
-      countBookmarks(),
-      countBookmarks(lastMonth.end),
-      countRecommendationClicks(thisMonth.start, thisMonth.end),
-      countRecommendationClicks(lastMonth.start, lastMonth.end),
-      countActiveQr(),
-      countActiveQr(lastMonth.end),
-    ])
+  const [
+    sitesCount,
+    visitsCount,
+    visitsCountPrev,
+    bookmarksCount,
+    bookmarksCountPrev,
+    recsCount,
+    recsCountPrev,
+    qrCount,
+    qrCountPrev,
+  ] = await Promise.all([
+    supabase
+      .from("heritage_sites")
+      .select("id", { count: "exact", head: true })
+      .eq("municipality_id", municipalityId),
+    countScans(thisMonth.start, thisMonth.end),
+    countScans(lastMonth.start, lastMonth.end),
+    countBookmarks(),
+    countBookmarks(lastMonth.end),
+    countRecommendationClicks(thisMonth.start, thisMonth.end),
+    countRecommendationClicks(lastMonth.start, lastMonth.end),
+    countActiveQr(),
+    countActiveQr(lastMonth.end),
+  ])
 
-  const sitesChange = computeChange(sitesCount.count ?? 0, sitesCountPrev.count ?? 0)
   const visitsChange = computeChange(visitsCount.count ?? 0, visitsCountPrev.count ?? 0)
   const bookmarksChange = computeChange(bookmarksCount.count ?? 0, bookmarksCountPrev.count ?? 0)
   const recsChange = computeChange(recsCount, recsCountPrev)
@@ -161,10 +160,10 @@ export async function getMTODashboardStats(
     {
       label: "Heritage Sites",
       value: sitesCount.count ?? 0,
-      changePercent: sitesChange.changePercent,
-      changeDirection: sitesChange.changeDirection,
+      changePercent: null,
+      changeDirection: null,
       icon: "Landmark",
-      description: "vs last month",
+      description: null,
     },
     {
       label: "QR Scans",
@@ -459,7 +458,7 @@ export async function getMTOVisitorStats(
   const [currentResult, priorResult] = await Promise.all([
     supabase
       .from("tourist_visits")
-      .select("visitor_type")
+      .select("visitor_origin")
       .in("site_id", siteIds)
       .gte("visit_date", `${currentYear}-01-01`)
       .lte("visit_date", `${currentYear}-12-31`),
@@ -473,7 +472,8 @@ export async function getMTOVisitorStats(
 
   const stats: VisitorStats = { local: 0, domestic: 0, international: 0, priorYearTotal: priorResult.count ?? 0 }
   for (const row of currentResult.data ?? []) {
-    const type = row.visitor_type as "local" | "domestic" | "international"
+    const rawOrigin = (row as unknown as { visitor_origin: string | null }).visitor_origin
+    const type = (rawOrigin && rawOrigin in stats ? rawOrigin : "domestic") as "local" | "domestic" | "international"
     if (type in stats) stats[type]++
   }
   return stats

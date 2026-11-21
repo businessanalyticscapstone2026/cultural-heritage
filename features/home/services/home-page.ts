@@ -478,8 +478,7 @@ const CURATED_DISTRICT_EVENTS: HomeAnnouncement[] = [
     title: "Parada ng Lechon",
     body: "Experience Batangas' biggest food festival — a vibrant celebration of community, culture, and cuisine.",
     category: "Festival",
-    imageUrl:
-      "/images/municipalities/balayan/What you Need to Know About Lechon Festival in Balayan.jfif",
+    imageUrl: "/images/municipalities/balayan/lechon-festival.jpg",
     linkUrl: null,
     eventDate: "2026-06-24",
     municipalityName: "Balayan",
@@ -489,7 +488,7 @@ const CURATED_DISTRICT_EVENTS: HomeAnnouncement[] = [
     title: "Heritage Walk: Taal",
     body: null,
     category: "Event",
-    imageUrl: "/images/municipalities/taal/Heritage Town of Taal.jfif",
+    imageUrl: "/images/municipalities/taal/heritage-town-taal.jpg",
     linkUrl: null,
     eventDate: "2026-08-22",
     municipalityName: "Taal",
@@ -499,8 +498,7 @@ const CURATED_DISTRICT_EVENTS: HomeAnnouncement[] = [
     title: "New Heritage Markers Unveiled",
     body: null,
     category: "Announcement",
-    imageUrl:
-      "/images/municipalities/calatagan/Cape Santiago Lighthouse in Calatagan Batangas, _A Beacon of History with Over a Century Worth of Stories to Tell_.jfif",
+    imageUrl: "/images/municipalities/calatagan/cape-santiago-lighthouse.jpg",
     linkUrl: null,
     eventDate: "2026-07-15",
     municipalityName: "Calatagan",

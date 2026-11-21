@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTransition } from "react"
 import { Filter, RotateCcw } from "lucide-react"
+import { getLocalTodayDate } from "@/lib/date-utils"
 import type { FilterOption } from "../types"
 
 interface ReportFiltersProps {
@@ -15,16 +16,21 @@ export function ReportFilters({ municipalities, categories, threshold }: ReportF
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
+  const today = getLocalTodayDate()
 
   const currentMun = searchParams.get("municipalityId") ?? ""
   const currentCat = searchParams.get("categoryId") ?? ""
   const currentStart = searchParams.get("startDate") ?? getDefaultStart()
-  const currentEnd = searchParams.get("endDate") ?? getDefaultEnd()
+  const rawEnd = searchParams.get("endDate") ?? getDefaultEnd()
+  const currentEnd = rawEnd > today ? today : rawEnd
   const currentThreshold = searchParams.get("threshold") ?? String(threshold)
 
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
     if (value) {
+      if ((key === "startDate" || key === "endDate") && value > today) {
+        value = today
+      }
       params.set(key, value)
     } else {
       params.delete(key)
@@ -53,6 +59,7 @@ export function ReportFilters({ municipalities, categories, threshold }: ReportF
           <input
             type="date"
             defaultValue={currentStart}
+            max={currentEnd && currentEnd < today ? currentEnd : today}
             onChange={(e) => setParam("startDate", e.target.value)}
             className="block rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           />
@@ -63,6 +70,8 @@ export function ReportFilters({ municipalities, categories, threshold }: ReportF
           <input
             type="date"
             defaultValue={currentEnd}
+            min={currentStart || undefined}
+            max={today}
             onChange={(e) => setParam("endDate", e.target.value)}
             className="block rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           />

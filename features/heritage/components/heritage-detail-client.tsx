@@ -186,6 +186,7 @@ export default function HeritageDetailClient({
                     alt={images[heroIndex].caption ?? site.siteName}
                     fill
                     priority
+                    unoptimized
                     draggable={false}
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"

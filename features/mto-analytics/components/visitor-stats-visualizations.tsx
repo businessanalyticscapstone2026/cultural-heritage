@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { MTOAnalyticsFilters } from "../types"
+import type { MTOAnalyticsFilters, MTOAnalyticsBundle } from "../types"
 
 const ChartSkeleton = () => <Skeleton className="h-[300px] w-full rounded-xl" />
 
@@ -11,6 +11,14 @@ const VisitorTrendChart = dynamic(() => import("./visitor-trend-chart"), {
   loading: ChartSkeleton,
 })
 const WeekdayBarChart = dynamic(() => import("./weekday-bar-chart"), {
+  ssr: false,
+  loading: ChartSkeleton,
+})
+const VisitsByAttractionPanel = dynamic(() => import("./visits-by-attraction-panel"), {
+  ssr: false,
+  loading: ChartSkeleton,
+})
+const ScanDeviceChart = dynamic(() => import("./scan-device-chart"), {
   ssr: false,
   loading: ChartSkeleton,
 })
@@ -37,30 +45,65 @@ const TopSitesTable = dynamic(() => import("./top-sites-table"), {
 export default function VisitorStatsVisualizations({
   filters,
   filterKey,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
-  filterKey: string
+  filterKey?: string
+  initialData?: MTOAnalyticsBundle
 }) {
   return (
-    <div className="space-y-6">
-      <div id="visitor-trend">
-        <VisitorTrendChart key={`trend-${filterKey}`} filters={filters} />
-      </div>
-
-      <div id="weekday-demographics" className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div id="weekday">
-          <WeekdayBarChart key={`weekday-${filterKey}`} filters={filters} />
+    <div className="space-y-8">
+      {/* Volume & Growth Trajectory */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          Visitor Volume &amp; Trajectory
+        </h2>
+        <div id="visitor-trend">
+          <VisitorTrendChart filters={filters} initialData={initialData?.visitorTrend} />
         </div>
-        <div className="lg:col-span-2">
-          <div id="demographics">
-            <DemographicsRow key={`demo-${filterKey}`} filters={filters} />
+      </section>
+
+      {/* Demographics & Origin Distribution */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          Audience Composition &amp; Scanning Technology
+        </h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div id="scan-device">
+            <ScanDeviceChart filters={filters} initialData={initialData?.scanDeviceBreakdown} />
+          </div>
+          <div className="lg:col-span-2">
+            <div id="demographics">
+              <DemographicsRow filters={filters} initialData={initialData?.demographics} />
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div id="top-sites">
-        <TopSitesTable key={`sites-${filterKey}`} filters={filters} />
-      </div>
+      {/* Temporal Distribution & Attraction Breakdown */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          Day-of-Week Patterns &amp; Attraction Popularity
+        </h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div id="weekday">
+            <WeekdayBarChart filters={filters} initialData={initialData?.weekdayVisits} />
+          </div>
+          <div id="visits-by-attraction">
+            <VisitsByAttractionPanel filters={filters} initialData={initialData?.visitsByAttraction} />
+          </div>
+        </div>
+      </section>
+
+      {/* Site-Level Foot Traffic Rankings */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          Site Foot Traffic Rankings
+        </h2>
+        <div id="top-sites">
+          <TopSitesTable filters={filters} initialData={initialData?.topSites} />
+        </div>
+      </section>
     </div>
   )
 }

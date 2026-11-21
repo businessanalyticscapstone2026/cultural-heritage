@@ -174,7 +174,7 @@ export async function getMunicipalityPerformance(
   // 2c: Fetch visits within date range
   const { data: visits, error: visitsErr } = await supabase
     .from("tourist_visits")
-    .select("site_id, visitor_type, visit_date")
+    .select("site_id, visitor_origin, visit_date")
     .in("site_id", allSiteIds)
     .gte("visit_date", filters.startDate)
     .lte("visit_date", filters.endDate)
@@ -193,7 +193,7 @@ export async function getMunicipalityPerformance(
     munTotals[munId] = (munTotals[munId] ?? 0) + 1
 
     if (!munTypes[munId]) munTypes[munId] = {}
-    const vt = v.visitor_type ?? "unknown"
+    const vt = ((v as unknown as { visitor_origin: string }).visitor_origin) ?? "unknown"
     munTypes[munId][vt] = (munTypes[munId][vt] ?? 0) + 1
 
     if (!munDaily[munId]) munDaily[munId] = {}

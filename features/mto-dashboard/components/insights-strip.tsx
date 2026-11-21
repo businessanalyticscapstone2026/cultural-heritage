@@ -51,6 +51,7 @@ export default function InsightsStrip({ municipalityId }: { municipalityId: stri
     queryFn: () => getAllDashboardDataAction(municipalityId),
     select: selectData,
     staleTime: 60_000,
+    refetchInterval: 60_000,
   })
 
   if (isPending) {

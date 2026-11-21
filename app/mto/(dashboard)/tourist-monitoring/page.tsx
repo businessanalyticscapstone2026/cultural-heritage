@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { parseMonitoringFilters } from "@/features/tourist-monitoring"
+import { getTouristMonitoringBundle } from "@/features/tourist-monitoring/services"
 import MonitoringFilterBar from "@/features/tourist-monitoring/components/monitoring-filter-bar"
 import MonitoringPageClient from "./page-client"
 
@@ -29,13 +30,16 @@ export default async function TouristMonitoringPage({
 
   const municipalityId = profile?.municipality_id ?? ""
 
-  const [{ data: categories }, { data: sites }] = await Promise.all([
+  const [{ data: categories }, { data: sites }, bundle] = await Promise.all([
     supabase.from("heritage_categories").select("id, name").order("name"),
     supabase
       .from("heritage_sites")
       .select("id, site_name")
       .eq("municipality_id", municipalityId)
       .order("site_name"),
+    municipalityId
+      ? getTouristMonitoringBundle(municipalityId, filters)
+      : Promise.resolve(undefined),
   ])
 
   return (
@@ -54,7 +58,7 @@ export default async function TouristMonitoringPage({
         sites={(sites ?? []).map((s) => ({ id: s.id as string, name: s.site_name as string }))}
       />
 
-      <MonitoringPageClient searchParams={params} filters={filters} />
+      <MonitoringPageClient searchParams={params} filters={filters} initialData={bundle} />
     </div>
   )
 }

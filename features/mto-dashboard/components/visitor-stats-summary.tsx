@@ -21,7 +21,8 @@ export default function VisitorStatsSummary({ municipalityId }: { municipalityId
     queryKey: ["mto-dashboard", municipalityId],
     queryFn: () => getAllDashboardDataAction(municipalityId),
     select: selectData,
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchInterval: 30_000,
   })
 
   const total = stats ? stats.local + stats.domestic + stats.international : 0

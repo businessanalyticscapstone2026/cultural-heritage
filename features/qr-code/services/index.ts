@@ -60,7 +60,7 @@ export async function recordScanEvent(codeValue: string, deviceType?: string): P
 
   const { data: qrCode } = await supabase
     .from("qr_codes")
-    .select("id")
+    .select("id, site_id")
     .eq("code_value", codeValue)
     .single()
 
@@ -72,6 +72,20 @@ export async function recordScanEvent(codeValue: string, deviceType?: string): P
   })
 
   if (error) return
+
+  // Mirror the scan as a tourist_visit so visit-based dashboard charts
+  // (Monthly Visits Overview, Top Attractions, Visits by Attraction,
+  // Visitor Statistics, Analytics) reflect real QR traffic instead of
+  // remaining empty when tourist_visits has no rows.
+  if (qrCode.site_id) {
+    await supabase.from("tourist_visits").insert({
+      site_id: qrCode.site_id,
+      visit_date: new Date().toISOString().slice(0, 10),
+      visitor_origin: null,
+      tourist_id: null,
+    })
+    // Best-effort: ignore insert errors — the qr_scan_logs row is already committed.
+  }
 
   revalidateTag(CACHE_TAGS.dashboardKpis, { expire: CACHE_REVALIDATE_SECONDS })
   revalidateTag(CACHE_TAGS.dashboardVisits, { expire: CACHE_REVALIDATE_SECONDS })

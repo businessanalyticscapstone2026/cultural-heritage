@@ -81,7 +81,7 @@ export async function recordScanEvent(codeValue: string, deviceType?: string): P
     await supabase.from("tourist_visits").insert({
       site_id: qrCode.site_id,
       visit_date: new Date().toISOString().slice(0, 10),
-      visitor_origin: null,
+      visitor_origin: "domestic",
       tourist_id: null,
     })
     // Best-effort: ignore insert errors — the qr_scan_logs row is already committed.

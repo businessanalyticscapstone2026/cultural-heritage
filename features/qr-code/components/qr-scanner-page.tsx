@@ -15,6 +15,7 @@ import {
   OfflineMessage,
   ScanHistory,
 } from "../components"
+import { extractQrCodeValue } from "@/lib/app-url"
 import type { ScanResult } from "../types"
 
 type ScanPhase = "camera" | "manual" | "resolving" | "error" | "offline"
@@ -35,7 +36,7 @@ export default function QRScannerPage() {
     camera.permissionState === "denied" || camera.permissionState === "unavailable"
   )
 
-  const handleDetect = useCallback(async (code: string) => {
+  const handleDetect = useCallback(async (rawCode: string) => {
     if (phase === "resolving") return
 
     setPhase("resolving")
@@ -43,6 +44,8 @@ export default function QRScannerPage() {
     if (navigator.vibrate) {
       navigator.vibrate(100)
     }
+
+    const code = extractQrCodeValue(rawCode)
 
     try {
       const res = await fetch("/api/qr/resolve", {

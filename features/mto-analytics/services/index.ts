@@ -349,7 +349,7 @@ export async function getDemographics(
 
   let query = supabase
     .from("tourist_visits")
-    .select("age_group, visitor_type")
+    .select("age_group, visitor_origin")
     .in("site_id", siteIds)
     .gte("visit_date", filters.dateFrom)
     .lte("visit_date", filters.dateTo)
@@ -372,7 +372,7 @@ export async function getDemographics(
 
   for (const row of data) {
     const age = (row.age_group as string) ?? "Unknown"
-    const type = (row.visitor_type as string) ?? "Unknown"
+    const type = ((row as unknown as { visitor_origin: string }).visitor_origin) ?? "Unknown"
     ageCounts.set(age, (ageCounts.get(age) ?? 0) + 1)
     typeCounts.set(type, (typeCounts.get(type) ?? 0) + 1)
   }

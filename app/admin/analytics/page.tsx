@@ -1,16 +1,31 @@
+import dynamic from "next/dynamic"
 import { unstable_cache } from "next/cache"
 import { createTokenClient, resolveAccessToken } from "@/utils/supabase/cached"
 import { parseFiltersFromSearchParams } from "@/features/analytics"
 import FilterBar from "@/features/analytics/components/filter-bar"
 import SummaryMetricsRow from "@/features/analytics/components/summary-metrics-row"
-import VisitorTrendChart from "@/features/analytics/components/visitor-trend-chart"
-import VisitsByMunicipalityPanel from "@/features/analytics/components/visits-by-municipality-panel"
-import DemographicsRow from "@/features/analytics/components/demographics-row"
-import TopCategoriesChart from "@/features/analytics/components/top-categories-chart"
 import TopSitesTable from "@/features/analytics/components/top-sites-table"
 import RecommendationFunnel from "@/features/analytics/components/recommendation-funnel"
 import ExportPanel from "@/features/analytics/components/export-panel"
+import { Skeleton } from "@/components/ui/skeleton"
 import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
+
+const VisitorTrendChart = dynamic(
+  () => import("@/features/analytics/components/visitor-trend-chart"),
+  { loading: () => <Skeleton className="h-[360px] w-full rounded-xl" /> },
+)
+const VisitsByMunicipalityPanel = dynamic(
+  () => import("@/features/analytics/components/visits-by-municipality-panel"),
+  { loading: () => <Skeleton className="h-[320px] w-full rounded-xl" /> },
+)
+const DemographicsRow = dynamic(
+  () => import("@/features/analytics/components/demographics-row"),
+  { loading: () => <Skeleton className="h-[280px] w-full rounded-xl" /> },
+)
+const TopCategoriesChart = dynamic(
+  () => import("@/features/analytics/components/top-categories-chart"),
+  { loading: () => <Skeleton className="h-[320px] w-full rounded-xl" /> },
+)
 
 const getCachedCategories = unstable_cache(
   async (accessToken: string) => {

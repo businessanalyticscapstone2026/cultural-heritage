@@ -1,9 +1,12 @@
 import { cookies } from "next/headers"
+import { unstable_cache } from "next/cache"
 import { resolveAuthorNames } from "@/features/reviews/services/review-mappers"
 import { getReviewAuthorName } from "@/features/reviews/utils/review-author"
 import { createClient } from "@/utils/supabase/server"
+import { createTokenClient } from "@/utils/supabase/cached"
 import { readSessionId } from "@/lib/session"
 import { generateRecommendations } from "@/features/recommendation/services"
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
 import type {
   HomeAnnouncement,
   HomeAtlasStats,
@@ -104,37 +107,38 @@ async function getFeaturedSites(supabase: SupabaseServer): Promise<HomeSiteCard[
 }
 
 async function getCategoryTiles(supabase: SupabaseServer): Promise<HomeCategoryTile[]> {
-  const { data: categories, error } = await supabase
-    .from("heritage_categories")
-    .select("id, name, description, icon, color, image_url, display_order")
-    .eq("status", "active")
-    .order("display_order", { ascending: true, nullsFirst: false })
-
-  if (error) throw new Error(`Categories: ${error.message}`)
-
-  const tiles: HomeCategoryTile[] = []
-  for (const cat of categories ?? []) {
-    const { count, error: countError } = await supabase
+  const [categoriesRes, sitesRes] = await Promise.all([
+    supabase
+      .from("heritage_categories")
+      .select("id, name, description, icon, color, image_url, display_order")
+      .eq("status", "active")
+      .order("display_order", { ascending: true, nullsFirst: false }),
+    supabase
       .from("heritage_sites")
-      .select("id", { count: "exact", head: true })
-      .eq("category_id", cat.id)
+      .select("category_id")
       .eq("publication_status", "published")
       .eq("visibility", "public")
+      .not("category_id", "is", null),
+  ])
 
-    if (countError) throw new Error(`Category count: ${countError.message}`)
+  if (categoriesRes.error) throw new Error(`Categories: ${categoriesRes.error.message}`)
 
-    tiles.push({
-      id: cat.id as string,
-      name: cat.name as string,
-      description: (cat.description ?? null) as string | null,
-      icon: (cat.icon ?? null) as string | null,
-      color: (cat.color ?? null) as string | null,
-      imageUrl: (cat.image_url ?? null) as string | null,
-      siteCount: count ?? 0,
-    })
+  const counts = new Map<string, number>()
+  for (const row of sitesRes.data ?? []) {
+    if (row.category_id) {
+      counts.set(row.category_id, (counts.get(row.category_id) ?? 0) + 1)
+    }
   }
 
-  return tiles
+  return (categoriesRes.data ?? []).map((cat) => ({
+    id: cat.id as string,
+    name: cat.name as string,
+    description: (cat.description ?? null) as string | null,
+    icon: (cat.icon ?? null) as string | null,
+    color: (cat.color ?? null) as string | null,
+    imageUrl: (cat.image_url ?? null) as string | null,
+    siteCount: counts.get(cat.id) ?? 0,
+  }))
 }
 
 function countBySiteId(rows: { site_id: string }[]): Map<string, number> {
@@ -622,48 +626,79 @@ async function resolveHeroImageUrl(): Promise<string> {
   return "/images/home/home.jpg"
 }
 
+type HomePublicData = {
+  featuredSites: HomeSiteCard[]
+  announcements: HomeAnnouncement[]
+  categories: HomeCategoryTile[]
+  trendingSites: HomeSiteCard[]
+  trendingSource: TrendingSource
+  mapPins: HomeMapPin[]
+  atlasStats: HomeAtlasStats
+  testimonials: HomeTestimonial[]
+  heroImageUrl: string
+}
+
+const getCachedHomePublicData = unstable_cache(
+  async (): Promise<HomePublicData> => {
+    const supabase = createTokenClient("") as unknown as SupabaseServer
+
+    const [
+      featuredSites,
+      announcements,
+      categories,
+      trending,
+      mapPins,
+      atlasStats,
+      testimonials,
+      heroImageUrl,
+    ] = await Promise.all([
+      getFeaturedSites(supabase),
+      getDistrictEvents(supabase),
+      getCategoryTiles(supabase),
+      getTrendingSites(supabase),
+      getMapPins(supabase),
+      getAtlasStats(supabase),
+      getTestimonials(supabase),
+      resolveHeroImageUrl(),
+    ])
+
+    return {
+      featuredSites,
+      announcements,
+      categories,
+      trendingSites: trending.sites,
+      trendingSource: trending.source,
+      mapPins,
+      atlasStats,
+      testimonials,
+      heroImageUrl,
+    }
+  },
+  ["tourist-home-public-payload"],
+  {
+    revalidate: CACHE_REVALIDATE_SECONDS,
+    tags: [CACHE_TAGS.heritageSites, CACHE_TAGS.heritageCategories],
+  },
+)
+
 export async function getTouristHomePageData(): Promise<HomePagePayload> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const [
-    featuredSites,
-    announcements,
-    categories,
-    trending,
-    mapPins,
-    atlasStats,
-    recommended,
-    testimonials,
-  ] = await Promise.all([
-    getFeaturedSites(supabase),
-    getDistrictEvents(supabase),
-    getCategoryTiles(supabase),
-    getTrendingSites(supabase),
-    getMapPins(supabase),
-    getAtlasStats(supabase),
+  const [publicData, recommended] = await Promise.all([
+    getCachedHomePublicData(),
     getRecommendedSites(supabase),
-    getTestimonials(supabase),
   ])
 
-  const [heroImageUrl, nearbySites, recentlyViewedSites] = await Promise.all([
-    resolveHeroImageUrl(),
+  const [nearbySites, recentlyViewedSites] = await Promise.all([
     getNearbyForHome(supabase, recommended.homeLat, recommended.homeLng),
     getRecentlyViewed(supabase),
   ])
 
   return {
-    featuredSites,
-    announcements,
-    categories,
-    trendingSites: trending.sites,
-    trendingSource: trending.source,
-    mapPins,
-    atlasStats,
+    ...publicData,
     recommendedSites: recommended.sites,
     recommendedResults: recommended.results,
-    testimonials,
-    heroImageUrl,
     userName: recommended.userName,
     nearbySites,
     recentlyViewedSites,

@@ -34,13 +34,26 @@ function isPublicRoute(pathname: string): boolean {
   return publicRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"))
 }
 
+let cachedGlobalSettings: { value: Record<string, unknown> | null; timestamp: number } | null = null
+const SETTINGS_CACHE_TTL_MS = 60_000
+
 async function getGlobalSetting(supabase: ReturnType<typeof createServerClient>, key: string): Promise<Record<string, unknown> | null> {
+  const now = Date.now()
+  if (key === "global_settings" && cachedGlobalSettings && now - cachedGlobalSettings.timestamp < SETTINGS_CACHE_TTL_MS) {
+    return cachedGlobalSettings.value
+  }
+
   const { data } = await supabase
     .from("system_settings")
     .select("value")
     .eq("key", key)
     .maybeSingle()
-  return (data?.value as Record<string, unknown>) ?? null
+
+  const result = (data?.value as Record<string, unknown>) ?? null
+  if (key === "global_settings") {
+    cachedGlobalSettings = { value: result, timestamp: now }
+  }
+  return result
 }
 
 async function proxyHandler(request: NextRequest) {
@@ -67,9 +80,14 @@ async function proxyHandler(request: NextRequest) {
     },
   })
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const allCookies = request.cookies.getAll()
+  const hasAuthCookie = allCookies.some((c) => c.name.startsWith("sb-"))
+
+  let user = null
+  if (hasAuthCookie) {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  }
 
   const isAuthenticated = !!user
   const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route))

@@ -7,10 +7,10 @@ interface BrandLogoProps {
   alt?: string
 }
 
-const LOGO_SOURCES: Record<NonNullable<BrandLogoProps["variant"]>, { src: string; width: number; height: number }> = {
-  light: { src: "/images/logo_new_2.png", width: 1873, height: 1914 },
-  white: { src: "/images/logo_new_1.png", width: 1873, height: 1914 },
-  dark: { src: "/images/logo_new_3.png", width: 1873, height: 1914 },
+const LOGO_SOURCES: Record<NonNullable<BrandLogoProps["variant"]>, { src: string }> = {
+  light: { src: "/images/logo_new_2.png" },
+  white: { src: "/images/logo_new_1.png" },
+  dark: { src: "/images/logo_new_3.png" },
 }
 
 export function BrandLogo({
@@ -18,15 +18,14 @@ export function BrandLogo({
   className,
   alt = "Batangas Heritage logo",
 }: BrandLogoProps) {
-  const { src, width, height } = LOGO_SOURCES[variant]
+  const { src } = LOGO_SOURCES[variant]
 
   return (
     <Image
       src={src}
       alt={alt}
-      width={width}
-      height={height}
-      unoptimized
+      width={40}
+      height={40}
       className={cn("object-contain", className ?? "size-8")}
     />
   )

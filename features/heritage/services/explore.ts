@@ -1,5 +1,8 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { unstable_cache } from "next/cache"
+import { createTokenClient } from "@/utils/supabase/cached"
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
 import type {
   HeritageSite,
   HeritageSiteTag,
@@ -161,80 +164,97 @@ export async function getPublishedSites(options: {
   return { sites, totalCount, totalPages, page, pageSize }
 }
 
-export async function getExploreCategories(): Promise<ExploreCategory[]> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+const getCachedExploreCategories = unstable_cache(
+  async (): Promise<ExploreCategory[]> => {
+    const supabase = createTokenClient("")
 
-  const { data: categories, error: catError } = await supabase
-    .from("heritage_categories")
-    .select("id, name, icon, color")
-    .eq("status", "active")
-    .order("display_order", { ascending: true, nullsFirst: false })
+    const [categoriesRes, sitesRes] = await Promise.all([
+      supabase
+        .from("heritage_categories")
+        .select("id, name, icon, color")
+        .eq("status", "active")
+        .order("display_order", { ascending: true, nullsFirst: false }),
+      supabase
+        .from("heritage_sites")
+        .select("category_id")
+        .eq("publication_status", "published")
+        .eq("visibility", "public")
+        .not("category_id", "is", null),
+    ])
 
-  if (catError) throw catError
+    if (categoriesRes.error) throw categoriesRes.error
 
-  const results: ExploreCategory[] = []
+    const counts = new Map<string, number>()
+    for (const row of sitesRes.data ?? []) {
+      if (row.category_id) {
+        counts.set(row.category_id, (counts.get(row.category_id) ?? 0) + 1)
+      }
+    }
 
-  for (const cat of categories ?? []) {
-    const { count, error: countError } = await supabase
-      .from("heritage_sites")
-      .select("id", { count: "exact", head: true })
-      .eq("category_id", cat.id)
-      .eq("publication_status", "published")
-      .eq("visibility", "public")
-
-    if (countError) throw countError
-
-    results.push({
+    return (categoriesRes.data ?? []).map((cat) => ({
       id: cat.id as string,
       name: cat.name as string,
       icon: (cat.icon ?? null) as string | null,
       color: (cat.color ?? null) as string | null,
-      siteCount: count ?? 0,
-    })
-  }
+      siteCount: counts.get(cat.id) ?? 0,
+    }))
+  },
+  ["explore-categories"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.heritageCategories] },
+)
 
-  return results
+export async function getExploreCategories(): Promise<ExploreCategory[]> {
+  return getCachedExploreCategories()
 }
+
+const getCachedExploreFilterOptions = unstable_cache(
+  async (): Promise<{
+    municipalities: { id: string; name: string }[]
+    historicalPeriods: string[]
+  }> => {
+    const supabase = createTokenClient("")
+
+    const [municipalitiesResult, periodsResult] = await Promise.all([
+      supabase
+        .from("municipalities")
+        .select("id, name")
+        .eq("status", "active")
+        .order("name", { ascending: true }),
+      supabase
+        .from("heritage_sites")
+        .select("historical_period")
+        .eq("publication_status", "published")
+        .eq("visibility", "public")
+        .not("historical_period", "is", null)
+        .neq("historical_period", "")
+        .order("historical_period", { ascending: true }),
+    ])
+
+    if (municipalitiesResult.error) throw municipalitiesResult.error
+    if (periodsResult.error) throw periodsResult.error
+
+    const seen = new Set<string>()
+    const historicalPeriods: string[] = []
+    for (const row of periodsResult.data ?? []) {
+      const period = row.historical_period as string
+      if (!seen.has(period)) {
+        seen.add(period)
+        historicalPeriods.push(period)
+      }
+    }
+
+    return {
+      municipalities: municipalitiesResult.data ?? [],
+      historicalPeriods,
+    }
+  },
+  ["explore-filter-options"],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.municipalities, CACHE_TAGS.heritageSites] },
+)
 
 export async function getExploreFilterOptions(): Promise<{
   municipalities: { id: string; name: string }[]
   historicalPeriods: string[]
 }> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-
-  const [municipalitiesResult, periodsResult] = await Promise.all([
-    supabase
-      .from("municipalities")
-      .select("id, name")
-      .eq("status", "active")
-      .order("name", { ascending: true }),
-    supabase
-      .from("heritage_sites")
-      .select("historical_period")
-      .eq("publication_status", "published")
-      .eq("visibility", "public")
-      .not("historical_period", "is", null)
-      .neq("historical_period", "")
-      .order("historical_period", { ascending: true }),
-  ])
-
-  if (municipalitiesResult.error) throw municipalitiesResult.error
-  if (periodsResult.error) throw periodsResult.error
-
-  const seen = new Set<string>()
-  const historicalPeriods: string[] = []
-  for (const row of periodsResult.data ?? []) {
-    const period = row.historical_period as string
-    if (!seen.has(period)) {
-      seen.add(period)
-      historicalPeriods.push(period)
-    }
-  }
-
-  return {
-    municipalities: municipalitiesResult.data ?? [],
-    historicalPeriods,
-  }
+  return getCachedExploreFilterOptions()
 }

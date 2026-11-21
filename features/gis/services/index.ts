@@ -1,5 +1,8 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { unstable_cache } from "next/cache"
+import { createTokenClient } from "@/utils/supabase/cached"
+import { CACHE_TAGS } from "@/lib/cache-tags"
 import type {
   GeoFeatureCollection,
   MapViewport,
@@ -50,37 +53,44 @@ export async function getHeritageGeoJSON(): Promise<GeoFeatureCollection> {
  * uploaded boundary simply have no feature here (CHT-081 requirement: no
  * crash / blank overlay for those).
  */
-export async function getMunicipalityBoundaries(): Promise<GeoFeatureCollection> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+const getCachedMunicipalityBoundaries = unstable_cache(
+  async (): Promise<GeoFeatureCollection> => {
+    const supabase = createTokenClient("")
 
-  const { data, error } = await supabase
-    .from("municipal_boundaries")
-    .select("municipality_id, boundary_geojson, municipalities(name)")
+    const { data, error } = await supabase
+      .from("municipal_boundaries")
+      .select("municipality_id, boundary_geojson, municipalities(name)")
 
-  if (error) throw new Error(`Failed to fetch municipal boundaries: ${error.message}`)
+    if (error) throw new Error(`Failed to fetch municipal boundaries: ${error.message}`)
 
-  return {
-    type: "FeatureCollection",
-    features: (data ?? []).flatMap((row) => {
-      const geojson = row.boundary_geojson as BoundaryGeoJSON | null
-      if (!geojson?.geometry) return []
+    return {
+      type: "FeatureCollection",
+      features: (data ?? []).flatMap((row) => {
+        const geojson = row.boundary_geojson as BoundaryGeoJSON | null
+        if (!geojson?.geometry) return []
 
-      const municipalityRaw = row.municipalities as { name: string }[] | { name: string } | null
-      const municipality = Array.isArray(municipalityRaw) ? municipalityRaw[0] : municipalityRaw
+        const municipalityRaw = row.municipalities as { name: string }[] | { name: string } | null
+        const municipality = Array.isArray(municipalityRaw) ? municipalityRaw[0] : municipalityRaw
 
-      return [
-        {
-          type: "Feature",
-          geometry: geojson.geometry,
-          properties: {
-            municipalityId: row.municipality_id as string,
-            municipalityName: municipality?.name ?? "Unknown municipality",
+        return [
+          {
+            type: "Feature",
+            geometry: geojson.geometry,
+            properties: {
+              municipalityId: row.municipality_id as string,
+              municipalityName: municipality?.name ?? "Unknown municipality",
+            },
           },
-        },
-      ]
-    }),
-  }
+        ]
+      }),
+    }
+  },
+  ["municipal-boundaries-geojson"],
+  { revalidate: 3600, tags: [CACHE_TAGS.municipalities] },
+)
+
+export async function getMunicipalityBoundaries(): Promise<GeoFeatureCollection> {
+  return getCachedMunicipalityBoundaries()
 }
 
 export function calculateViewportBounds(coordinates: [number, number][]): MapViewport {

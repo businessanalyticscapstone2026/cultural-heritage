@@ -72,8 +72,13 @@ function SiteImage({
     )
   }
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- remote Supabase Storage URLs
-    <img src={src} alt={alt} className={className} loading="lazy" />
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+      className={className ?? "object-cover"}
+    />
   )
 }
 
@@ -204,13 +209,13 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
       >
         <motion.div style={{ y: heroY, opacity: heroOpacity }} className="absolute inset-0">
           {heroImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={heroImageUrl}
-              alt=""
+              alt="First District of Batangas Cultural Heritage"
+              fill
+              priority
+              sizes="100vw"
               className="h-[115%] w-full object-cover"
-              width={1920}
-              height={1280}
             />
           ) : (
             <div className="h-[115%] w-full bg-gradient-to-br from-parchment via-cream to-ink/20" />
@@ -393,16 +398,12 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
                     className="group relative flex h-[280px] flex-col justify-end overflow-hidden rounded-3xl border border-ink/10 bg-ink"
                   >
                     {cat.imageUrl && (
-                      /* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL */
-                      <img
+                      <Image
                         src={cat.imageUrl}
                         alt={cat.name}
-                        loading="lazy"
-                        onError={(e) => {
-                          const t = e.currentTarget
-                          t.style.display = "none"
-                        }}
-                        className="absolute inset-0 h-full w-full object-cover"
+                        fill
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                        className="object-cover"
                       />
                     )}
                     <div

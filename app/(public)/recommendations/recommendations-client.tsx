@@ -5,6 +5,7 @@ import { getRecommendationsAction } from "@/features/recommendation/actions"
 import { CardBookmarkButton } from "@/features/bookmarks/components"
 import type { RecommendationResult } from "@/types/recommendation"
 import Link from "next/link"
+import Image from "next/image"
 
 interface Props {
   initialResults: RecommendationResult[]
@@ -76,10 +77,12 @@ export default function RecommendationsClient({ initialResults }: Props) {
             >
               <div className="relative aspect-[4/3] mb-3 overflow-hidden rounded-lg bg-muted">
                 {r.site.media.find((m) => m.isPrimary) ? (
-                  <img
+                  <Image
                     src={r.site.media.find((m) => m.isPrimary)!.fileUrl}
                     alt={r.site.siteName}
-                    className="h-full w-full object-cover"
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    className="object-cover"
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-muted-foreground text-sm">

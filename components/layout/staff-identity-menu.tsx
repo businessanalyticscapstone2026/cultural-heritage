@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { LogOut, User, ChevronDown } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { useRole } from "@/context/role-context"
@@ -15,6 +16,7 @@ export default function StaffIdentityMenu({
   profileHref?: string
 }) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { signOut } = useAuth()
   const { staffName, roleName } = useRole()
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -45,9 +47,10 @@ export default function StaffIdentityMenu({
 
   const handleSignOut = useCallback(async () => {
     setDropdownOpen(false)
+    queryClient.clear()
     await signOut()
-    router.push("/login")
-  }, [signOut, router])
+    window.location.href = "/login"
+  }, [signOut, queryClient])
 
   return (
     <div className="relative" ref={dropdownRef}>

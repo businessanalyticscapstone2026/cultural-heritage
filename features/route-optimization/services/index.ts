@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { haversineDistance } from "@/utils/geo"
+import { fetchMultiStopRoadRoute } from "@/features/gis/services/directions"
 import type { OptimizedRoute, RouteStop, RouteEdge, DijkstraResult, CreateRouteInput } from "../types"
 const ESTIMATED_SPEED_KMH = 40
 const DEFAULT_TRAVEL_TIME_MIN_FACTOR = 1.5
@@ -419,10 +420,43 @@ export async function createRoute(
     })
   }
 
-  // Build path coordinates for map rendering
-  const path: [number, number][] = []
-  for (const stop of stops) {
-    path.push([stop.longitude, stop.latitude])
+  // Build path coordinates for map rendering (road-following geometry via OpenStreetMap/OSRM)
+  let path: [number, number][] = []
+  let finalTotalDistance = totalDistance
+  let finalTotalTime = totalTime
+  let finalHasEstimated = hasEstimated
+
+  if (stops.length >= 2) {
+    const waypoints: [number, number][] = stops.map((s) => [s.longitude, s.latitude])
+    const roadRoute = await fetchMultiStopRoadRoute(waypoints)
+
+    if (roadRoute && roadRoute.coordinates.length > 0) {
+      path = roadRoute.coordinates
+      finalTotalDistance = roadRoute.totalDistanceKm
+      finalTotalTime = roadRoute.totalDurationMin
+      finalHasEstimated = false
+
+      // Update per-stop travel metrics with actual road leg distances and times
+      let cumulativeRoadMinutes = 0
+      for (let i = 1; i < stops.length; i++) {
+        const leg = roadRoute.legs[i - 1]
+        if (leg) {
+          stops[i].distanceFromPrevKm = leg.distanceKm
+          stops[i].travelTimeFromPrevMin = leg.durationMin
+          stops[i].edgeIsEstimated = false
+
+          cumulativeRoadMinutes += leg.durationMin
+          const arrival = new Date()
+          arrival.setMinutes(arrival.getMinutes() + cumulativeRoadMinutes)
+          stops[i].estimatedArrival = arrival.toISOString()
+        }
+      }
+    }
+  }
+
+  // Graceful fallback to stop coordinates if road route is unreachable
+  if (path.length === 0) {
+    path = stops.map((s) => [s.longitude, s.latitude])
   }
 
   if (input.touristId) {
@@ -432,8 +466,8 @@ export async function createRoute(
       .insert({
         tourist_id: input.touristId,
         name: input.name,
-        total_distance_km: totalDistance,
-        total_duration_minutes: totalTime,
+        total_distance_km: finalTotalDistance,
+        total_duration_minutes: finalTotalTime,
         status: "draft",
       })
       .select("id, created_at")
@@ -460,10 +494,10 @@ export async function createRoute(
       id: route.id,
       name: input.name,
       stops,
-      totalDistanceKm: totalDistance,
-      totalDurationMin: totalTime,
+      totalDistanceKm: finalTotalDistance,
+      totalDurationMin: finalTotalTime,
       path,
-      hasEstimatedEdges: hasEstimated,
+      hasEstimatedEdges: finalHasEstimated,
       status: "draft",
       createdAt: route.created_at,
     }
@@ -473,10 +507,10 @@ export async function createRoute(
     id: null,
     name: input.name,
     stops,
-    totalDistanceKm: totalDistance,
-    totalDurationMin: totalTime,
+    totalDistanceKm: finalTotalDistance,
+    totalDurationMin: finalTotalTime,
     path,
-    hasEstimatedEdges: hasEstimated,
+    hasEstimatedEdges: finalHasEstimated,
     status: "draft",
     createdAt: null,
   }
@@ -501,7 +535,6 @@ export async function getRoute(
     .order("stop_order", { ascending: true })
 
   const stops: RouteStop[] = []
-  const path: [number, number][] = []
 
   for (const s of (stopsRaw ?? []) as { site_id: string; stop_order: number; distance_from_prev_km: number | null; estimated_arrival: string | null }[]) {
     const { data: site } = await supabase
@@ -526,11 +559,20 @@ export async function getRoute(
       thumbnail: primaryMedia?.file_url ?? null,
       municipalityName: siteData?.municipality?.name ?? null,
     })
+  }
 
-    path.push([
-      siteData?.longitude != null ? Number(siteData.longitude) : 0,
-      siteData?.latitude != null ? Number(siteData.latitude) : 0,
-    ])
+  let path: [number, number][] = []
+
+  if (stops.length >= 2) {
+    const waypoints: [number, number][] = stops.map((s) => [s.longitude, s.latitude])
+    const roadRoute = await fetchMultiStopRoadRoute(waypoints)
+    if (roadRoute && roadRoute.coordinates.length > 0) {
+      path = roadRoute.coordinates
+    }
+  }
+
+  if (path.length === 0) {
+    path = stops.map((s) => [s.longitude, s.latitude])
   }
 
   return {

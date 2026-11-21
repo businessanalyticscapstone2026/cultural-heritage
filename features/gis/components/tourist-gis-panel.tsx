@@ -16,7 +16,12 @@ import {
   Locate,
   Sparkles,
   Route,
-  Plus,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  PanelLeftClose,
+  PanelLeft,
+  SlidersHorizontal,
 } from "lucide-react"
 import type MapLibreGL from "maplibre-gl"
 import type { FillLayerSpecification, LineLayerSpecification } from "maplibre-gl"
@@ -153,12 +158,15 @@ export default function TouristGISPanel({
     routeStopIds,
     activeRoute,
     addRouteStop,
+    removeRouteStop,
     setRoutePlanningMode,
     showRouteOnMap,
   } = useGisUiStore()
 
   const [selectedSite, setSelectedSite] = useState<SiteWithDistance | null>(null)
   const [showFilters, setShowFilters] = useState(true)
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true)
+  const [showCategoriesAccordion, setShowCategoriesAccordion] = useState(false)
   const [selectedMunicipalityId, setSelectedMunicipalityId] = useState<string | null>(null)
   const [recommendationRecIds, setRecommendationRecIds] = useState<Record<string, string>>({})
   const [directionsSiteId, setDirectionsSiteId] = useState<string | null>(null)
@@ -314,6 +322,30 @@ export default function TouristGISPanel({
     closeDetail()
   }, [closeDetail])
 
+  const isSiteInTrip = selectedSite ? routeStopIds.includes(selectedSite.id) : false
+
+  const handleToggleTrip = useCallback(() => {
+    if (!selectedSite) return
+    if (isSiteInTrip) {
+      removeRouteStop(selectedSite.id)
+    } else {
+      setRoutePlanningMode(true)
+      addRouteStop(selectedSite.id)
+      setDesktopSidebarOpen(true)
+    }
+  }, [selectedSite, isSiteInTrip, removeRouteStop, addRouteStop, setRoutePlanningMode])
+
+  useEffect(() => {
+    if (!isDetailOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleCloseDetail()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isDetailOpen, handleCloseDetail])
+
   const hasCoordinates = filteredSites.length > 0
   const mapCenter: [number, number] =
     userLatitude != null && userLongitude != null
@@ -392,6 +424,23 @@ export default function TouristGISPanel({
     )
   }, [directionsTarget, directionsRoute, directionsFailed, userLatitude, userLongitude])
 
+  // Fit map viewport to active optimized route bounds when a route is computed
+  useEffect(() => {
+    if (!activeRoute || !showRouteOnMap || !mapInstanceRef.current) return
+    if (activeRoute.path.length < 2) return
+
+    const lngs = activeRoute.path.map((p) => p[0])
+    const lats = activeRoute.path.map((p) => p[1])
+
+    mapInstanceRef.current.fitBounds(
+      [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+      { padding: 80, duration: 800, maxZoom: 16 },
+    )
+  }, [activeRoute, showRouteOnMap])
+
   const handleViewportChange = useCallback(
     (vp: { center: [number, number]; zoom: number }) => {
       const bounds = getBoundsFromViewport(vp.center[0], vp.center[1], vp.zoom)
@@ -410,37 +459,50 @@ export default function TouristGISPanel({
   }, [hasUserMarker, dismissEntryState])
 
   return (
-    <div className="flex h-full gap-0 overflow-hidden">
+    <div className="relative flex h-full gap-0 overflow-hidden">
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex w-80 shrink-0 flex-col border-r border-ink/10 bg-cream transition-all duration-300",
-          "max-lg:fixed max-lg:inset-y-16 max-lg:left-0 max-lg:z-30 max-lg:w-full max-lg:max-w-sm max-lg:shadow-xl",
-          "max-md:-translate-x-full max-md:data-open:translate-x-0",
+          "flex h-full max-h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-ink/10 bg-cream transition-all duration-300 lg:w-96",
+          "max-lg:fixed max-lg:inset-x-0 max-lg:bottom-16 max-lg:top-14 max-lg:z-30 max-lg:w-full max-lg:max-w-md max-lg:shadow-2xl",
+          "max-lg:-translate-x-full max-lg:data-open:translate-x-0",
+          !desktopSidebarOpen && "lg:-ml-96",
         )}
         data-open={showFilters ? "true" : undefined}
         aria-label="Map sidebar with site list and filters"
       >
         {/* Sidebar Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-ink/10 px-4 py-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+        <div className="flex shrink-0 items-center justify-between border-b border-ink/10 px-4 py-3 bg-cream">
+          <div className="flex items-center gap-2">
             <MapIcon className="size-4 text-accent" />
-            Heritage Map
-          </h2>
-          <button
-            type="button"
-            onClick={() => setShowFilters(false)}
-            className="rounded-lg p-1 text-ink-soft hover:bg-parchment hover:text-ink lg:hidden"
-            aria-label="Close sidebar"
-          >
-            <X className="size-4" />
-          </button>
+            <h2 className="text-sm font-semibold text-ink">Heritage Map</h2>
+            <Badge variant="secondary" className="bg-parchment text-[10px] text-ink-soft">
+              {filteredSites.length}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setDesktopSidebarOpen(false)}
+              className="hidden rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-parchment hover:text-ink lg:flex"
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+            >
+              <PanelLeftClose className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowFilters(false)}
+              className="rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-parchment hover:text-ink lg:hidden"
+              aria-label="Close sidebar"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Scrollable sidebar body */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-          {/* Search */}
-        <div className="border-b border-ink/10 p-3">
+        {/* Pinned Search */}
+        <div className="shrink-0 border-b border-ink/10 p-3 bg-cream">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-soft" />
             <input
@@ -448,20 +510,30 @@ export default function TouristGISPanel({
               placeholder="Search sites..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-ink/10 bg-cream py-1.5 pl-8 pr-3 text-xs focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/50"
+              className="w-full rounded-xl border border-ink/10 bg-cream py-1.5 pl-8 pr-7 text-xs focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/50"
               aria-label="Search heritage sites"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-ink-soft hover:bg-parchment hover:text-ink"
+                aria-label="Clear search"
+              >
+                <X className="size-3" />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Municipality tabs */}
+        {/* Pinned Municipality tabs */}
         {municipalities.length > 0 && (
-          <div className="border-b border-ink/10 p-3">
+          <div className="shrink-0 border-b border-ink/10 p-3 bg-cream">
             <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
               Municipality
             </label>
             <div
-              className="flex gap-1.5 overflow-x-auto pb-1"
+              className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               role="tablist"
               aria-label="Filter by municipality"
             >
@@ -500,236 +572,196 @@ export default function TouristGISPanel({
           </div>
         )}
 
-        {/* Heritage Statistics — counts update on pan/zoom via mapBounds */}
-        <HeritageStatistics sites={sites} categories={categories} />
+        {/* Scrollable sidebar body */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain divide-y divide-ink/10 scrollbar-thin scrollbar-thumb-ink/20 scrollbar-track-transparent">
+          {/* Curated Heritage Trails — renders trail cards when is_curated routes exist */}
+          <CuratedTrailsPanel trails={curatedTrails} />
 
-        {/* Nearby Destinations — top 5 by distance from user location */}
-        <NearbyDestinationsList
-          sites={nearbySites}
-          onSiteClick={handleSiteClick}
-          selectedSiteId={selectedSiteId}
-        />
+          {/* Route Planner */}
+          <RoutePlannerPanel sites={nearbySites} user={user} />
 
-        {/* Curated Heritage Trails — renders trail cards when is_curated routes exist */}
-        <CuratedTrailsPanel trails={curatedTrails} />
-        {/*
-          CR-CHTS-005: Recommendation integration point.
-          Insert <RecommendationPanel> here. Receives:
-          - user (User | null) from props
-          - sites (TouristMapSite[]) for context
-          - current viewport bounds from store for scoping
-
-        */}
-
-        <RoutePlannerPanel sites={nearbySites} user={user} />
-
-        {/* User location indicator */}
-        <div className="border-b border-ink/10">
-          {hasLocation && (
-            <div className="bg-accent/5 px-4 py-2">
-              <p className="flex items-center gap-1.5 text-[11px] text-accent">
-                <Locate className="size-3" />
-                Showing distances from your location
-              </p>
-            </div>
-          )}
-          {!hasLocation && (
-            <div className="bg-warning/5 px-4 py-2">
-              <p className="text-[11px] text-warning">
-                Enable location access or set a home location to see distances.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Filters */}
-        <div className="border-b border-ink/10 p-3">
-          <div className="mb-3">
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
-              <Sparkles className="mr-1 inline size-3 text-accent" />
-              Recommended
-            </label>
+          {/* Consolidated Filters & Categories Accordion */}
+          <div>
             <button
               type="button"
-              onClick={() => setShowRecommended(!showRecommended)}
-              className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs transition-colors ${
-                showRecommended
-                  ? "bg-accent/10 text-accent font-medium"
-                  : "text-ink-soft hover:bg-parchment"
-              }`}
+              onClick={() => setShowCategoriesAccordion((prev) => !prev)}
+              className="flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-parchment"
+              aria-expanded={showCategoriesAccordion}
             >
-              <span className={`inline-block size-3 rounded border ${
-                showRecommended ? "bg-accent border-accent" : "border-ink/30 bg-cream"
-              }`}>
+              <span className="flex items-center gap-2 text-xs font-semibold text-ink">
+                <SlidersHorizontal className="size-3.5 text-accent" />
+                <span>Filters & Categories</span>
                 {showRecommended && (
-                  <svg className="size-full text-white" viewBox="0 0 12 12" fill="currentColor">
-                    <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                  </svg>
+                  <Badge variant="secondary" className="bg-accent/10 text-[9px] text-accent">
+                    Recommended
+                  </Badge>
+                )}
+                {categoryFilter !== "all" && (
+                  <Badge variant="secondary" className="bg-parchment text-[9px] text-ink-soft">
+                    {categories.find((c) => c.id === categoryFilter)?.name ?? "1 Filter"}
+                  </Badge>
                 )}
               </span>
-              Show recommended sites
-              {recommendedSiteIds.length > 0 && (
-                <span className="ml-auto font-mono text-[10px] text-accent/70">
-                  {recommendedSiteIds.length}
-                </span>
-              )}
+              <div className="flex items-center gap-1.5 text-ink-soft">
+                {showCategoriesAccordion ? (
+                  <ChevronUp className="size-4" />
+                ) : (
+                  <ChevronDown className="size-4" />
+                )}
+              </div>
             </button>
-          </div>
-          <div className="mb-3">
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
-              Category
-            </label>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full rounded-xl border border-ink/10 bg-cream px-2.5 py-1.5 text-xs focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/50"
-              aria-label="Filter by category"
-            >
-              <option value="all">All Categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.siteCount})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
-                <Layers className="mr-1 inline size-3" />
-                Legend
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setVisibleCategoryIds(
-                    visibleCategoryIds.length === categories.length
-                      ? []
-                      : categories.map((c) => c.id),
-                  )
-                }}
-                className="text-[10px] text-ink-soft underline underline-offset-2 hover:text-ink"
-              >
-                {visibleCategoryIds.length === categories.length
-                  ? "Deselect All"
-                  : "Select All"}
-              </button>
-            </div>
-            <div className="space-y-1" role="group" aria-label="Category legend">
-              {categories.map((cat) => (
-                <label
-                  key={cat.id}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-xs transition-colors hover:bg-parchment"
-                >
-                  <input
-                    type="checkbox"
-                    checked={visibleCategoryIds.includes(cat.id)}
-                    onChange={(e) => {
-                      setVisibleCategoryIds(
-                        e.target.checked
-                          ? [...visibleCategoryIds, cat.id]
-                          : visibleCategoryIds.filter((id) => id !== cat.id),
-                      )
-                    }}
-                    className="size-3.5 accent-ink"
-                  />
-                  <span
-                    className="inline-block size-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: cat.color ?? "#6366f1" }}
-                  />
-                  <span className="flex-1">{cat.name}</span>
-                  <span className="text-ink-soft">{cat.siteCount}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
 
-        {/* Full Site List */}
-        <div className="p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
-              Heritage Sites
-            </span>
-            <Badge variant="secondary" className="text-[10px] bg-parchment text-ink-soft">
-              {filteredSites.length}
-            </Badge>
-          </div>
-
-          {filteredSites.length === 0 ? (
-            <p className="py-8 text-center text-xs text-ink-soft">
-              No sites match the current filters.
-            </p>
-          ) : (
-            <ul className="space-y-1" role="listbox" aria-label="Heritage sites list">
-              {filteredSites.map((site) => {
-                const inRoute = routeStopIds.includes(site.id)
-                return (
-                <li key={site.id} role="option" aria-selected={selectedSiteId === site.id}>
+            {showCategoriesAccordion && (
+              <div className="space-y-3 bg-parchment/30 p-3.5">
+                {/* Recommended */}
+                <div>
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
+                    <Sparkles className="mr-1 inline size-3 text-accent" />
+                    Personalized
+                  </label>
                   <button
                     type="button"
-                    onClick={() => handleSiteClick(site)}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors hover:bg-parchment",
-                      selectedSiteId === site.id && "bg-accent/10 font-medium",
-                      inRoute && "bg-accent/5",
-                    )}
+                    onClick={() => setShowRecommended(!showRecommended)}
+                    className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs transition-colors ${
+                      showRecommended
+                        ? "bg-accent/10 text-accent font-medium"
+                        : "text-ink-soft hover:bg-parchment bg-cream"
+                    }`}
                   >
-                    {routePlanningMode ? (
-                      <span
-                        className={cn(
-                          "flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold transition-colors",
-                          inRoute
-                            ? "bg-accent text-white"
-                            : "border border-ink/20 text-ink-soft hover:border-accent",
-                        )}
-                      >
-                        {inRoute ? (
-                          <svg className="size-2.5" viewBox="0 0 12 12" fill="currentColor">
-                            <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" fill="none" />
-                          </svg>
-                        ) : (
-                          <Plus className="size-2.5" />
-                        )}
+                    <span className={`inline-block size-3 rounded border ${
+                      showRecommended ? "bg-accent border-accent" : "border-ink/30 bg-cream"
+                    }`}>
+                      {showRecommended && (
+                        <svg className="size-full text-white" viewBox="0 0 12 12" fill="currentColor">
+                          <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                        </svg>
+                      )}
+                    </span>
+                    Show recommended sites
+                    {recommendedSiteIds.length > 0 && (
+                      <span className="ml-auto font-mono text-[10px] text-accent/70">
+                        {recommendedSiteIds.length}
                       </span>
-                    ) : (
-                      <span
-                        className="inline-block size-2.5 shrink-0 rounded-full"
-                        style={{
-                          backgroundColor: site.categoryColor ?? "#6366f1",
-                        }}
-                      />
                     )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink">{site.siteName}</p>
-                      <p className="truncate text-[10px] text-ink-soft">
-                        {[site.barangay, site.municipalityName].filter(Boolean).join(", ")}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-0.5">
-                      {site.distanceKm != null && (
-                        <span className="whitespace-nowrap text-[10px] font-medium text-accent">
-                          {site.distanceKm < 1
-                            ? `${(site.distanceKm * 1000).toFixed(0)}m`
-                            : `${site.distanceKm.toFixed(1)}km`}
-                        </span>
-                      )}
-                      {site.averageRating > 0 && (
-                        <span className="flex items-center gap-0.5 text-[10px] text-ink-soft">
-                          <Star className="size-2.5 fill-warning text-warning" />
-                          {site.averageRating.toFixed(1)}
-                        </span>
-                      )}
-                    </div>
                   </button>
-                </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
+                </div>
+
+                {/* Category select */}
+                <div>
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
+                    Primary Category
+                  </label>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="w-full rounded-xl border border-ink/10 bg-cream px-2.5 py-1.5 text-xs focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/50"
+                    aria-label="Filter by category"
+                  >
+                    <option value="all">All Categories</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.siteCount})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Legend & Multi-layer toggles */}
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
+                      <Layers className="mr-1 inline size-3" />
+                      Map Layers
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVisibleCategoryIds(
+                          visibleCategoryIds.length === categories.length
+                            ? []
+                            : categories.map((c) => c.id),
+                        )
+                      }}
+                      className="text-[10px] text-ink-soft underline underline-offset-2 hover:text-ink"
+                    >
+                      {visibleCategoryIds.length === categories.length
+                        ? "Deselect All"
+                        : "Select All"}
+                    </button>
+                  </div>
+                  <div className="space-y-1" role="group" aria-label="Category legend">
+                    {categories.map((cat) => (
+                      <label
+                        key={cat.id}
+                        className="flex cursor-pointer items-center gap-2 rounded-lg bg-cream/80 px-2 py-1 text-xs transition-colors hover:bg-parchment"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={visibleCategoryIds.includes(cat.id)}
+                          onChange={(e) => {
+                            setVisibleCategoryIds(
+                              e.target.checked
+                                ? [...visibleCategoryIds, cat.id]
+                                : visibleCategoryIds.filter((id) => id !== cat.id),
+                            )
+                          }}
+                          className="size-3.5 accent-ink"
+                        />
+                        <span
+                          className="inline-block size-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: cat.color ?? "#6366f1" }}
+                        />
+                        <span className="flex-1 truncate">{cat.name}</span>
+                        <span className="text-ink-soft">{cat.siteCount}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Heritage Statistics — counts update on pan/zoom via mapBounds */}
+          <HeritageStatistics sites={sites} categories={categories} />
+
+          {/* Nearby Destinations */}
+          <NearbyDestinationsList
+            sites={filteredSites}
+            onSiteClick={handleSiteClick}
+            selectedSiteId={selectedSiteId}
+            routePlanningMode={routePlanningMode}
+            routeStopIds={routeStopIds}
+          />
+
+          {/* User location indicator */}
+          <div>
+            {hasLocation && (
+              <div className="bg-accent/5 px-4 py-2">
+                <p className="flex items-center gap-1.5 text-[11px] text-accent">
+                  <Locate className="size-3" />
+                  Showing distances from your location
+                </p>
+              </div>
+            )}
+            {!hasLocation && (
+              <div className="bg-warning/5 px-4 py-2">
+                <p className="text-[11px] text-warning">
+                  Enable location access or set a home location to see distances.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
+
+      {/* Mobile sidebar backdrop */}
+      {showFilters && (
+        <div
+          className="fixed inset-0 z-20 bg-black/30 backdrop-blur-xs lg:hidden"
+          onClick={() => setShowFilters(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Mobile sidebar toggle */}
       <button
@@ -746,6 +778,21 @@ export default function TouristGISPanel({
 
       {/* Main Map Area */}
       <div ref={mapRef} className="relative flex-1">
+        {/* Desktop sidebar expand toggle */}
+        {!desktopSidebarOpen && (
+          <button
+            type="button"
+            onClick={() => setDesktopSidebarOpen(true)}
+            className="absolute left-3 top-3 z-20 hidden items-center gap-2 rounded-xl border border-ink/10 bg-cream/95 px-3 py-2 text-xs font-semibold text-ink shadow-md backdrop-blur transition-all hover:bg-parchment lg:flex"
+            aria-label="Show sidebar"
+          >
+            <PanelLeft className="size-4 text-accent" />
+            <span>Show Sites</span>
+            <Badge variant="secondary" className="bg-parchment text-[10px] text-ink-soft">
+              {filteredSites.length}
+            </Badge>
+          </button>
+        )}
         {/* Map Entry State — summary overlay shown on first load */}
         <MapEntryState
           sites={nearbySites}
@@ -915,13 +962,15 @@ export default function TouristGISPanel({
           <MapControls showZoom showLocate showCompass />
         </Map>
 
-        {/* Site count badge */}
-        <div className="absolute left-3 top-3 z-10 hidden gap-2 lg:flex">
-          <span className="rounded-lg bg-cream px-3 py-1.5 text-xs font-medium text-ink shadow-sm">
-            {filteredSites.length} site{filteredSites.length !== 1 ? "s" : ""}
-            {hasLocation && " · sorted by distance"}
-          </span>
-        </div>
+        {/* Site count badge (only when sidebar is collapsed) */}
+        {!desktopSidebarOpen && (
+          <div className="absolute left-3 top-14 z-10 hidden gap-2 lg:flex">
+            <span className="rounded-lg bg-cream/95 px-3 py-1.5 text-xs font-medium text-ink shadow-sm backdrop-blur">
+              {filteredSites.length} site{filteredSites.length !== 1 ? "s" : ""}
+              {hasLocation && " · sorted by distance"}
+            </span>
+          </div>
+        )}
 
         {/* Quick directions banner */}
         {directionsTarget && hasUserMarker && (
@@ -961,14 +1010,15 @@ export default function TouristGISPanel({
         <>
           {/* Backdrop for mobile */}
           <div
-            className="fixed inset-0 z-40 bg-black/30 max-lg:block lg:hidden"
+            className="fixed inset-0 z-30 bg-black/30 backdrop-blur-xs max-lg:block lg:hidden"
             onClick={handleCloseDetail}
+            aria-hidden="true"
           />
 
           <div
             className={cn(
-              "fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-ink/10 bg-cream shadow-xl transition-transform duration-300 ease-in-out",
-              "max-lg:max-w-full",
+              "absolute inset-y-0 right-0 z-30 flex h-full w-full max-w-md flex-col border-l border-ink/10 bg-cream shadow-2xl transition-transform duration-300 ease-in-out",
+              "max-lg:fixed max-lg:inset-x-0 max-lg:top-14 max-lg:bottom-16 max-lg:z-40 max-lg:max-w-full",
             )}
             role="dialog"
             aria-label={`Details for ${selectedSite.siteName}`}
@@ -1076,14 +1126,25 @@ export default function TouristGISPanel({
 
                 <button
                   type="button"
-                  onClick={() => {
-                    addRouteStop(selectedSite.id)
-                    setRoutePlanningMode(true)
-                  }}
-                  className="flex w-full items-center justify-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-4 py-2.5 text-sm font-medium text-accent transition-colors hover:bg-accent/10"
+                  onClick={handleToggleTrip}
+                  className={cn(
+                    "flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+                    isSiteInTrip
+                      ? "border border-accent bg-accent text-white hover:bg-accent/90"
+                      : "border border-accent/30 bg-accent/5 text-accent hover:bg-accent/10",
+                  )}
                 >
-                  <Route className="size-4" />
-                  {routeStopIds.includes(selectedSite.id) ? "Added to Trip" : "Add to Trip"}
+                  {isSiteInTrip ? (
+                    <>
+                      <Check className="size-4" />
+                      Added to Trip
+                    </>
+                  ) : (
+                    <>
+                      <Route className="size-4" />
+                      Add to Trip
+                    </>
+                  )}
                 </button>
 
                 <button

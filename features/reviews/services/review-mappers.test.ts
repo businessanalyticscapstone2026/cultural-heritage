@@ -8,7 +8,7 @@ import {
   type ReviewRow,
   type PublishedFeedRow,
 } from "./review-mappers"
-import { getPublishedReviews, getReviewsBySiteId, getUserReviewForSite } from "./index"
+import { getPublishedReviews, getReviewsBySiteId, getUserReviewForSite, getReviewAggregate } from "./index"
 
 const AUTHOR_ID = "aaaaaaaa-1111-4111-8111-111111111111"
 const VIEWER_ID = "bbbbbbbb-2222-4222-8222-222222222222"
@@ -164,5 +164,24 @@ describe("review read services: anonymity end-to-end", () => {
     const review = await getUserReviewForSite(client, AUTHOR_ID, SITE)
     expect(review?.isOwn).toBe(true)
     assertNoLeak(review)
+  })
+
+  test("getReviewAggregate uses cached heritage_sites aggregate when review_count > 0", async () => {
+    const { client } = fakeSupabase({
+      heritage_sites: { average_rating: 4.5, review_count: 10 },
+    })
+    const aggregate = await getReviewAggregate(client, SITE)
+    expect(aggregate.reviewCount).toBe(10)
+    expect(aggregate.averageRating).toBe(4.5)
+  })
+
+  test("getReviewAggregate falls back to computing from reviews table when heritage_sites.review_count is 0", async () => {
+    const { client } = fakeSupabase({
+      heritage_sites: { average_rating: 0, review_count: 0 },
+      reviews: [{ rating: 5 }, { rating: 4 }],
+    })
+    const aggregate = await getReviewAggregate(client, SITE)
+    expect(aggregate.reviewCount).toBe(2)
+    expect(aggregate.averageRating).toBe(4.5)
   })
 })

@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
   PanelLeftClose,
+  PanelLeftOpen,
   PanelLeft,
   SlidersHorizontal,
 } from "lucide-react"
@@ -164,7 +165,7 @@ export default function TouristGISPanel({
   } = useGisUiStore()
 
   const [selectedSite, setSelectedSite] = useState<SiteWithDistance | null>(null)
-  const [showFilters, setShowFilters] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true)
   const [showCategoriesAccordion, setShowCategoriesAccordion] = useState(false)
   const [selectedMunicipalityId, setSelectedMunicipalityId] = useState<string | null>(null)
@@ -291,6 +292,7 @@ export default function TouristGISPanel({
       }
       setSelectedSite(site)
       openDetail(site.id)
+      setShowFilters(false)
     },
     [routePlanningMode, addRouteStop, openDetail],
   )
@@ -464,7 +466,7 @@ export default function TouristGISPanel({
       <aside
         className={cn(
           "flex h-full max-h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-ink/10 bg-cream transition-all duration-300 lg:w-96",
-          "max-lg:fixed max-lg:inset-x-0 max-lg:bottom-16 max-lg:top-14 max-lg:z-30 max-lg:w-full max-lg:max-w-md max-lg:shadow-2xl",
+          "max-lg:fixed max-lg:left-0 max-lg:bottom-16 max-lg:top-14 max-lg:z-40 max-lg:w-[88vw] max-lg:max-w-[340px] max-lg:rounded-r-2xl max-lg:shadow-2xl",
           "max-lg:-translate-x-full max-lg:data-open:translate-x-0",
           !desktopSidebarOpen && "lg:-ml-96",
         )}
@@ -488,15 +490,16 @@ export default function TouristGISPanel({
               title="Collapse sidebar"
               aria-label="Collapse sidebar"
             >
-              <PanelLeftClose className="size-4" />
+              <PanelLeftClose className="size-5" />
             </button>
             <button
               type="button"
               onClick={() => setShowFilters(false)}
-              className="rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-parchment hover:text-ink lg:hidden"
-              aria-label="Close sidebar"
+              className="flex rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-parchment hover:text-ink lg:hidden"
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
             >
-              <X className="size-4" />
+              <PanelLeftClose className="size-5" />
             </button>
           </div>
         </div>
@@ -757,37 +760,31 @@ export default function TouristGISPanel({
       {/* Mobile sidebar backdrop */}
       {showFilters && (
         <div
-          className="fixed inset-0 z-20 bg-black/30 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-xs lg:hidden"
           onClick={() => setShowFilters(false)}
           aria-hidden="true"
         />
       )}
 
-      {/* Mobile sidebar toggle */}
-      <button
-        type="button"
-        onClick={() => setShowFilters(true)}
-        className={cn(
-          "fixed bottom-4 left-4 z-20 rounded-full bg-ink p-3 text-cream shadow-lg transition-all hover:bg-ink/90 lg:hidden",
-          showFilters && "hidden",
-        )}
-        aria-label="Open filters and site list"
-      >
-        <MapIcon className="size-5" />
-      </button>
-
       {/* Main Map Area */}
       <div ref={mapRef} className="relative flex-1">
-        {/* Desktop sidebar expand toggle */}
-        {!desktopSidebarOpen && (
+        {/* Floating Sidebar Toggle (Mobile & Desktop) */}
+        {((!desktopSidebarOpen) || (!showFilters)) && (
           <button
             type="button"
-            onClick={() => setDesktopSidebarOpen(true)}
-            className="absolute left-3 top-3 z-20 hidden items-center gap-2 rounded-xl border border-ink/10 bg-cream/95 px-3 py-2 text-xs font-semibold text-ink shadow-md backdrop-blur transition-all hover:bg-parchment lg:flex"
-            aria-label="Show sidebar"
+            onClick={() => {
+              setDesktopSidebarOpen(true)
+              setShowFilters(true)
+            }}
+            className={cn(
+              "absolute left-3 top-3 z-20 flex items-center gap-2 rounded-xl border border-ink/10 bg-cream/95 px-3 py-2 text-xs font-semibold text-ink shadow-md backdrop-blur transition-all active:scale-95 hover:bg-parchment",
+              desktopSidebarOpen && "lg:hidden",
+              showFilters && "max-lg:hidden",
+            )}
+            aria-label="Open Heritage Map panel"
           >
-            <PanelLeft className="size-4 text-accent" />
-            <span>Show Sites</span>
+            <PanelLeftOpen className="size-4 text-accent" />
+            <span>Heritage Map</span>
             <Badge variant="secondary" className="bg-parchment text-[10px] text-ink-soft">
               {filteredSites.length}
             </Badge>
@@ -974,7 +971,7 @@ export default function TouristGISPanel({
 
         {/* Quick directions banner */}
         {directionsTarget && hasUserMarker && (
-          <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg bg-cream px-3 py-1.5 text-xs font-medium text-ink shadow-sm lg:left-auto lg:right-3">
+          <div className="absolute right-3 top-3 z-10 flex max-w-[calc(100vw-7rem)] items-center gap-2 rounded-lg bg-cream px-3 py-1.5 text-xs font-medium text-ink shadow-sm sm:max-w-none">
             {directionsLoading ? (
               <Loader2 className="size-3.5 animate-spin text-[#4285F4]" />
             ) : (

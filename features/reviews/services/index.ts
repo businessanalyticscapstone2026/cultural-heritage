@@ -36,9 +36,33 @@ export async function getReviewAggregate(
 
   if (error) throw error
 
+  const cachedCount = Number(siteRow?.review_count ?? 0)
+  const cachedRating = Number(siteRow?.average_rating ?? 0)
+
+  // Resilient fallback: If denormalized review_count in heritage_sites is 0,
+  // query published reviews directly to ensure accurate count even if trigger RLS was blocked.
+  if (cachedCount === 0) {
+    try {
+      const { data: reviewRows } = await supabase
+        .from("reviews")
+        .select("rating")
+        .eq("site_id", siteId)
+        .eq("status", "published")
+
+      if (Array.isArray(reviewRows) && reviewRows.length > 0) {
+        const reviewCount = reviewRows.length
+        const sum = reviewRows.reduce((acc, r) => acc + (Number(r.rating) || 0), 0)
+        const averageRating = Math.round((sum / reviewCount) * 10) / 10
+        return { averageRating, reviewCount }
+      }
+    } catch {
+      // Ignore fallback error and return cached values
+    }
+  }
+
   return {
-    averageRating: Number(siteRow?.average_rating ?? 0),
-    reviewCount: Number(siteRow?.review_count ?? 0),
+    averageRating: cachedRating,
+    reviewCount: cachedCount,
   }
 }
 

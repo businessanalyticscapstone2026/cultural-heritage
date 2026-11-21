@@ -58,25 +58,51 @@ export function ReviewsSection({ siteId }: ReviewsSectionProps) {
 
   const handleSubmitReview = (review: ReviewWithAuthor, newAggregate: ReviewAggregate) => {
     setUserReview(review)
-    setAggregate(newAggregate)
     setReviews((prev) => {
-      if (!prev) return [review]
-      const exists = prev.findIndex((r) => r.id === review.id)
-      if (exists >= 0) {
-        const updated = [...prev]
-        updated[exists] = review
-        return updated
+      const currentList = prev ?? []
+      const existsIndex = currentList.findIndex((r) => r.id === review.id)
+      let nextList: ReviewWithAuthor[]
+      if (existsIndex >= 0) {
+        nextList = [...currentList]
+        nextList[existsIndex] = review
+      } else {
+        nextList = [review, ...currentList]
       }
-      return [review, ...prev]
+      const updatedCount = Math.max(newAggregate.reviewCount, nextList.length)
+      const updatedAvg =
+        newAggregate.reviewCount >= nextList.length && newAggregate.averageRating > 0
+          ? newAggregate.averageRating
+          : Math.round(
+              (nextList.reduce((sum, r) => sum + (r.rating || 0), 0) / nextList.length) * 10
+            ) / 10
+      setAggregate({
+        averageRating: updatedAvg,
+        reviewCount: updatedCount,
+      })
+      return nextList
     })
   }
 
   const handleDeleteReview = (newAggregate: ReviewAggregate) => {
     setUserReview(null)
-    setAggregate(newAggregate)
     setReviews((prev) => {
-      if (!prev) return prev
-      return prev.filter((r) => !r.isOwn)
+      if (!prev) {
+        setAggregate(newAggregate)
+        return prev
+      }
+      const nextList = prev.filter((r) => !r.isOwn)
+      const updatedCount = Math.max(newAggregate.reviewCount, nextList.length)
+      const updatedAvg =
+        nextList.length > 0
+          ? Math.round(
+              (nextList.reduce((sum, r) => sum + (r.rating || 0), 0) / nextList.length) * 10
+            ) / 10
+          : newAggregate.averageRating
+      setAggregate({
+        averageRating: updatedAvg,
+        reviewCount: updatedCount,
+      })
+      return nextList
     })
   }
 
@@ -105,14 +131,30 @@ export function ReviewsSection({ siteId }: ReviewsSectionProps) {
 
   const displayReviews = reviews ?? []
 
+  // Ensure review count and average rating are always synchronized with actual rendered reviews
+  const effectiveReviewCount = Math.max(aggregate.reviewCount, displayReviews.length)
+  const effectiveAverageRating =
+    aggregate.reviewCount >= displayReviews.length && aggregate.averageRating > 0
+      ? aggregate.averageRating
+      : displayReviews.length > 0
+        ? Math.round(
+            (displayReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / displayReviews.length) * 10
+          ) / 10
+        : aggregate.averageRating
+
+  const effectiveAggregate: ReviewAggregate = {
+    averageRating: effectiveAverageRating,
+    reviewCount: effectiveReviewCount,
+  }
+
   return (
     <div className="space-y-6">
       <h2 className="font-heading text-xl font-semibold text-heading">
         What Visitors Say
       </h2>
 
-      {aggregate.reviewCount > 0 ? (
-        <RatingSummary aggregate={aggregate} distribution={distribution} />
+      {effectiveAggregate.reviewCount > 0 ? (
+        <RatingSummary aggregate={effectiveAggregate} distribution={distribution} />
       ) : (
         <EmptyReviews />
       )}
@@ -129,7 +171,7 @@ export function ReviewsSection({ siteId }: ReviewsSectionProps) {
         <ReviewsList
           siteId={siteId}
           initialReviews={displayReviews}
-          totalCount={aggregate.reviewCount}
+          totalCount={effectiveAggregate.reviewCount}
           onSortChange={handleSortChange}
           currentSort={sort}
         />

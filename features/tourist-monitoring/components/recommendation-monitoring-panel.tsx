@@ -9,17 +9,24 @@ import type { RecommendationPerf } from "../types"
 
 interface RecommendationMonitoringPanelProps {
   searchParams: Record<string, string | undefined>
+  initialData?: RecommendationPerf[]
 }
 
 export default function RecommendationMonitoringPanel({
   searchParams,
+  initialData,
 }: RecommendationMonitoringPanelProps) {
-  const [data, setData] = useState<RecommendationPerf[] | null>(null)
+  const [data, setData] = useState<RecommendationPerf[] | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
 
   const spKey = JSON.stringify(searchParams)
 
   useEffect(() => {
+    if (initialData) {
+      setData(initialData)
+      return
+    }
+
     let cancelled = false
 
     getRecommendationPerformanceAction(searchParams)
@@ -34,7 +41,7 @@ export default function RecommendationMonitoringPanel({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spKey])
+  }, [initialData, spKey])
 
   const totalRecommended =
     data?.reduce((sum, r) => sum + r.timesRecommended, 0) ?? 0

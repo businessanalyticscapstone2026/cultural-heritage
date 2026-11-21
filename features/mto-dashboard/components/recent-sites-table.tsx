@@ -13,6 +13,7 @@ import type { RecentSite } from "@/types/mto-dashboard"
 import { ROUTES } from "@/lib/constants"
 import HeritageDetailPanel from "@/features/heritage/components/heritage-detail-panel"
 import ConfirmDialog from "@/components/confirm-dialog"
+import SiteThumbnail from "@/components/ui/site-thumbnail"
 import type { SiteWithDetails } from "@/features/heritage/services/mto-sites"
 import { formatCategoryName } from "@/lib/format-category"
 
@@ -40,6 +41,7 @@ export default function RecentSitesTable({ municipalityId }: { municipalityId: s
     queryFn: () => getAllDashboardDataAction(municipalityId),
     select: selectData,
     staleTime: 60_000,
+    refetchInterval: 60_000,
   })
 
   const [selectedSite, setSelectedSite] = useState<SiteWithDetails | null>(null)
@@ -143,18 +145,13 @@ export default function RecentSitesTable({ municipalityId }: { municipalityId: s
                   <tr key={site.id} className="border-b last:border-0">
                     <td className="py-2.5 pr-3">
                       <div className="flex items-center gap-2.5">
-                        {site.thumbnailUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={site.thumbnailUrl}
-                            alt={site.siteName}
-                            className="size-8 shrink-0 rounded-md object-cover"
-                          />
-                        ) : (
-                          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                            <Landmark className="size-4 text-muted-foreground" />
-                          </div>
-                        )}
+                        <SiteThumbnail
+                          src={site.thumbnailUrl}
+                          alt={site.siteName}
+                          className="size-8 rounded-md"
+                          iconClassName="size-4 text-muted-foreground"
+                          sizes="32px"
+                        />
                         <span className="font-medium">{site.siteName}</span>
                       </div>
                     </td>

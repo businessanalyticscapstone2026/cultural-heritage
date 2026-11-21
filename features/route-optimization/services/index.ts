@@ -459,39 +459,24 @@ export async function createRoute(
     path = stops.map((s) => [s.longitude, s.latitude])
   }
 
-  if (input.touristId) {
-    // Persist route
-    const { data: route, error: routeError } = await supabase
-      .from("routes")
-      .insert({
-        tourist_id: input.touristId,
-        name: input.name,
-        total_distance_km: finalTotalDistance,
-        total_duration_minutes: finalTotalTime,
-        status: "draft",
-      })
-      .select("id, created_at")
-      .single()
+  // Persist route (guests and staff without tourist_profiles have tourist_id = null)
+  const { data: route, error: routeError } = await supabase
+    .from("routes")
+    .insert({
+      tourist_id: input.touristId ?? null,
+      name: input.name,
+      total_distance_km: finalTotalDistance,
+      total_duration_minutes: finalTotalTime,
+      status: "draft",
+      is_curated: false,
+    })
+    .select("id, created_at")
+    .single()
 
-    if (routeError) throw new Error(`Failed to create route: ${routeError.message}`)
-
-    // Persist stops
-    const stopInserts = stops.map((stop) => ({
-      route_id: route.id,
-      site_id: stop.siteId,
-      stop_order: stop.stopOrder,
-      distance_from_prev_km: stop.distanceFromPrevKm,
-      estimated_arrival: stop.estimatedArrival,
-    }))
-
-    const { error: stopsError } = await supabase
-      .from("route_stops")
-      .insert(stopInserts)
-
-    if (stopsError) throw new Error(`Failed to create route stops: ${stopsError.message}`)
-
+  if (routeError) {
+    console.error("[Route] Failed to persist route:", routeError)
     return {
-      id: route.id,
+      id: null,
       name: input.name,
       stops,
       totalDistanceKm: finalTotalDistance,
@@ -499,12 +484,29 @@ export async function createRoute(
       path,
       hasEstimatedEdges: finalHasEstimated,
       status: "draft",
-      createdAt: route.created_at,
+      createdAt: new Date().toISOString(),
     }
   }
 
+  // Persist stops
+  const stopInserts = stops.map((stop) => ({
+    route_id: route.id,
+    site_id: stop.siteId,
+    stop_order: stop.stopOrder,
+    distance_from_prev_km: stop.distanceFromPrevKm,
+    estimated_arrival: stop.estimatedArrival,
+  }))
+
+  const { error: stopsError } = await supabase
+    .from("route_stops")
+    .insert(stopInserts)
+
+  if (stopsError) {
+    console.error("[Route] Failed to persist route stops:", stopsError)
+  }
+
   return {
-    id: null,
+    id: route.id,
     name: input.name,
     stops,
     totalDistanceKm: finalTotalDistance,
@@ -512,7 +514,7 @@ export async function createRoute(
     path,
     hasEstimatedEdges: finalHasEstimated,
     status: "draft",
-    createdAt: null,
+    createdAt: route.created_at,
   }
 }
 

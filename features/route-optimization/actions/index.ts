@@ -1,8 +1,9 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
+import { CACHE_TAGS } from "@/lib/cache-tags"
 import { createRoute, getRoute, listRoutes, updateRouteStatus } from "../services"
 import type { OptimizedRoute, CreateRouteInput } from "../types"
 
@@ -12,12 +13,27 @@ export async function createRouteAction(
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const { data: { user } } = await supabase.auth.getUser()
-  const touristId = user?.id ?? null
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let touristId: string | null = null
+  if (user) {
+    const { data: profile } = await supabase
+      .from("tourist_profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle()
+    if (profile) {
+      touristId = user.id
+    }
+  }
 
   const route = await createRoute(supabase, { ...input, touristId })
 
   revalidatePath("/routes")
+  revalidateTag(CACHE_TAGS.routes, { expire: 0 })
+  revalidateTag(CACHE_TAGS.analytics, { expire: 0 })
 
   return route
 }

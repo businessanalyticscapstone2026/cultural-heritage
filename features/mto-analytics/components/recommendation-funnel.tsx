@@ -10,15 +10,21 @@ import type { RecommendationFunnel, MTOAnalyticsFilters } from "../types"
 
 export default function RecommendationFunnel({
   filters,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
+  initialData?: RecommendationFunnel
 }) {
-  const [data, setData] = useState<RecommendationFunnel | null>(null)
+  const [data, setData] = useState<RecommendationFunnel | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
 
   const filterKey = JSON.stringify(filters)
 
   useEffect(() => {
+    if (initialData) {
+      setData(initialData)
+      return
+    }
     let cancelled = false
     getRecommendationPerformanceAction(
       { dateFrom: filters.dateFrom, dateTo: filters.dateTo, category: filters.categoryId ?? undefined }
@@ -26,7 +32,7 @@ export default function RecommendationFunnel({
       .then((d) => { if (!cancelled) setData(d) })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Failed") })
     return () => { cancelled = true }
-  }, [filterKey])
+  }, [initialData, filterKey])
 
   const stages = data
     ? [

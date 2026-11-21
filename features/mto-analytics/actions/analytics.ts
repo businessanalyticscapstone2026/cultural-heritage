@@ -11,12 +11,22 @@ import {
   getVisitsByWeekday,
   getVisitorTrendComparison,
   getScanDeviceBreakdown,
+  getAllMTOAnalyticsData,
 } from "../services"
 import { parseMTOFiltersFromSearchParams } from "../utils"
-import type { TrendGranularity, MTOAnalyticsFilters } from "../types"
+import type { TrendGranularity, MTOAnalyticsFilters, MTOAnalyticsBundle } from "../types"
 
 function parseFilters(sp: Record<string, string | undefined>): MTOAnalyticsFilters {
   return parseMTOFiltersFromSearchParams(sp)
+}
+
+export async function getAllMTOAnalyticsDataAction(
+  searchParams: Record<string, string | undefined>,
+  granularity: TrendGranularity = "monthly"
+): Promise<MTOAnalyticsBundle> {
+  const municipalityId = await resolveMunicipalityId()
+  const filters = parseFilters(searchParams)
+  return getAllMTOAnalyticsData(municipalityId, filters, granularity)
 }
 
 export async function getSummaryMetricsAction(

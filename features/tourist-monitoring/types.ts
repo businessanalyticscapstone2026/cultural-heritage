@@ -70,3 +70,11 @@ export interface MonitoringSiteOption {
   id: string
   name: string
 }
+
+export interface TouristMonitoringBundle {
+  summary: MonitoringSummary
+  underPromoted: UnderPromotedSite[]
+  recommendationPerf: RecommendationPerf[]
+  popularity: SitePopularity[]
+  recentActivity: ActivityLogResult
+}

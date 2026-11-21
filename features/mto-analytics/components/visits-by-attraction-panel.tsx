@@ -15,15 +15,21 @@ import type { AttractionVisit, MTOAnalyticsFilters } from "../types"
 
 export default function VisitsByAttractionPanel({
   filters,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
+  initialData?: AttractionVisit[]
 }) {
-  const [data, setData] = useState<AttractionVisit[] | null>(null)
+  const [data, setData] = useState<AttractionVisit[] | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
 
   const filterKey = JSON.stringify(filters)
 
   useEffect(() => {
+    if (initialData) {
+      setData(initialData)
+      return
+    }
     let cancelled = false
     getVisitsByAttractionAction(
       { dateFrom: filters.dateFrom, dateTo: filters.dateTo, category: filters.categoryId ?? undefined }
@@ -31,7 +37,7 @@ export default function VisitsByAttractionPanel({
       .then((d) => { if (!cancelled) setData(d) })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Failed") })
     return () => { cancelled = true }
-  }, [filterKey])
+  }, [initialData, filterKey])
 
   const total = data ? data.reduce((sum, d) => sum + d.visits, 0) : 0
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
-import { useCallback } from "react"
+import { useCallback, useTransition } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { RotateCcw } from "lucide-react"
+import { RotateCcw, Loader2 } from "lucide-react"
+import { getLocalTodayDate } from "@/lib/date-utils"
 
 interface FilterBarProps {
   categories: { id: string; name: string }[]
@@ -21,22 +22,41 @@ interface FilterBarProps {
 export default function FilterBar({ categories }: FilterBarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+  const today = getLocalTodayDate()
+
+  const dateFrom = searchParams.get("dateFrom") ?? ""
+  const dateTo = searchParams.get("dateTo") ?? ""
 
   const update = useCallback(
     (key: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString())
       if (value) {
-        params.set(key, value)
+        let safeValue = value
+        if (key === "dateFrom" || key === "dateTo") {
+          if (safeValue > today) safeValue = today
+          if (key === "dateFrom" && dateTo && safeValue > dateTo) {
+            safeValue = dateTo
+          }
+          if (key === "dateTo" && dateFrom && safeValue < dateFrom) {
+            safeValue = dateFrom
+          }
+        }
+        params.set(key, safeValue)
       } else {
         params.delete(key)
       }
-      router.push(`?${params.toString()}`)
+      startTransition(() => {
+        router.push(`?${params.toString()}`, { scroll: false })
+      })
     },
-    [router, searchParams]
+    [router, searchParams, today, dateFrom, dateTo]
   )
 
   const reset = useCallback(() => {
-    router.push("?")
+    startTransition(() => {
+      router.push("?", { scroll: false })
+    })
   }, [router])
 
   const hasFilters = [
@@ -55,7 +75,8 @@ export default function FilterBar({ categories }: FilterBarProps) {
         <Input
           id="dateFrom"
           type="date"
-          value={searchParams.get("dateFrom") ?? ""}
+          value={dateFrom}
+          max={dateTo && dateTo < today ? dateTo : today}
           onChange={(e) => update("dateFrom", e.target.value)}
           className="w-40"
         />
@@ -67,7 +88,9 @@ export default function FilterBar({ categories }: FilterBarProps) {
         <Input
           id="dateTo"
           type="date"
-          value={searchParams.get("dateTo") ?? ""}
+          value={dateTo}
+          min={dateFrom || undefined}
+          max={today}
           onChange={(e) => update("dateTo", e.target.value)}
           className="w-40"
         />
@@ -94,10 +117,16 @@ export default function FilterBar({ categories }: FilterBarProps) {
         </Select>
       </div>
       {hasFilters && (
-        <Button variant="ghost" size="sm" onClick={reset} className="h-8 text-xs">
+        <Button variant="ghost" size="sm" onClick={reset} disabled={isPending} className="h-8 text-xs">
           <RotateCcw className="mr-1.5 size-3.5" />
           Reset
         </Button>
+      )}
+      {isPending && (
+        <div className="flex items-center gap-1.5 pb-2 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" />
+          <span>Updating...</span>
+        </div>
       )}
     </div>
   )

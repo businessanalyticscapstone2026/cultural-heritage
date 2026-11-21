@@ -49,6 +49,7 @@ export default function PhotoGallery({
               src={img.fileUrl}
               alt={img.caption ?? `Photo ${i + 1}`}
               fill
+              unoptimized
               className="object-cover transition-transform duration-300 group-hover:scale-105"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               loading={i < 6 ? "eager" : "lazy"}
@@ -83,6 +84,7 @@ export default function PhotoGallery({
                 src={images[lightboxIndex].fileUrl}
                 alt={images[lightboxIndex].caption ?? `Photo ${lightboxIndex + 1}`}
                 fill
+                unoptimized
                 className="object-contain"
                 sizes="90vw"
               />

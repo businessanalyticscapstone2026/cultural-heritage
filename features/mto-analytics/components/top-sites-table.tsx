@@ -10,15 +10,21 @@ import type { TopVisitedSite, MTOAnalyticsFilters } from "../types"
 
 export default function TopSitesTable({
   filters,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
+  initialData?: TopVisitedSite[]
 }) {
-  const [sites, setSites] = useState<TopVisitedSite[] | null>(null)
+  const [sites, setSites] = useState<TopVisitedSite[] | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
 
   const filterKey = JSON.stringify(filters)
 
   useEffect(() => {
+    if (initialData) {
+      setSites(initialData)
+      return
+    }
     let cancelled = false
     getTopSitesAction(
       { dateFrom: filters.dateFrom, dateTo: filters.dateTo, category: filters.categoryId ?? undefined }
@@ -26,7 +32,7 @@ export default function TopSitesTable({
       .then((d) => { if (!cancelled) setSites(d) })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Failed") })
     return () => { cancelled = true }
-  }, [filterKey])
+  }, [initialData, filterKey])
 
   return (
     <Card>

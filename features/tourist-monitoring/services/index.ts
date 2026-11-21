@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { cache } from "react"
 import { unwrapOne } from "@/lib/unwrap-one"
 import type {
   MonitoringFilters,
@@ -11,9 +12,10 @@ import type {
   RecommendationPerf,
   UnderPromotedSite,
   MonitoringSiteOption,
+  TouristMonitoringBundle,
 } from "../types"
 
-export async function resolveMTOUserId(): Promise<{ userId: string; municipalityId: string }> {
+export const resolveMTOUserId = cache(async (): Promise<{ userId: string; municipalityId: string }> => {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
   const {
@@ -31,13 +33,14 @@ export async function resolveMTOUserId(): Promise<{ userId: string; municipality
   if (!profile?.municipality_id) throw new Error("Unauthorized - no municipality assigned")
 
   return { userId: user.id, municipalityId: profile.municipality_id as string }
-}
+})
 
-async function getSiteIdsForMunicipality(
-  supabase: ReturnType<typeof createClient>,
+export const getCachedMonitoringSiteIds = cache(async (
   municipalityId: string,
   categoryId?: string | null
-): Promise<string[]> {
+): Promise<string[]> => {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
   let query = supabase
     .from("heritage_sites")
     .select("id")
@@ -49,7 +52,15 @@ async function getSiteIdsForMunicipality(
   }
 
   const { data } = await query
-  return data?.map((r) => r.id as string) ?? []
+  return data?.map((s) => s.id as string) ?? []
+})
+
+async function getSiteIdsForMunicipality(
+  _supabase: ReturnType<typeof createClient>,
+  municipalityId: string,
+  categoryId?: string | null
+): Promise<string[]> {
+  return getCachedMonitoringSiteIds(municipalityId, categoryId)
 }
 
 function getPriorPeriod(dateFrom: string, dateTo: string): { priorDateFrom: string; priorDateTo: string } {
@@ -117,8 +128,8 @@ export async function getMonitoringSummary(
     supabase.from("reviews").select("id", { count: "exact", head: true }).in("site_id", siteIds).gte("created_at", priorDateFrom).lte("created_at", priorDateTo + "T23:59:59"),
     supabase.from("recommendations").select("id", { count: "exact", head: true }).in("site_id", siteIds).eq("was_clicked", true).gte("generated_at", filters.dateFrom).lte("generated_at", filters.dateTo + "T23:59:59"),
     supabase.from("recommendations").select("id", { count: "exact", head: true }).in("site_id", siteIds).eq("was_clicked", true).gte("generated_at", priorDateFrom).lte("generated_at", priorDateTo + "T23:59:59"),
-    supabase.from("routes").select("id", { count: "exact", head: true }).gte("created_at", filters.dateFrom).lte("created_at", filters.dateTo + "T23:59:59"),
-    supabase.from("routes").select("id", { count: "exact", head: true }).gte("created_at", priorDateFrom).lte("created_at", priorDateTo + "T23:59:59"),
+    supabase.from("routes").select("id", { count: "exact", head: true }).eq("is_curated", false).gte("created_at", filters.dateFrom).lte("created_at", filters.dateTo + "T23:59:59"),
+    supabase.from("routes").select("id", { count: "exact", head: true }).eq("is_curated", false).gte("created_at", priorDateFrom).lte("created_at", priorDateTo + "T23:59:59"),
   ])
 
   // Bug 4 fix: QR scans are now mirrored to tourist_visits, so exclude scansNow/scansPrior
@@ -529,4 +540,29 @@ export async function getMonitoringCategories(): Promise<{ id: string; name: str
     .order("name", { ascending: true })
 
   return data?.map((c) => ({ id: c.id as string, name: c.name as string })) ?? []
+}
+
+/**
+ * Batched aggregator for all tourist monitoring data.
+ * Executes all component queries in parallel on the server with memoized auth and site IDs.
+ */
+export async function getTouristMonitoringBundle(
+  municipalityId: string,
+  filters: MonitoringFilters
+): Promise<TouristMonitoringBundle> {
+  const [summary, underPromoted, recommendationPerf, popularity, recentActivity] = await Promise.all([
+    getMonitoringSummary(municipalityId, filters),
+    getUnderPromotedSites(municipalityId, filters),
+    getMTORecommendationPerformance(municipalityId, filters),
+    getSitePopularity(municipalityId, filters),
+    getActivityLog(municipalityId, filters, 1, 10),
+  ])
+
+  return {
+    summary,
+    underPromoted,
+    recommendationPerf,
+    popularity,
+    recentActivity,
+  }
 }

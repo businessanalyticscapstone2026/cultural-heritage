@@ -110,6 +110,7 @@ export default function NearbySitesSidebar({
                       src={site.thumbnail}
                       alt={site.siteName}
                       fill
+                      unoptimized
                       className="object-cover"
                       sizes="40px"
                     />

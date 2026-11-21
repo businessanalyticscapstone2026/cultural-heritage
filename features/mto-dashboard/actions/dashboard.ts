@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { cache } from "react"
 import type { DashboardData } from "@/types/mto-dashboard"
 import {
   getMTODashboardStats,
@@ -23,7 +24,7 @@ import { getMunicipalityReviewInsights } from "@/features/review-insights/servic
 import { toDashboardInsights } from "@/features/review-insights/utils/build-insights"
 import type { DashboardInsight } from "@/types/mto-dashboard"
 
-async function resolveMunicipalityId(): Promise<string> {
+const resolveMunicipalityId = cache(async (): Promise<string> => {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
   const {
@@ -41,7 +42,7 @@ async function resolveMunicipalityId(): Promise<string> {
   if (!profile?.municipality_id) throw new Error("No municipality assigned to this account")
 
   return profile.municipality_id as string
-}
+})
 
 export async function getDashboardStatsAction() {
   const municipalityId = await resolveMunicipalityId()

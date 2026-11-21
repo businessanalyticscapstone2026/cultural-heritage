@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { XIcon, Landmark, EditIcon, UploadIcon, QrCodeIcon, ArchiveIcon, ExternalLinkIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,14 @@ export default function HeritageDetailPanel({
   onArchive,
   readOnly = false,
 }: HeritageDetailPanelProps) {
+  const [heroError, setHeroError] = useState(false)
+  const [mediaErrors, setMediaErrors] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    setHeroError(false)
+    setMediaErrors({})
+  }, [site?.id])
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
@@ -76,13 +84,15 @@ export default function HeritageDetailPanel({
           <div className="flex-1 overflow-y-auto">
             {/* Hero Image */}
             <div className="relative aspect-video bg-muted flex items-center justify-center overflow-hidden">
-              {primaryImage ? (
+              {primaryImage && !heroError ? (
                 <Image
                   src={primaryImage.fileUrl}
                   alt={site.siteName}
                   fill
+                  unoptimized
                   sizes="(max-width: 768px) 100vw, 450px"
                   className="object-cover"
+                  onError={() => setHeroError(true)}
                 />
               ) : (
                 <Landmark className="size-14 text-muted-foreground/60" />
@@ -233,17 +243,19 @@ export default function HeritageDetailPanel({
                   <div className="grid grid-cols-2 gap-2">
                     {site.media.map((m) => (
                       <div key={m.id} className="relative aspect-video rounded-lg bg-muted overflow-hidden">
-                        {m.mediaType === "image" ? (
+                        {m.mediaType === "image" && !mediaErrors[m.id] ? (
                           <Image
                             src={m.fileUrl}
                             alt={m.caption ?? ""}
                             fill
+                            unoptimized
                             sizes="(max-width: 768px) 50vw, 220px"
                             className="object-cover"
+                            onError={() => setMediaErrors((prev) => ({ ...prev, [m.id]: true }))}
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
-                            {m.mediaType}
+                            {m.mediaType === "image" ? <Landmark className="size-6 text-muted-foreground/40" /> : m.mediaType}
                           </div>
                         )}
                       </div>

@@ -8,21 +8,25 @@ import type { MTOMetric } from "../types"
 
 export default function SummaryMetricsRow({
   searchParams,
+  initialData,
 }: {
   searchParams: Record<string, string | undefined>
+  initialData?: MTOMetric[]
 }) {
-  const [metrics, setMetrics] = useState<MTOMetric[] | null>(null)
+  const [metrics, setMetrics] = useState<MTOMetric[] | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
 
-  const spKey = JSON.stringify(searchParams)
-
   useEffect(() => {
+    if (initialData) {
+      setMetrics(initialData)
+      return
+    }
     let cancelled = false
     getSummaryMetricsAction(searchParams)
       .then((data) => { if (!cancelled) setMetrics(data) })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Failed") })
     return () => { cancelled = true }
-  }, [spKey])
+  }, [initialData, searchParams])
 
   if (error) {
     return (

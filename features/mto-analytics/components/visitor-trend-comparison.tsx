@@ -11,18 +11,24 @@ import type { ComparisonPoint, TrendGranularity, MTOAnalyticsFilters } from "../
 
 export default function VisitorTrendComparison({
   filters,
+  initialData,
 }: {
   filters: MTOAnalyticsFilters
+  initialData?: ComparisonPoint[]
 }) {
   const searchParams = useSearchParams()
   const granularity = (searchParams.get("granularity") as TrendGranularity) ?? "monthly"
-  const [data, setData] = useState<ComparisonPoint[] | null>(null)
+  const [data, setData] = useState<ComparisonPoint[] | null>(initialData ?? null)
   const [error, setError] = useState<string | null>(null)
 
   const filterKey = JSON.stringify(filters)
   const granKey = granularity
 
   useEffect(() => {
+    if (initialData && granularity === "monthly") {
+      setData(initialData)
+      return
+    }
     let cancelled = false
     getVisitorTrendComparisonAction(
       { dateFrom: filters.dateFrom, dateTo: filters.dateTo, category: filters.categoryId ?? undefined },
@@ -31,7 +37,7 @@ export default function VisitorTrendComparison({
       .then((d) => { if (!cancelled) setData(d) })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "Failed") })
     return () => { cancelled = true }
-  }, [filterKey, granKey])
+  }, [initialData, filterKey, granKey])
 
   return (
     <ChartCard title="Current vs Prior Period" description="Selected window vs the preceding one">

@@ -1,7 +1,8 @@
 import { unstable_cache } from "next/cache"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { createTokenClient, resolveAccessToken } from "@/utils/supabase/cached"
-import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS, FIRST_DISTRICT_MUNICIPALITIES } from "@/lib/cache-tags"
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
+import { FIRST_DISTRICT_MUNICIPALITIES } from "@/lib/constants"
 import type {
   KpiData,
   CategoryBreakdown,

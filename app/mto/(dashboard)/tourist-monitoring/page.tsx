@@ -15,9 +15,27 @@ export default async function TouristMonitoringPage({
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
+  // Resolve the authenticated MTO user's municipality so the site filter
+  // dropdown only shows sites they are authorised to see.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data: profile } = await supabase
+    .from("staff_profiles")
+    .select("municipality_id")
+    .eq("id", user?.id ?? "")
+    .maybeSingle()
+
+  const municipalityId = profile?.municipality_id ?? ""
+
   const [{ data: categories }, { data: sites }] = await Promise.all([
     supabase.from("heritage_categories").select("id, name").order("name"),
-    supabase.from("heritage_sites").select("id, site_name").order("site_name"),
+    supabase
+      .from("heritage_sites")
+      .select("id, site_name")
+      .eq("municipality_id", municipalityId)
+      .order("site_name"),
   ])
 
   return (

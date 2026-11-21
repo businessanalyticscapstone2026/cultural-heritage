@@ -114,8 +114,13 @@ async function getReviewInsightCards(requestedMunicipalityId: string): Promise<D
 }
 
 export async function getAllDashboardDataAction(
-  municipalityId: string
+  _clientMunicipalityId: string
 ): Promise<DashboardData> {
+  // Security: always resolve municipality from the authenticated session.
+  // The client-supplied argument is intentionally ignored — a caller cannot
+  // escalate to another municipality's data by passing a different UUID.
+  const municipalityId = await resolveMunicipalityId()
+
   // Widgets on the dashboard only need site ids/categories, never recent
   // activity or today's scan count (no widget renders those) — resolve the
   // shared site list once instead of re-querying heritage_sites in every

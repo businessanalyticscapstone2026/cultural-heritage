@@ -4,6 +4,7 @@ import { useEffect, useCallback } from "react"
 import { XIcon, Landmark, EditIcon, UploadIcon, QrCodeIcon, ArchiveIcon, ExternalLinkIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { formatCategoryName } from "@/lib/format-category"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import type { SiteWithDetails } from "../services/mto-sites"
 
@@ -110,7 +111,7 @@ export default function HeritageDetailPanel({
                     borderColor: site.category.color ?? undefined,
                   }}
                 >
-                  {site.category.name}
+                  {formatCategoryName(site.category.name)}
                 </span>
               )}
 

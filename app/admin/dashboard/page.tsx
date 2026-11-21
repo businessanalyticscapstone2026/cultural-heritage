@@ -25,6 +25,7 @@ import { VisitsLineChart } from "@/components/dashboard/visits-line-chart"
 import { HeritageMap } from "@/components/dashboard/heritage-map"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
+import { formatCategoryName } from "@/lib/format-category"
 
 export default async function AdminDashboardPage() {
   const data = await getDashboardData()
@@ -107,18 +108,81 @@ export default async function AdminDashboardPage() {
         </div>
       </Reveal>
 
-      {/* Three-column Widget Row */}
+      {/* Row 2: GIS Spatial Overview & Category Breakdown (Map 2 cols, Donut 1 col) */}
       <Reveal>
         <div className="grid gap-6 lg:grid-cols-3">
+          {/* Heritage Sites Map */}
+          <div className="flex flex-col rounded-xl border bg-card lg:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-5 pb-3">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold">Heritage Sites Map</h3>
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  {data.mapMarkers.length} {data.mapMarkers.length === 1 ? "site" : "sites"} mapped
+                </span>
+              </div>
+              <Link
+                href="/admin/gis-admin"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <span>Open GIS Admin</span>
+                <ArrowUpRight className="size-3.5" />
+              </Link>
+            </div>
+            <div className="h-[480px] w-full p-2 pt-0">
+              <HeritageMap markers={data.mapMarkers} />
+            </div>
+          </div>
+
           {/* Heritage Sites by Category (Donut Chart) */}
-          <div className="rounded-xl border bg-card p-5">
-            <h3 className="mb-4 font-semibold">Heritage Sites by Category</h3>
+          <div className="flex flex-col rounded-xl border bg-card p-5 lg:col-span-1">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-semibold">Heritage Sites by Category</h3>
+              <Link
+                href="/admin/heritage-repository"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+              >
+                <span>View all</span>
+                <ArrowUpRight className="size-3" />
+              </Link>
+            </div>
             <DonutChart data={data.categoryBreakdown} total={totalCategoryCount} />
+          </div>
+        </div>
+      </Reveal>
+
+      {/* Row 3: Tourist Visits Trend & Recently Added (Visits 2 cols, Recent Sites 1 col) */}
+      <Reveal>
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Tourist Visits Overview */}
+          <div className="flex flex-col rounded-xl border bg-card p-5 lg:col-span-2">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold">Tourist Visits Overview</h3>
+                <p className="text-xs text-muted-foreground">30-day QR code scan activity and trend</p>
+              </div>
+              <Link
+                href="/admin/decision-support"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <span>Reports</span>
+                <ArrowUpRight className="size-3.5" />
+              </Link>
+            </div>
+            <VisitsLineChart data={data.visitOverview} total={totalVisits} heightClassName="h-60" />
           </div>
 
           {/* Recently Added Heritage Sites */}
-          <div className="rounded-xl border bg-card p-5">
-            <h3 className="mb-4 font-semibold">Recently Added</h3>
+          <div className="flex flex-col rounded-xl border bg-card p-5 lg:col-span-1">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-semibold">Recently Added</h3>
+              <Link
+                href="/admin/heritage-repository"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+              >
+                <span>Repository</span>
+                <ArrowUpRight className="size-3" />
+              </Link>
+            </div>
             {data.recentSites.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No heritage sites yet</p>
             ) : (
@@ -128,7 +192,7 @@ export default async function AdminDashboardPage() {
                     <p className="truncate font-medium text-sm">{site.siteName}</p>
                     <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                       <span>{site.municipalityName}</span>
-                      <span>{site.categoryName}</span>
+                      <span className="font-medium text-foreground/80">{formatCategoryName(site.categoryName)}</span>
                       <span>{new Date(site.createdAt).toLocaleDateString()}</span>
                     </div>
                   </li>
@@ -136,28 +200,12 @@ export default async function AdminDashboardPage() {
               </ul>
             )}
           </div>
-
-          {/* Tourist Visits Overview */}
-          <div className="rounded-xl border bg-card p-5">
-            <h3 className="mb-4 font-semibold">Tourist Visits</h3>
-            <VisitsLineChart data={data.visitOverview} total={totalVisits} />
-          </div>
         </div>
       </Reveal>
 
-      {/* Bottom Row (3 columns) */}
+      {/* Row 4: Decision Support & System Status (2 columns) */}
       <Reveal>
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Heritage Sites Map */}
-          <div className="rounded-xl border bg-card lg:col-span-1">
-            <div className="p-5 pb-3">
-              <h3 className="font-semibold">Heritage Sites Map</h3>
-            </div>
-            <div className="h-80">
-              <HeritageMap markers={data.mapMarkers} />
-            </div>
-          </div>
-
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Recommendation Performance */}
           <div className="rounded-xl border bg-card p-5">
             <h3 className="mb-4 font-semibold">Recommendation Performance</h3>
@@ -203,7 +251,16 @@ export default async function AdminDashboardPage() {
 
           {/* System Health */}
           <div className="rounded-xl border bg-card p-5">
-            <h3 className="mb-4 font-semibold">System Health</h3>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-semibold">System Health</h3>
+              <Link
+                href="/admin/settings"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+              >
+                <span>Settings</span>
+                <ArrowUpRight className="size-3" />
+              </Link>
+            </div>
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">

@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react"
 import { Compass, Tag, X, Plus, Check, Users, Accessibility, Navigation } from "lucide-react"
 import { TRAVEL_STYLES, GROUP_TYPES, ACCESSIBILITY_NEEDS } from "@/lib/constants"
+import { formatCategoryName } from "@/lib/format-category"
 import type { ProfileCategory } from "../types"
 
 interface PreferencesTabProps {
@@ -121,7 +122,7 @@ export default function PreferencesTab({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-ink">{category.name}</span>
+                    <span className="text-sm font-medium text-ink">{formatCategoryName(category.name)}</span>
                     {isSelected && <Check size={14} strokeWidth={2} className="shrink-0 text-accent" />}
                   </div>
                   {category.description && (

@@ -35,7 +35,7 @@ const categories = [
   { icon: Church, label: "Churches", desc: "Discover Spanish-era architecture and sacred spaces.", count: 4, img: dest1, color: "from-blue-600/80 to-blue-800/80" },
   { icon: Landmark, label: "Historical Landmarks", desc: "Walk through centuries of colonial history.", count: 3, img: dest2, color: "from-amber-600/80 to-amber-800/80" },
   { icon: BookOpen, label: "Cultural Sites", desc: "Experience living traditions and local stories.", count: 2, img: dest3, color: "from-rose-600/80 to-rose-800/80" },
-  { icon: TreePine, label: "Natural Heritage", desc: "Explore protected forests and geological wonders.", count: 1, img: dest4, color: "from-emerald-600/80 to-emerald-800/80" },
+  { icon: TreePine, label: "Natural Attraction", desc: "Explore protected forests and geological wonders.", count: 1, img: dest4, color: "from-emerald-600/80 to-emerald-800/80" },
 ];
 
 const testimonials = [

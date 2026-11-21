@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { MapPinIcon, StarIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { formatCategoryName } from "@/lib/format-category"
 import type { HeritageSite } from "@/types/heritage"
 
 interface HeritageCardProps {
@@ -37,7 +38,7 @@ export default function HeritageCard({ site, href }: HeritageCardProps) {
           {site.category && (
             <div className="absolute top-2 left-2">
               <Badge className="bg-background/80 backdrop-blur-sm" style={{ borderColor: site.category.color ?? undefined }}>
-                {site.category.name}
+                {formatCategoryName(site.category.name)}
               </Badge>
             </div>
           )}

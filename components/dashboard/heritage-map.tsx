@@ -4,6 +4,7 @@ import dynamic from "next/dynamic"
 import type { HeritageSiteMapMarker } from "@/features/dashboard/types"
 import { MapMarker, MarkerContent, MarkerTooltip, MapControls } from "@/components/ui/map"
 import { MapPin } from "lucide-react"
+import { formatCategoryName } from "@/lib/format-category"
 
 const Map = dynamic(() => import("@/components/ui/map").then((m) => m.Map), {
   ssr: false,
@@ -44,7 +45,7 @@ export function HeritageMap({ markers }: HeritageMapProps) {
           </MarkerContent>
           <MarkerTooltip>
             <p className="font-medium">{mkr.siteName}</p>
-            <p className="text-muted-foreground text-xs">{mkr.categoryName}</p>
+            <p className="text-muted-foreground text-xs">{formatCategoryName(mkr.categoryName)}</p>
           </MarkerTooltip>
         </MapMarker>
       ))}

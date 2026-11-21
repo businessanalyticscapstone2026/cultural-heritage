@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { formatCategoryName } from "@/lib/format-category"
 import maplibregl from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 import {
@@ -358,7 +359,7 @@ export default function OnboardingPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-[#0B2A4A]">
-                          {category.name}
+                          {formatCategoryName(category.name)}
                         </span>
                         {isSelected && (
                           <Check className="w-3.5 h-3.5 text-[#1D5FA8] shrink-0" />

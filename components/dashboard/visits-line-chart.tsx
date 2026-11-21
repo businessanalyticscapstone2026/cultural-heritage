@@ -18,9 +18,10 @@ import type { VisitOverview } from "@/features/dashboard/types"
 interface VisitsLineChartProps {
   data: VisitOverview[]
   total: number
+  heightClassName?: string
 }
 
-export function VisitsLineChart({ data, total }: VisitsLineChartProps) {
+export function VisitsLineChart({ data, total, heightClassName = "h-56" }: VisitsLineChartProps) {
   const gradientId = useId().replace(/:/g, "")
   const average = data.length > 0 ? Math.round(data.reduce((sum, d) => sum + d.count, 0) / data.length) : 0
 
@@ -48,7 +49,7 @@ export function VisitsLineChart({ data, total }: VisitsLineChartProps) {
         </div>
       )}
 
-      <div className="h-40">
+      <div className={heightClassName}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
             <defs>

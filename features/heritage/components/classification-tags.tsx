@@ -1,3 +1,4 @@
+import { formatCategoryName } from "@/lib/format-category"
 import type { HeritageSiteTag, HeritageCategory } from "../types"
 
 interface ClassificationTagsProps {
@@ -18,7 +19,7 @@ export default function ClassificationTags({ category, tags }: ClassificationTag
             color: category.color ?? undefined,
           }}
         >
-          {category.name}
+          {formatCategoryName(category.name)}
         </span>
       )}
 

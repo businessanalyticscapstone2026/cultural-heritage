@@ -149,7 +149,7 @@ export const mapPins: MapPin[] = [
     municipality: "Tuy",
     coords: [14.0350, 120.7100],
     image: dest3,
-    era: "Natural",
+    era: "Natural Attraction",
     category: "UNESCO",
     description:
       "A protected forest reserve at the foot of Mt. Malarayat, home to endemic flora and fauna. The park contains a pre-colonial trail network used by indigenous Tagalogs.",

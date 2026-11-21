@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { unwrapOne } from "@/lib/unwrap-one"
 import { CHART_PALETTE } from "@/lib/chart-colors"
 import { normalizeDeviceType } from "@/lib/device-type"
+import { formatCategoryName } from "@/lib/format-category"
 import type {
   DashboardStat,
   MonthlyVisitsPoint,
@@ -28,15 +29,8 @@ const CATEGORY_COLORS = [
   "#06B6D4",
 ]
 
-function computeChange(current: number, prior: number): { changePercent: number; changeDirection: "up" | "down" | "stable" } {
-  if (prior === 0 && current === 0) return { changePercent: 0, changeDirection: "stable" }
-  if (prior === 0) return { changePercent: 100, changeDirection: "up" }
-  const pct = Math.round(((current - prior) / prior) * 100)
-  return {
-    changePercent: Math.abs(pct),
-    changeDirection: pct > 0 ? "up" : pct < 0 ? "down" : "stable",
-  }
-}
+import { computeChange, deriveMTODashboardInsights } from "./insights"
+export { computeChange, deriveMTODashboardInsights }
 
 function getMonthBounds(monthsAgo: number) {
   const now = new Date()
@@ -133,15 +127,16 @@ export async function getMTODashboardStats(
     return end ? query.lte("created_at", end) : query
   }
 
-  const countDistinctClickedSites = async (start: string, end: string) => {
-    const { data } = await supabase
+  const countRecommendationClicks = async (start: string, end: string) => {
+    const { count, error } = await supabase
       .from("recommendations")
-      .select("site_id")
+      .select("id", { count: "exact", head: true })
       .eq("municipality_id", municipalityId)
       .eq("was_clicked", true)
       .gte("clicked_at", start)
       .lte("clicked_at", end)
-    return new Set((data ?? []).map((r) => r.site_id as string)).size
+    if (error) return 0
+    return count ?? 0
   }
 
   const [visitsCount, visitsCountPrev, bookmarksCount, bookmarksCountPrev, recsCount, recsCountPrev, qrCount, qrCountPrev] =
@@ -150,8 +145,8 @@ export async function getMTODashboardStats(
       countScans(lastMonth.start, lastMonth.end),
       countBookmarks(),
       countBookmarks(lastMonth.end),
-      countDistinctClickedSites(thisMonth.start, thisMonth.end),
-      countDistinctClickedSites(lastMonth.start, lastMonth.end),
+      countRecommendationClicks(thisMonth.start, thisMonth.end),
+      countRecommendationClicks(lastMonth.start, lastMonth.end),
       countActiveQr(),
       countActiveQr(lastMonth.end),
     ])
@@ -180,7 +175,7 @@ export async function getMTODashboardStats(
       description: "this month",
     },
     {
-      label: "Popular Attractions",
+      label: "Saved Attractions",
       value: bookmarksCount.count ?? 0,
       changePercent: bookmarksChange.changePercent,
       changeDirection: bookmarksChange.changeDirection,
@@ -188,7 +183,7 @@ export async function getMTODashboardStats(
       description: "total saves",
     },
     {
-      label: "Sites Clicked",
+      label: "Recommendation Clicks",
       value: recsCount,
       changePercent: recsChange.changePercent,
       changeDirection: recsChange.changeDirection,
@@ -206,46 +201,54 @@ export async function getMTODashboardStats(
   ]
 }
 
-export async function getMTOVisitsOverview(municipalityId: string): Promise<MonthlyVisitsPoint[]> {
+export async function getMTOVisitsOverview(
+  municipalityId: string,
+  preloadedSiteIds?: string[],
+): Promise<MonthlyVisitsPoint[]> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
+
+  const siteIds = preloadedSiteIds ?? (await resolveSiteIds(supabase, municipalityId))
+  if (siteIds.length === 0) {
+    return Array.from({ length: 12 }, (_, i) => ({
+      month: new Date(0, i).toLocaleString("en", { month: "short" }),
+      currentYear: 0,
+      priorYear: 0,
+    }))
+  }
 
   const currentYear = new Date().getFullYear()
   const priorYear = currentYear - 1
 
-  const yearBounds = (year: number) => ({
-    start: `${year}-01-01T00:00:00.000Z`,
-    end: `${year}-12-31T23:59:59.999Z`,
-  })
-
   const [currentData, priorData] = await Promise.all([
     supabase
-      .from("recommendations")
-      .select("site_id, clicked_at")
-      .eq("municipality_id", municipalityId)
-      .eq("was_clicked", true)
-      .gte("clicked_at", yearBounds(currentYear).start)
-      .lte("clicked_at", yearBounds(currentYear).end),
+      .from("tourist_visits")
+      .select("visit_date")
+      .in("site_id", siteIds)
+      .gte("visit_date", `${currentYear}-01-01`)
+      .lte("visit_date", `${currentYear}-12-31`),
     supabase
-      .from("recommendations")
-      .select("site_id, clicked_at")
-      .eq("municipality_id", municipalityId)
-      .eq("was_clicked", true)
-      .gte("clicked_at", yearBounds(priorYear).start)
-      .lte("clicked_at", yearBounds(priorYear).end),
+      .from("tourist_visits")
+      .select("visit_date")
+      .in("site_id", siteIds)
+      .gte("visit_date", `${priorYear}-01-01`)
+      .lte("visit_date", `${priorYear}-12-31`),
   ])
 
-  const distinctSitesByMonth = (rows: { site_id: string; clicked_at: string }[], year: number) => {
-    const monthSets = Array.from({ length: 12 }, () => new Set<string>())
+  const countVisitsByMonth = (rows: { visit_date: string | null }[]) => {
+    const counts = new Array(12).fill(0)
     for (const row of rows) {
-      const d = new Date(row.clicked_at)
-      if (d.getFullYear() === year) monthSets[d.getMonth()].add(row.site_id)
+      if (!row.visit_date) continue
+      const d = new Date(row.visit_date)
+      if (!isNaN(d.getTime())) {
+        counts[d.getMonth()]++
+      }
     }
-    return monthSets.map((set) => set.size)
+    return counts
   }
 
-  const currentCounts = distinctSitesByMonth(currentData.data ?? [], currentYear)
-  const priorCounts = distinctSitesByMonth(priorData.data ?? [], priorYear)
+  const currentCounts = countVisitsByMonth(currentData.data ?? [])
+  const priorCounts = countVisitsByMonth(priorData.data ?? [])
 
   return Array.from({ length: 12 }, (_, i) => ({
     month: new Date(0, i).toLocaleString("en", { month: "short" }),
@@ -275,7 +278,7 @@ export async function getMTOVisitsByCategory(
   const siteCategoryMap = new Map<string, string>()
   for (const site of sites) {
     const cat = unwrapOne(site.category as unknown as { name: string } | { name: string }[] | null)
-    siteCategoryMap.set(site.id as string, cat?.name ?? "Uncategorized")
+    siteCategoryMap.set(site.id as string, formatCategoryName(cat?.name ?? "Uncategorized"))
   }
 
   const siteIds = sites.map((s) => s.id)
@@ -338,7 +341,7 @@ export async function getMTORecentSites(municipalityId: string): Promise<RecentS
     return {
       id: row.id as string,
       siteName: row.site_name as string,
-      categoryName: cat?.name ?? null,
+      categoryName: formatCategoryName(cat?.name) || null,
       barangay: (row.barangay as string) ?? null,
       thumbnailUrl: thumbnailMap.get(row.id as string) ?? null,
       status: (row.publication_status as RecentSite["status"]) ?? "draft",
@@ -476,29 +479,46 @@ export async function getMTOVisitorStats(
   return stats
 }
 
-export async function getMTORecentScans(municipalityId: string): Promise<RecentScan[]> {
+export async function getMTORecentScans(
+  municipalityId: string,
+  preloadedSiteIds?: string[],
+): Promise<RecentScan[]> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const { data, error } = await supabase
+  const siteIds = preloadedSiteIds ?? (await resolveSiteIds(supabase, municipalityId))
+  if (siteIds.length === 0) return []
+
+  const { data: qrRows } = await supabase
+    .from("qr_codes")
+    .select("id, site_id, site:heritage_sites(site_name)")
+    .in("site_id", siteIds)
+
+  if (!qrRows || qrRows.length === 0) return []
+
+  const qrIdToSiteName = new Map<string, string>()
+  const qrCodeIds: string[] = []
+  for (const q of qrRows) {
+    const siteObj = unwrapOne(q.site as unknown as { site_name: string } | { site_name: string }[] | null)
+    qrIdToSiteName.set(q.id as string, siteObj?.site_name ?? "Unknown")
+    qrCodeIds.push(q.id as string)
+  }
+
+  const { data: scanLogs, error } = await supabase
     .from("qr_scan_logs")
-    .select("id, scanned_at, device_type, qr_code:qr_codes!inner(site_id, site:heritage_sites!inner(site_name, municipality_id))")
-    .eq("qr_codes.site.municipality_id", municipalityId)
+    .select("id, scanned_at, device_type, qr_code_id")
+    .in("qr_code_id", qrCodeIds)
     .order("scanned_at", { ascending: false })
     .limit(5)
 
   if (error) throw error
 
-  return (data ?? []).map((row) => {
-    const qrCode = unwrapOne(row.qr_code as unknown as Record<string, unknown> | Record<string, unknown>[] | null)
-    const site = unwrapOne(qrCode?.site as Record<string, unknown> | Record<string, unknown>[] | null | undefined)
-    return {
-      id: row.id as string,
-      siteName: (site?.site_name as string) ?? "Unknown",
-      scannedAt: row.scanned_at as string,
-      deviceType: (row.device_type as string) ?? null,
-    }
-  })
+  return (scanLogs ?? []).map((row) => ({
+    id: row.id as string,
+    siteName: qrIdToSiteName.get(row.qr_code_id as string) ?? "Unknown",
+    scannedAt: row.scanned_at as string,
+    deviceType: (row.device_type as string) ?? null,
+  }))
 }
 
 export async function getMTOTodayScanCount(municipalityId: string): Promise<number> {
@@ -547,13 +567,15 @@ export async function getMTOTopAttractions(
   if (siteIds.length === 0) return []
 
   const thisMonth = getMonthBounds(0)
+  const startDate = thisMonth.start.slice(0, 10)
+  const endDate = thisMonth.end.slice(0, 10)
 
   const { data: visits } = await supabase
     .from("tourist_visits")
     .select("site_id")
     .in("site_id", siteIds)
-    .gte("visit_date", thisMonth.start)
-    .lte("visit_date", thisMonth.end)
+    .gte("visit_date", startDate)
+    .lte("visit_date", endDate)
 
   if (!visits || visits.length === 0) return []
 
@@ -651,7 +673,7 @@ export async function getMTOCategoryDistribution(
   const categoryCounts = new Map<string, number>()
   for (const site of sites) {
     const cat = unwrapOne(site.category as unknown as { name: string } | { name: string }[] | null)
-    const name = cat?.name ?? "Uncategorized"
+    const name = formatCategoryName(cat?.name ?? "Uncategorized")
     categoryCounts.set(name, (categoryCounts.get(name) ?? 0) + 1)
   }
 
@@ -667,76 +689,4 @@ export async function getMTOCategoryDistribution(
     .sort((a, b) => b.count - a.count)
 }
 
-export function deriveMTODashboardInsights(deps: {
-  stats: DashboardStat[]
-  visitsOverview: MonthlyVisitsPoint[]
-  topAttractions: TopAttraction[]
-  categoryDistribution: CategoryDistributionPoint[]
-  scanDeviceBreakdown: ScanDeviceBreakdownPoint[]
-  visitorStats: VisitorStats
-}): DashboardInsight[] {
-  const insights: DashboardInsight[] = []
 
-  const scansStat = deps.stats.find((s) => s.label === "QR Scans")
-  if (scansStat && scansStat.changeDirection !== "stable") {
-    const rising = scansStat.changeDirection === "up"
-    insights.push({
-      id: "scans-momentum",
-      label: "QR Scans",
-      value: `${rising ? "+" : "-"}${scansStat.changePercent}%`,
-      detail: rising ? "Scans are up vs last month" : "Scans are down vs last month",
-      tone: rising ? "positive" : "negative",
-      icon: "ScanLine",
-    })
-  } else if (scansStat) {
-    insights.push({
-      id: "scans-momentum",
-      label: "QR Scans",
-      value: "Flat",
-      detail: "Scan volume is steady vs last month",
-      tone: "neutral",
-      icon: "ScanLine",
-    })
-  }
-
-  const top = deps.topAttractions[0]
-  if (top) {
-    insights.push({
-      id: "top-attraction",
-      label: "Top Attraction",
-      value: top.siteName,
-      detail: `${top.visits.toLocaleString()} visits this month (${top.percentage}% of all)`,
-      tone: "info",
-      icon: "Trophy",
-    })
-  }
-
-  const topCategory = deps.categoryDistribution[0]
-  if (topCategory) {
-    insights.push({
-      id: "top-category",
-      label: "Top Category",
-      value: topCategory.name,
-      detail: `${topCategory.count} site${topCategory.count === 1 ? "" : "s"} · ${topCategory.percentage}% of your heritage sites`,
-      tone: "info",
-      icon: "LayoutGrid",
-    })
-  }
-
-  const totalVisitors = deps.visitorStats.local + deps.visitorStats.domestic + deps.visitorStats.international
-  if (totalVisitors > 0) {
-    const foreignShare = Math.round(
-      ((deps.visitorStats.domestic + deps.visitorStats.international) / totalVisitors) * 100
-    )
-    insights.push({
-      id: "foreign-share",
-      label: "Foreign Visitors",
-      value: `${foreignShare}%`,
-      detail: `${(deps.visitorStats.domestic + deps.visitorStats.international).toLocaleString()} of ${totalVisitors.toLocaleString()} visits this year`,
-      tone: "info",
-      icon: "Globe",
-    })
-  }
-
-  return insights
-}

@@ -17,7 +17,8 @@ export default function RecentScansList({ municipalityId }: { municipalityId: st
     queryKey: ["mto-dashboard", municipalityId],
     queryFn: () => getAllDashboardDataAction(municipalityId),
     select: selectData,
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchInterval: 30_000,
   })
 
   return (

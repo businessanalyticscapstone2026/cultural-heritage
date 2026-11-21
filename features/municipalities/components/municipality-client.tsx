@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus } from "lucide-react"
+import { createClient } from "@/utils/supabase/client"
 import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { MunicipalityTable } from "./municipality-table"
 import { MunicipalityForm } from "./municipality-form"
@@ -26,6 +27,30 @@ export function MunicipalityClient({ initialMunicipalities }: MunicipalityClient
 
   const [auditLogOpen, setAuditLogOpen] = useState(false)
   const [auditLogMunicipality, setAuditLogMunicipality] = useState<{ id: string; name: string } | null>(null)
+
+  // Instant real-time updates when any municipality is registered, updated, or status changes
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel("realtime-municipalities")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "municipalities" },
+        async () => {
+          try {
+            const fresh = await listMunicipalitiesAction()
+            setMunicipalities(fresh)
+          } catch {
+            // Silently ignore background refresh errors
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   const handleSave = async (data: { name: string; default_map_center?: { lat: number; long: number } }) => {
     try {
@@ -66,36 +91,11 @@ export function MunicipalityClient({ initialMunicipalities }: MunicipalityClient
     }
   }
 
-  const handleRefresh = async () => {
-    try {
-      const fresh = await listMunicipalitiesAction()
-      setMunicipalities(fresh)
-    } catch (err) {
-      notifyError(errorReason(err, "Failed to refresh municipalities."))
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="rounded-xl bg-primary p-6 text-primary-foreground">
-        <h1 className="text-2xl font-bold">Municipality Management</h1>
-        <p className="mt-1 text-sm opacity-80">
-          Register and manage participating municipalities in the First District of Batangas
-        </p>
-      </div>
-
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {municipalities.length} municipalit{municipalities.length !== 1 ? "ies" : "y"}
         </p>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="rounded-lg border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
-          >
-            Refresh
-          </button>
           <button
             type="button"
             onClick={() => {

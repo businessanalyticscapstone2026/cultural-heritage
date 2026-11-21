@@ -121,8 +121,10 @@ export async function getMonitoringSummary(
     supabase.from("routes").select("id", { count: "exact", head: true }).gte("created_at", priorDateFrom).lte("created_at", priorDateTo + "T23:59:59"),
   ])
 
-  const totalNow = (visitsNow.count ?? 0) + (scansNow.count ?? 0) + (bookmarksNow.count ?? 0) + (reviewsNow.count ?? 0)
-  const totalPrior = (visitsPrior.count ?? 0) + (scansPrior.count ?? 0) + (bookmarksPrior.count ?? 0) + (reviewsPrior.count ?? 0) + (recsClickedPrior.count ?? 0)
+  // Bug 4 fix: QR scans are now mirrored to tourist_visits, so exclude scansNow/scansPrior
+  // from totalNow/totalPrior to avoid double-counting every QR scan.
+  const totalNow = (visitsNow.count ?? 0) + (bookmarksNow.count ?? 0) + (reviewsNow.count ?? 0)
+  const totalPrior = (visitsPrior.count ?? 0) + (bookmarksPrior.count ?? 0) + (reviewsPrior.count ?? 0) + (recsClickedPrior.count ?? 0)
   const visitsNowCount = visitsNow.count ?? 0
   const visitsPriorCount = visitsPrior.count ?? 0
   const recsClickedNowCount = recsClickedNow.count ?? 0
@@ -164,7 +166,7 @@ export async function getActivityLog(
   if (!filters.activityType || filters.activityType === "visit") {
     let q = supabase
       .from("tourist_visits")
-      .select("id, site_id, visitor_type, visit_date")
+      .select("id, site_id, visitor_origin, visit_date")
       .in("site_id", siteIds)
       .gte("visit_date", filters.dateFrom)
       .lte("visit_date", filters.dateTo)
@@ -317,11 +319,24 @@ export async function getSitePopularity(
     .gte("visit_date", filters.dateFrom)
     .lte("visit_date", filters.dateTo)
 
-  if (!visits || visits.length === 0) return []
+  // Bug 3 fix: fall back to recommendation clicks when tourist_visits is empty
+  let popularitySource: { site_id: string }[] = visits ?? []
+  if (popularitySource.length === 0) {
+    const { data: clickedRecs } = await supabase
+      .from("recommendations")
+      .select("site_id")
+      .in("site_id", siteIds)
+      .eq("was_clicked", true)
+      .gte("generated_at", filters.dateFrom)
+      .lte("generated_at", filters.dateTo + "T23:59:59")
+    popularitySource = (clickedRecs ?? []).map((r) => ({ site_id: r.site_id as string }))
+  }
+
+  if (popularitySource.length === 0) return []
 
   const siteCounts = new Map<string, number>()
-  for (const visit of visits) {
-    const sid = visit.site_id as string
+  for (const row of popularitySource) {
+    const sid = row.site_id as string
     siteCounts.set(sid, (siteCounts.get(sid) ?? 0) + 1)
   }
 
@@ -338,7 +353,7 @@ export async function getSitePopularity(
     })
   }
 
-  const totalVisits = visits.length
+  const totalVisits = popularitySource.length
 
   return Array.from(siteCounts.entries())
     .map(([siteId, count]) => {
@@ -352,6 +367,15 @@ export async function getSitePopularity(
       }
     })
     .sort((a, b) => b.visits - a.visits)
+}
+
+function countBySiteId(rows: { site_id: string | null }[]): Map<string, number> {
+  const m = new Map<string, number>()
+  for (const row of rows) {
+    const sid = row.site_id as string
+    m.set(sid, (m.get(sid) ?? 0) + 1)
+  }
+  return m
 }
 
 export async function getMTORecommendationPerformance(
@@ -376,33 +400,35 @@ export async function getMTORecommendationPerformance(
     siteNameMap.set(s.id as string, s.site_name as string)
   }
 
-  const results: RecommendationPerf[] = []
+  // Bug 1 fix: replace per-site N+1 loop with 3 bulk queries + in-memory aggregation
+  const dateFilter = `${filters.dateTo}T23:59:59`
+  const [allRecs, clickedRecs, convertedRecs] = await Promise.all([
+    supabase.from("recommendations").select("site_id").in("site_id", siteIds).gte("generated_at", filters.dateFrom).lte("generated_at", dateFilter),
+    supabase.from("recommendations").select("site_id").in("site_id", siteIds).eq("was_clicked", true).gte("generated_at", filters.dateFrom).lte("generated_at", dateFilter),
+    supabase.from("recommendations").select("site_id").in("site_id", siteIds).eq("led_to_route", true).gte("generated_at", filters.dateFrom).lte("generated_at", dateFilter),
+  ])
 
-  for (const site of siteData) {
-    const siteId = site.id as string
+  const recCounts = countBySiteId(allRecs.data ?? [])
+  const clickCounts = countBySiteId(clickedRecs.data ?? [])
+  const convCounts = countBySiteId(convertedRecs.data ?? [])
 
-    const [recs, clicks, convs] = await Promise.all([
-      supabase.from("recommendations").select("id", { count: "exact", head: true }).eq("site_id", siteId).gte("generated_at", filters.dateFrom).lte("generated_at", filters.dateTo + "T23:59:59"),
-      supabase.from("recommendations").select("id", { count: "exact", head: true }).eq("site_id", siteId).eq("was_clicked", true).gte("generated_at", filters.dateFrom).lte("generated_at", filters.dateTo + "T23:59:59"),
-      supabase.from("recommendations").select("id", { count: "exact", head: true }).eq("site_id", siteId).eq("led_to_route", true).gte("generated_at", filters.dateFrom).lte("generated_at", filters.dateTo + "T23:59:59"),
-    ])
-
-    const timesRecommended = recs.count ?? 0
-    const timesClicked = clicks.count ?? 0
-    const timesConverted = convs.count ?? 0
-
-    results.push({
-      siteId,
-      siteName: siteNameMap.get(siteId) ?? "Unknown",
-      timesRecommended,
-      timesClicked,
-      timesConverted,
-      clickRate: timesRecommended > 0 ? Math.round((timesClicked / timesRecommended) * 100) : 0,
-      convRate: timesRecommended > 0 ? Math.round((timesConverted / timesRecommended) * 100) : 0,
+  return siteData
+    .map((s) => {
+      const siteId = s.id as string
+      const timesRecommended = recCounts.get(siteId) ?? 0
+      const timesClicked = clickCounts.get(siteId) ?? 0
+      const timesConverted = convCounts.get(siteId) ?? 0
+      return {
+        siteId,
+        siteName: siteNameMap.get(siteId) ?? "Unknown",
+        timesRecommended,
+        timesClicked,
+        timesConverted,
+        clickRate: timesRecommended > 0 ? Math.round((timesClicked / timesRecommended) * 100) : 0,
+        convRate: timesRecommended > 0 ? Math.round((timesConverted / timesRecommended) * 100) : 0,
+      }
     })
-  }
-
-  return results.sort((a, b) => b.convRate - a.convRate)
+    .sort((a, b) => b.convRate - a.convRate)
 }
 
 export async function getUnderPromotedSites(
@@ -422,11 +448,24 @@ export async function getUnderPromotedSites(
     .gte("visit_date", filters.dateFrom)
     .lte("visit_date", filters.dateTo)
 
-  if (!visits || visits.length === 0) return []
+  // Bug 3 fix: fall back to recommendation clicks when tourist_visits is empty
+  let activitySource: { site_id: string }[] = visits ?? []
+  if (activitySource.length === 0) {
+    const { data: clickedRecs } = await supabase
+      .from("recommendations")
+      .select("site_id")
+      .in("site_id", siteIds)
+      .eq("was_clicked", true)
+      .gte("generated_at", filters.dateFrom)
+      .lte("generated_at", filters.dateTo + "T23:59:59")
+    activitySource = (clickedRecs ?? []).map((r) => ({ site_id: r.site_id as string }))
+  }
+
+  if (activitySource.length === 0) return []
 
   const siteCounts = new Map<string, number>()
-  for (const visit of visits) {
-    const sid = visit.site_id as string
+  for (const row of activitySource) {
+    const sid = row.site_id as string
     siteCounts.set(sid, (siteCounts.get(sid) ?? 0) + 1)
   }
 

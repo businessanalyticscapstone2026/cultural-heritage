@@ -6,8 +6,6 @@ import {
 import MonitoringFilterBar from "@/features/tourist-monitoring/components/monitoring-filter-bar"
 import ActivityLogTable from "@/features/tourist-monitoring/components/activity-log-table"
 
-const POLL_INTERVAL_MS = 30000
-
 export default async function ActivitiesPage({
   searchParams,
 }: {
@@ -48,7 +46,7 @@ export default async function ActivitiesPage({
 
       <MonitoringFilterBar categories={categories} sites={sites} />
 
-      <ActivityLogTable searchParams={params} pollIntervalMs={POLL_INTERVAL_MS} />
+      <ActivityLogTable searchParams={params} />
     </div>
   )
 }

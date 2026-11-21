@@ -13,7 +13,8 @@ export default function StatCardsRow({ municipalityId }: { municipalityId: strin
     queryKey: ["mto-dashboard", municipalityId],
     queryFn: () => getAllDashboardDataAction(municipalityId),
     select: selectData,
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchInterval: 30_000,
   })
 
   if (isError) {

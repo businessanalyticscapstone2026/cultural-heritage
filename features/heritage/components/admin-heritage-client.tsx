@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Landmark, Plus, Search } from "lucide-react"
+import { createClient } from "@/utils/supabase/client"
 import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import {
   createHeritageSiteAction,
@@ -44,6 +45,25 @@ export default function AdminHeritageClient({
 
   const { sites, refetch } = useHeritageSites(fetchSites)
   const displaySites = sites.length > 0 ? sites : initialSites
+
+  // Instant real-time updates when any heritage site is added, updated, or deleted
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel("realtime-heritage-sites")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "heritage_sites" },
+        () => {
+          refetch()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [refetch])
 
   const filtered = displaySites.filter((site) => {
     if (search && !site.siteName.toLowerCase().includes(search.toLowerCase())) return false
@@ -161,13 +181,6 @@ export default function AdminHeritageClient({
           </select>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="rounded-lg border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
-          >
-            Refresh
-          </button>
           <button
             type="button"
             onClick={() => { setEditingSite(null); setFormOpen(true) }}

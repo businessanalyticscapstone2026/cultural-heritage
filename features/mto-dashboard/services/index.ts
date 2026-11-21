@@ -459,7 +459,7 @@ export async function getMTOVisitorStats(
   const [currentResult, priorResult] = await Promise.all([
     supabase
       .from("tourist_visits")
-      .select("visitor_type")
+      .select("visitor_origin")
       .in("site_id", siteIds)
       .gte("visit_date", `${currentYear}-01-01`)
       .lte("visit_date", `${currentYear}-12-31`),
@@ -473,7 +473,7 @@ export async function getMTOVisitorStats(
 
   const stats: VisitorStats = { local: 0, domestic: 0, international: 0, priorYearTotal: priorResult.count ?? 0 }
   for (const row of currentResult.data ?? []) {
-    const type = row.visitor_type as "local" | "domestic" | "international"
+    const type = (row as unknown as { visitor_origin: string }).visitor_origin as "local" | "domestic" | "international"
     if (type in stats) stats[type]++
   }
   return stats

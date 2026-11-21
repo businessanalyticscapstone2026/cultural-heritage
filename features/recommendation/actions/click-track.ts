@@ -9,6 +9,12 @@ export async function trackRecommendationClickAction(recommendationId: string) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
+  const { data: rec } = await supabase
+    .from("recommendations")
+    .select("site_id, tourist_id")
+    .eq("id", recommendationId)
+    .maybeSingle()
+
   const { error } = await supabase
     .from("recommendations")
     .update({ was_clicked: true, clicked_at: new Date().toISOString() })
@@ -18,5 +24,21 @@ export async function trackRecommendationClickAction(recommendationId: string) {
     console.error("Failed to mark recommendation clicked:", error.message)
   }
 
+  // Also log to tourist_visits so site visit metrics reflect real tourist interactions
+  if (rec?.site_id) {
+    const today = new Date().toISOString().slice(0, 10)
+    try {
+      await supabase.from("tourist_visits").insert({
+        site_id: rec.site_id,
+        visit_date: today,
+        visitor_origin: "domestic",
+        tourist_id: rec.tourist_id ?? null,
+      })
+    } catch {
+      // Non-blocking
+    }
+  }
+
   revalidateTag(CACHE_TAGS.dashboardRecommendations, { expire: CACHE_REVALIDATE_SECONDS })
+  revalidateTag(CACHE_TAGS.dashboardVisits, { expire: CACHE_REVALIDATE_SECONDS })
 }

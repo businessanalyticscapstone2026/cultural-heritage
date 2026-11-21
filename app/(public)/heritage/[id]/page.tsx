@@ -44,6 +44,22 @@ export default async function HeritageDetailPage({ params, searchParams }: PageP
 
   const matchScore = score ? Number(score) : undefined
 
+  // Record visit in tourist_visits for site analytics
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const cookieStore = await cookies()
+    const supabase = createClient(cookieStore)
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from("tourist_visits").insert({
+      site_id: id,
+      visit_date: today,
+      visitor_origin: "domestic",
+      tourist_id: user?.id ?? null,
+    })
+  } catch {
+    // Non-blocking
+  }
+
   let bookmarked = false
   try {
     const cookieStore = await cookies()

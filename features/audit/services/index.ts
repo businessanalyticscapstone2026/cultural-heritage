@@ -167,16 +167,39 @@ export async function logSecurityEvent(params: {
   if (error) console.error("Failed to log security event:", error.message)
 }
 
+async function fetchStaffUserMap(
+  supabase: ReturnType<typeof createClient>,
+  userIds: string[]
+): Promise<Map<string, { name: string }>> {
+  const userMap = new Map<string, { name: string }>()
+  if (userIds.length === 0) return userMap
+
+  const { data: profiles, error } = await supabase
+    .from("staff_profiles")
+    .select("id, first_name, last_name, username")
+    .in("id", userIds)
+
+  if (error) {
+    console.error("Failed to hydrate staff profiles for audit trail:", error.message)
+    return userMap
+  }
+
+  for (const p of profiles ?? []) {
+    const nameParts = [p.first_name, p.last_name].filter(Boolean)
+    const name = nameParts.length > 0 ? nameParts.join(" ") : p.username || "Staff User"
+    userMap.set(p.id, { name })
+  }
+
+  return userMap
+}
+
 export async function getAuditLogs(filters?: AuditFilters): Promise<AuditLogWithUser[]> {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
   let query = supabase
     .from("audit_logs")
-    .select(`
-      *,
-      user:staff_profiles(full_name, email:staff_profiles!audit_logs_user_id_fkey(email))
-    `)
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(200)
 
@@ -199,12 +222,16 @@ export async function getAuditLogs(filters?: AuditFilters): Promise<AuditLogWith
   const { data, error } = await query
 
   if (error) {
-    if (error.message?.includes("does not exist") || error.message?.includes("schema cache")) return []
+    if (error.message?.includes("does not exist")) return []
     throw new Error(`Failed to fetch audit logs: ${error.message}`)
   }
 
-  return (data ?? []).map((row) => {
-    const user = row.user as { full_name: string; email?: string } | null
+  const rawLogs = data ?? []
+  const userIds = Array.from(new Set(rawLogs.map((r) => r.user_id).filter((id): id is string => Boolean(id))))
+  const userMap = await fetchStaffUserMap(supabase, userIds)
+
+  return rawLogs.map((row) => {
+    const user = row.user_id ? userMap.get(row.user_id) : undefined
     return {
       id: row.id as string,
       userId: (row.user_id as string) ?? null,
@@ -216,8 +243,8 @@ export async function getAuditLogs(filters?: AuditFilters): Promise<AuditLogWith
       ipAddress: (row.ip_address as string) ?? null,
       userAgent: (row.user_agent as string) ?? null,
       createdAt: row.created_at as string,
-      userName: user?.full_name ?? null,
-      userEmail: user?.email ?? null,
+      userName: user?.name ?? null,
+      userEmail: null,
     }
   })
 }
@@ -233,10 +260,7 @@ export async function getLoginAttempts(filters?: {
 
   let query = supabase
     .from("login_attempts")
-    .select(`
-      *,
-      user:staff_profiles!login_attempts_user_id_fkey(full_name)
-    `)
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(200)
 
@@ -256,12 +280,16 @@ export async function getLoginAttempts(filters?: {
   const { data, error } = await query
 
   if (error) {
-    if (error.message?.includes("does not exist") || error.message?.includes("schema cache")) return []
+    if (error.message?.includes("does not exist")) return []
     throw new Error(`Failed to fetch login attempts: ${error.message}`)
   }
 
-  return (data ?? []).map((row) => {
-    const user = row.user as { full_name: string } | null
+  const rawAttempts = data ?? []
+  const userIds = Array.from(new Set(rawAttempts.map((r) => r.user_id).filter((id): id is string => Boolean(id))))
+  const userMap = await fetchStaffUserMap(supabase, userIds)
+
+  return rawAttempts.map((row) => {
+    const user = row.user_id ? userMap.get(row.user_id) : undefined
     return {
       id: row.id as string,
       userId: (row.user_id as string) ?? null,
@@ -270,7 +298,7 @@ export async function getLoginAttempts(filters?: {
       ipAddress: (row.ip_address as string) ?? null,
       userAgent: (row.user_agent as string) ?? null,
       createdAt: row.created_at as string,
-      userName: user?.full_name ?? null,
+      userName: user?.name ?? null,
     }
   })
 }
@@ -286,10 +314,7 @@ export async function getSecurityEvents(filters?: {
 
   let query = supabase
     .from("security_events")
-    .select(`
-      *,
-      user:staff_profiles!security_events_user_id_fkey(full_name, email:staff_profiles!security_events_user_id_fkey(email))
-    `)
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(200)
 
@@ -309,12 +334,16 @@ export async function getSecurityEvents(filters?: {
   const { data, error } = await query
 
   if (error) {
-    if (error.message?.includes("does not exist") || error.message?.includes("schema cache")) return []
+    if (error.message?.includes("does not exist")) return []
     throw new Error(`Failed to fetch security events: ${error.message}`)
   }
 
-  return (data ?? []).map((row) => {
-    const user = row.user as { full_name: string; email?: string } | null
+  const rawEvents = data ?? []
+  const userIds = Array.from(new Set(rawEvents.map((r) => r.user_id).filter((id): id is string => Boolean(id))))
+  const userMap = await fetchStaffUserMap(supabase, userIds)
+
+  return rawEvents.map((row) => {
+    const user = row.user_id ? userMap.get(row.user_id) : undefined
     return {
       id: row.id as string,
       userId: (row.user_id as string) ?? null,
@@ -323,8 +352,8 @@ export async function getSecurityEvents(filters?: {
       ipAddress: (row.ip_address as string) ?? null,
       userAgent: (row.user_agent as string) ?? null,
       createdAt: row.created_at as string,
-      userName: user?.full_name ?? null,
-      userEmail: user?.email ?? null,
+      userName: user?.name ?? null,
+      userEmail: null,
     }
   })
 }

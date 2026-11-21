@@ -37,7 +37,7 @@ export function HeritageMap({ markers }: HeritageMapProps) {
       theme="light"
       viewport={{ center: [centerLng, centerLat], zoom: 10, bearing: 0, pitch: 0 }}
     >
-      <MapControls position="bottom-right" showZoom />
+      <MapControls position="bottom-right" showZoom showCompass showFullscreen />
       {markers.map((mkr) => (
         <MapMarker key={mkr.id} longitude={mkr.longitude} latitude={mkr.latitude}>
           <MarkerContent>

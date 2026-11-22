@@ -29,12 +29,14 @@ export default function RoutePlannerPanel({ sites, user }: RoutePlannerPanelProp
     routePlanningMode,
     routeStopIds,
     activeRoute,
+    selectedRouteOptionIndex,
     setRoutePlanningMode,
     addRouteStop,
     removeRouteStop,
     reorderRouteStops,
     clearRouteStops,
     setActiveRoute,
+    selectRouteOption,
   } = useGisUiStore()
 
   const { create, loading, error } = useCreateRoute()
@@ -271,6 +273,61 @@ export default function RoutePlannerPanel({ sites, user }: RoutePlannerPanelProp
 
               {error && (
                 <p className="text-[11px] text-error" role="alert">{error}</p>
+              )}
+
+              {/* Route options selector */}
+              {activeRoute?.options && activeRoute.options.length > 1 && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
+                      Route Options ({activeRoute.options.length})
+                    </span>
+                    <span className="text-[9px] text-ink-soft/70">Tap card or line on map</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {activeRoute.options.map((opt, idx) => {
+                      const isSelected = selectedRouteOptionIndex === idx
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => selectRouteOption(idx)}
+                          className={`flex w-full items-center justify-between rounded-xl border p-2.5 text-left transition-all ${
+                            isSelected
+                              ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent/30"
+                              : "border-ink/10 bg-card hover:border-ink/20 hover:bg-muted/30"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1 pr-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-xs font-semibold ${isSelected ? "text-accent" : "text-ink"}`}>
+                                {opt.title}
+                              </span>
+                              {opt.badge && (
+                                <span
+                                  className={`rounded-full px-1.5 py-0.2 text-[9px] font-medium ${
+                                    isSelected
+                                      ? "bg-accent text-white"
+                                      : "bg-ink/5 text-ink-soft"
+                                  }`}
+                                >
+                                  {opt.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p className="truncate text-[10px] text-ink-soft mt-0.5">{opt.description}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className={`text-xs font-bold ${isSelected ? "text-accent" : "text-ink"}`}>
+                              {opt.totalDistanceKm} km
+                            </p>
+                            <p className="text-[10px] text-ink-soft">~{opt.totalDurationMin} min</p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               )}
 
               {/* Route result */}

@@ -18,6 +18,21 @@ export interface RouteStop {
   municipalityName: string | null
 }
 
+export type RouteStrategy = "optimal" | "custom" | "roundtrip" | "alternative"
+
+export interface RouteOption {
+  id: string
+  strategy: RouteStrategy
+  title: string
+  description: string
+  badge?: string
+  totalDistanceKm: number
+  totalDurationMin: number
+  path: [number, number][]
+  stops: RouteStop[]
+  hasEstimatedEdges: boolean
+}
+
 export interface OptimizedRoute {
   id: string | null
   name: string
@@ -28,6 +43,8 @@ export interface OptimizedRoute {
   hasEstimatedEdges: boolean
   status: "draft" | "completed"
   createdAt: string | null
+  options?: RouteOption[]
+  selectedOptionIndex?: number
 }
 
 export interface CreateRouteInput {

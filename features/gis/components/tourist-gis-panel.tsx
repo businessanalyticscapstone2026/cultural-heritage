@@ -158,6 +158,8 @@ export default function TouristGISPanel({
     routePlanningMode,
     routeStopIds,
     activeRoute,
+    selectedRouteOptionIndex,
+    selectRouteOption,
     addRouteStop,
     removeRouteStop,
     setRoutePlanningMode,
@@ -874,14 +876,34 @@ export default function TouristGISPanel({
               </MapMarker>
             )})}
 
-          {/* Route visualization overlay */}
+          {/* Alternative route options visualization (clickable dashed lines) */}
+          {showRouteOnMap &&
+            activeRoute?.options &&
+            activeRoute.options.map((opt, idx) => {
+              if (idx === (selectedRouteOptionIndex ?? 0)) return null
+              if (opt.path.length < 2) return null
+              return (
+                <MapRoute
+                  key={`alt-route-${opt.id}`}
+                  id={`alt-route-${opt.id}`}
+                  coordinates={opt.path}
+                  color="#94A3B8"
+                  width={4}
+                  opacity={0.6}
+                  dashArray={[3, 3]}
+                  onClick={() => selectRouteOption(idx)}
+                />
+              )
+            })}
+
+          {/* Active route visualization overlay */}
           {showRouteOnMap && activeRoute && activeRoute.path.length >= 2 && (
             <MapRoute
               id="active-route-path"
               coordinates={activeRoute.path}
               color="#2E5BFF"
               width={5}
-              opacity={0.8}
+              opacity={0.85}
             />
           )}
           {showRouteOnMap && activeRoute && activeRoute.stops.map((stop, index) => (

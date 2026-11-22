@@ -19,16 +19,16 @@ export function DonutChart({ data, total }: DonutChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   return (
-    <div>
-      <div className="relative flex h-64 items-center justify-center">
+    <div className="flex flex-1 flex-col justify-between">
+      <div className="relative flex h-52 items-center justify-center">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={filtered}
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={90}
+              innerRadius={50}
+              outerRadius={75}
               paddingAngle={2}
               dataKey="count"
               nameKey="name"
@@ -62,7 +62,7 @@ export function DonutChart({ data, total }: DonutChartProps) {
       </div>
 
       {filtered.length > 0 && (
-        <ul className="mt-4 space-y-2.5">
+        <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto pr-1">
           {filtered.map((entry, index) => {
             const pct = total > 0 ? Math.round((entry.count / total) * 100) : 0
             return (

@@ -48,21 +48,26 @@ export default function RecommendationFunnel({
   const maxValue = stages.length > 0 ? stages[0].value : 1
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="flex h-full flex-col justify-between">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base">Recommendation Performance</CardTitle>
+        {data && data.generated > 0 && (
+          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+            {Math.round((data.conversions / data.generated) * 100)}% conversion
+          </span>
+        )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col justify-between pt-2">
         {error && <div className="text-sm text-destructive"><p>{error}</p></div>}
         {!data && !error && (
-          <div className="space-y-3">
+          <div className="space-y-4 py-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
+              <Skeleton key={i} className="h-14 w-full" />
             ))}
           </div>
         )}
         {data && (
-          <div className="space-y-2">
+          <div className="flex flex-1 flex-col justify-around py-1 space-y-2">
             {stages.map((stage, i) => {
               const widthPct = maxValue > 0 ? Math.max((stage.value / maxValue) * 100, 8) : 8
               const convRate = i > 0 && stages[i - 1].value > 0
@@ -88,7 +93,7 @@ export default function RecommendationFunnel({
                       )}
                     </div>
                   </div>
-                  <div className="h-6 w-full overflow-hidden rounded bg-muted">
+                  <div className="h-7 w-full overflow-hidden rounded bg-muted">
                     <motion.div
                       className="h-full rounded"
                       style={{ backgroundImage: stage.gradient }}

@@ -36,6 +36,7 @@ export default async function AdminDashboardPage() {
   const municipalityDelta =
     data.kpis.activeMunicipalities.value - data.kpis.activeMunicipalities.previous
   const usersDelta = data.kpis.registeredUsers.value - data.kpis.registeredUsers.previous
+  const visitsDelta = data.kpis.visitsThisMonth.value - data.kpis.visitsThisMonth.previous
 
   const monthlyFootnote = (delta: number) =>
     delta > 0 ? `+${delta} this month` : delta < 0 ? `${delta} this month` : "No change this month"
@@ -50,7 +51,7 @@ export default async function AdminDashboardPage() {
 
       {/* KPI Cards */}
       <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StaggerItem>
+        <StaggerItem className="h-full">
           <KpiCard
             icon={<Landmark className="size-4" />}
             label="Total Heritage Sites"
@@ -60,7 +61,7 @@ export default async function AdminDashboardPage() {
             footnote={monthlyFootnote(heritageDelta)}
           />
         </StaggerItem>
-        <StaggerItem>
+        <StaggerItem className="h-full">
           <KpiCard
             icon={<Building2 className="size-4" />}
             label="Active Municipalities"
@@ -70,7 +71,7 @@ export default async function AdminDashboardPage() {
             footnote={monthlyFootnote(municipalityDelta)}
           />
         </StaggerItem>
-        <StaggerItem>
+        <StaggerItem className="h-full">
           <KpiCard
             icon={<Users className="size-4" />}
             label="Registered Users"
@@ -80,15 +81,14 @@ export default async function AdminDashboardPage() {
             footnote={monthlyFootnote(usersDelta)}
           />
         </StaggerItem>
-        <StaggerItem>
+        <StaggerItem className="h-full">
           <KpiCard
             icon={<CalendarCheck className="size-4" />}
             label="Visitors This Month"
             value={data.kpis.visitsThisMonth.value}
             previous={data.kpis.visitsThisMonth.previous}
             accent="warning"
-            sparkline={data.visitOverview}
-            footnote={`Last month: ${data.kpis.visitsThisMonth.previous.toLocaleString()}`}
+            footnote={monthlyFootnote(visitsDelta)}
           />
         </StaggerItem>
       </Stagger>
@@ -136,34 +136,38 @@ export default async function AdminDashboardPage() {
       <Reveal>
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Tourist Visits Overview */}
-          <div className="flex flex-col rounded-xl border bg-card p-5 lg:col-span-2">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold">Tourist Visits Overview</h3>
-                <p className="text-xs text-muted-foreground">30-day QR code scan activity and trend</p>
+          <div className="flex h-full flex-col justify-between rounded-xl border bg-card p-5 lg:col-span-2">
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">Tourist Visits Overview</h3>
+                  <p className="text-xs text-muted-foreground">30-day QR code scan activity and trend</p>
+                </div>
+                <Link
+                  href="/admin/decision-support"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  <span>Reports</span>
+                  <ArrowUpRight className="size-3.5" />
+                </Link>
               </div>
-              <Link
-                href="/admin/decision-support"
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-              >
-                <span>Reports</span>
-                <ArrowUpRight className="size-3.5" />
-              </Link>
             </div>
-            <VisitsLineChart data={data.visitOverview} total={totalVisits} heightClassName="h-60" />
+            <VisitsLineChart data={data.visitOverview} total={totalVisits} />
           </div>
 
           {/* Heritage Sites by Category (Donut Chart) */}
-          <div className="flex flex-col rounded-xl border bg-card p-5 lg:col-span-1">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold">Heritage Sites by Category</h3>
-              <Link
-                href="/admin/heritage-repository"
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
-              >
-                <span>View all</span>
-                <ArrowUpRight className="size-3" />
-              </Link>
+          <div className="flex h-full flex-col justify-between rounded-xl border bg-card p-5 lg:col-span-1">
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-semibold">Heritage Sites by Category</h3>
+                <Link
+                  href="/admin/heritage-repository"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  <span>View all</span>
+                  <ArrowUpRight className="size-3" />
+                </Link>
+              </div>
             </div>
             <DonutChart data={data.categoryBreakdown} total={totalCategoryCount} />
           </div>
@@ -174,133 +178,139 @@ export default async function AdminDashboardPage() {
       <Reveal>
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Recently Added Heritage Sites */}
-          <div className="flex flex-col rounded-xl border bg-card p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold">Recently Added</h3>
-              <Link
-                href="/admin/heritage-repository"
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
-              >
-                <span>Repository</span>
-                <ArrowUpRight className="size-3" />
-              </Link>
+          <div className="flex h-full flex-col justify-between rounded-xl border bg-card p-5">
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-semibold">Recently Added</h3>
+                <Link
+                  href="/admin/heritage-repository"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  <span>Repository</span>
+                  <ArrowUpRight className="size-3" />
+                </Link>
+              </div>
+              {data.recentSites.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">No heritage sites yet</p>
+              ) : (
+                <ul className="space-y-3">
+                  {data.recentSites.map((site) => (
+                    <li key={site.id} className="border-border border-b pb-3 last:border-0 last:pb-0">
+                      <p className="truncate font-medium text-sm">{site.siteName}</p>
+                      <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                        <span>{site.municipalityName}</span>
+                        <span className="font-medium text-foreground/80">{formatCategoryName(site.categoryName)}</span>
+                        <span>{new Date(site.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {data.recentSites.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No heritage sites yet</p>
-            ) : (
-              <ul className="space-y-3">
-                {data.recentSites.map((site) => (
-                  <li key={site.id} className="border-border border-b pb-3 last:border-0 last:pb-0">
-                    <p className="truncate font-medium text-sm">{site.siteName}</p>
-                    <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                      <span>{site.municipalityName}</span>
-                      <span className="font-medium text-foreground/80">{formatCategoryName(site.categoryName)}</span>
-                      <span>{new Date(site.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
           {/* Recommendation Performance */}
-          <div className="flex flex-col rounded-xl border bg-card p-5">
-            <h3 className="mb-4 font-semibold">Recommendation Performance</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <MetricBox
-                icon={Sparkles}
-                label="Recommendations"
-                value={data.recommendationPerformance.totalRecommendations}
-              />
-              <MetricBox
-                icon={MousePointerClick}
-                label="Click-through Rate"
-                value={`${data.recommendationPerformance.clickThroughRate}%`}
-                progress={data.recommendationPerformance.clickThroughRate}
-                progressTone="success"
-              />
-              <MetricBox
-                icon={Route}
-                label="Route Plans"
-                value={data.recommendationPerformance.routePlansCreated}
-              />
-              <MetricBox
-                icon={Star}
-                label="User Satisfaction"
-                value={
-                  data.recommendationPerformance.userSatisfaction.reviewCount > 0
-                    ? `${data.recommendationPerformance.userSatisfaction.average}/5`
-                    : "—"
-                }
-                progress={
-                  data.recommendationPerformance.userSatisfaction.reviewCount > 0
-                    ? data.recommendationPerformance.userSatisfaction.percent
-                    : undefined
-                }
-                progressTone="success"
-              />
+          <div className="flex h-full flex-col justify-between rounded-xl border bg-card p-5">
+            <div>
+              <h3 className="mb-4 font-semibold">Recommendation Performance</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <MetricBox
+                  icon={Sparkles}
+                  label="Recommendations"
+                  value={data.recommendationPerformance.totalRecommendations}
+                />
+                <MetricBox
+                  icon={MousePointerClick}
+                  label="Click-through Rate"
+                  value={`${data.recommendationPerformance.clickThroughRate}%`}
+                  progress={data.recommendationPerformance.clickThroughRate}
+                  progressTone="success"
+                />
+                <MetricBox
+                  icon={Route}
+                  label="Route Plans"
+                  value={data.recommendationPerformance.routePlansCreated}
+                />
+                <MetricBox
+                  icon={Star}
+                  label="User Satisfaction"
+                  value={
+                    data.recommendationPerformance.userSatisfaction.reviewCount > 0
+                      ? `${data.recommendationPerformance.userSatisfaction.average}/5`
+                      : "—"
+                  }
+                  progress={
+                    data.recommendationPerformance.userSatisfaction.reviewCount > 0
+                      ? data.recommendationPerformance.userSatisfaction.percent
+                      : undefined
+                  }
+                  progressTone="success"
+                />
+              </div>
             </div>
           </div>
 
           {/* System Health */}
-          <div className="flex flex-col rounded-xl border bg-card p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold">System Health</h3>
-              <Link
-                href="/admin/settings"
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
-              >
-                <span>Settings</span>
-                <ArrowUpRight className="size-3" />
-              </Link>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Clock className="size-4" />
-                </span>
-                <div>
-                  <p className="text-xs text-muted-foreground">Last Backup</p>
-                  {data.systemHealth.lastBackupAt ? (
-                    <p className="mt-0.5 font-medium text-sm">
-                      {formatDistanceToNow(new Date(data.systemHealth.lastBackupAt))}{" "}
-                      <span className="text-muted-foreground font-normal">
-                        ({new Date(data.systemHealth.lastBackupAt).toLocaleString()})
+          <div className="flex h-full flex-col justify-between rounded-xl border bg-card p-5">
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-semibold">System Health</h3>
+                <Link
+                  href="/admin/settings"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  <span>Settings</span>
+                  <ArrowUpRight className="size-3" />
+                </Link>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Clock className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Last Backup</p>
+                    {data.systemHealth.lastBackupAt ? (
+                      <p className="mt-0.5 font-medium text-sm">
+                        {formatDistanceToNow(new Date(data.systemHealth.lastBackupAt))}{" "}
+                        <span className="text-muted-foreground font-normal">
+                          ({new Date(data.systemHealth.lastBackupAt).toLocaleString()})
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 text-sm italic text-muted-foreground">
+                        No backups recorded
+                      </p>
+                    )}
+                    {data.systemHealth.lastBackupStatus && (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                        <span className="inline-block size-1.5 rounded-full bg-current" />
+                        {data.systemHealth.lastBackupStatus}
                       </span>
-                    </p>
-                  ) : (
-                    <p className="mt-0.5 text-sm italic text-muted-foreground">
-                      No backups recorded
-                    </p>
-                  )}
-                  {data.systemHealth.lastBackupStatus && (
-                    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                      <span className="inline-block size-1.5 rounded-full bg-current" />
-                      {data.systemHealth.lastBackupStatus}
-                    </span>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <ShieldCheck className="size-4" />
-                </span>
-                <div>
-                  <p className="text-xs text-muted-foreground">System Version</p>
-                  <p className="mt-0.5 font-medium text-sm">
-                    {data.systemHealth.systemVersion ?? "—"}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ShieldCheck className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs text-muted-foreground">System Version</p>
+                    <p className="mt-0.5 font-medium text-sm">
+                      {data.systemHealth.systemVersion ?? "—"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Database className="size-4" />
-                </span>
-                <div>
-                  <p className="text-xs text-muted-foreground">Last Backup Type</p>
-                  <p className="mt-0.5 font-medium text-sm">
-                    {data.systemHealth.lastBackupType ?? "—"}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Database className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Last Backup Type</p>
+                    <p className="mt-0.5 font-medium text-sm">
+                      {data.systemHealth.lastBackupType ?? "—"}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

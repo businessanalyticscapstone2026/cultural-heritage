@@ -26,7 +26,7 @@ export default function SummaryMetricCard({ metric }: { metric: MTOMetric }) {
   const falling = metric.changeDirection === "down"
 
   return (
-    <Card className="gap-3 py-4">
+    <Card className="flex h-full flex-col justify-between gap-3 py-4">
       <CardContent className="flex items-start justify-between">
         <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
           <Icon className="size-4 text-primary" />
@@ -57,12 +57,14 @@ export default function SummaryMetricCard({ metric }: { metric: MTOMetric }) {
           )}
         </div>
       </CardContent>
-      <CardContent className="pt-0">
-        <p className="text-2xl font-bold tracking-tight text-foreground">
-          {metric.value.toLocaleString()}{metric.unit ? ` ${metric.unit}` : ""}
-        </p>
-        <p className="mt-1 text-sm font-medium text-foreground">{metric.label}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{metric.description}</p>
+      <CardContent className="flex flex-1 flex-col justify-between pt-0">
+        <div>
+          <p className="text-2xl font-bold tracking-tight text-foreground">
+            {metric.value.toLocaleString()}{metric.unit ? ` ${metric.unit}` : ""}
+          </p>
+          <p className="mt-1 text-sm font-medium text-foreground">{metric.label}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{metric.description}</p>
+        </div>
       </CardContent>
     </Card>
   )

@@ -13,6 +13,7 @@ import {
 } from "recharts"
 import { ChartTooltip } from "@/components/charts/chart-tooltip"
 import { CHART_AXIS_STROKE, CHART_AXIS_TICK, CHART_GRID_STROKE } from "@/components/charts/chart-theme"
+import { cn } from "@/lib/utils"
 import type { VisitOverview } from "@/features/dashboard/types"
 
 interface VisitsLineChartProps {
@@ -21,37 +22,39 @@ interface VisitsLineChartProps {
   heightClassName?: string
 }
 
-export function VisitsLineChart({ data, total, heightClassName = "h-56" }: VisitsLineChartProps) {
+export function VisitsLineChart({ data, total, heightClassName }: VisitsLineChartProps) {
   const gradientId = useId().replace(/:/g, "")
   const average = data.length > 0 ? Math.round(data.reduce((sum, d) => sum + d.count, 0) / data.length) : 0
 
   return (
-    <div>
-      <div className="mb-2 flex items-baseline gap-2">
-        <span className="text-2xl font-bold text-foreground">{total}</span>
-        <span className="text-sm text-muted-foreground">This Month</span>
+    <div className="flex h-full flex-1 flex-col justify-between">
+      <div>
+        <div className="mb-2 flex items-baseline gap-2">
+          <span className="text-2xl font-bold text-foreground">{total}</span>
+          <span className="text-sm text-muted-foreground">This Month</span>
+        </div>
+
+        {data.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              Peak{" "}
+              <span className="ml-1 font-semibold text-foreground">
+                {Math.max(...data.map((d) => d.count)).toLocaleString()}
+              </span>
+            </span>
+            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              Daily avg{" "}
+              <span className="ml-1 font-semibold text-foreground">
+                {average.toLocaleString()}
+              </span>
+            </span>
+          </div>
+        )}
       </div>
 
-      {data.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-2">
-          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            Peak{" "}
-            <span className="ml-1 font-semibold text-foreground">
-              {Math.max(...data.map((d) => d.count)).toLocaleString()}
-            </span>
-          </span>
-          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            Daily avg{" "}
-            <span className="ml-1 font-semibold text-foreground">
-              {average.toLocaleString()}
-            </span>
-          </span>
-        </div>
-      )}
-
-      <div className={heightClassName}>
+      <div className={cn("w-full flex-1 min-h-[260px] pt-2", heightClassName)}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+          <AreaChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: -12 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#2e5bff" stopOpacity={0.3} />
@@ -109,6 +112,11 @@ export function VisitsLineChart({ data, total, heightClassName = "h-56" }: Visit
             />
           </AreaChart>
         </ResponsiveContainer>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+        <span>District 1 30-Day Activity</span>
+        <span>Daily Scan & Page Visit Logs</span>
       </div>
     </div>
   )

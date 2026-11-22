@@ -80,9 +80,9 @@ export default function AnalyticsVisualizations({
         </div>
       </div>
 
-      <div id="visits-by-attraction" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div id="visits-by-attraction" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
         <VisitsByAttractionPanel filters={filters} initialData={initialData?.visitsByAttraction} />
-        <div id="recommendation-funnel">
+        <div id="recommendation-funnel" className="h-full">
           <RecommendationFunnel filters={filters} initialData={initialData?.recommendationFunnel} />
         </div>
       </div>

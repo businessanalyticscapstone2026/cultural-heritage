@@ -43,7 +43,7 @@ export default function SummaryMetricCard({ metric }: { metric: ProvinceMetric }
         : "bg-muted text-muted-foreground"
 
   return (
-    <Card className="gap-3 py-4">
+    <Card className="flex h-full flex-col justify-between gap-3 py-4">
       <CardContent className="flex items-start justify-between">
         <span className={cn("flex size-9 items-center justify-center rounded-lg", accent)}>
           <Icon className="size-4" />
@@ -62,13 +62,15 @@ export default function SummaryMetricCard({ metric }: { metric: ProvinceMetric }
             : `${metric.changeDirection === "down" ? "-" : "+"}${metric.changePercent}%`}
         </span>
       </CardContent>
-      <CardContent className="pt-0">
-        <p className="text-2xl font-bold tracking-tight text-foreground">
-          {metric.value.toLocaleString()}{metric.unit ? ` ${metric.unit}` : ""}
-        </p>
-        <p className="text-xs text-muted-foreground">{metric.label}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{metric.description}</p>
-        <p className="mt-1 text-[11px] text-muted-foreground/70">vs previous period</p>
+      <CardContent className="flex flex-1 flex-col justify-between pt-0">
+        <div>
+          <p className="text-2xl font-bold tracking-tight text-foreground">
+            {metric.value.toLocaleString()}{metric.unit ? ` ${metric.unit}` : ""}
+          </p>
+          <p className="text-xs font-medium text-foreground/90">{metric.label}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{metric.description}</p>
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground/70">vs previous period</p>
       </CardContent>
     </Card>
   )

@@ -16,6 +16,7 @@ import {
   OfflineMessage,
   ScanHistory,
 } from "../components"
+import { extractQrCodeValue } from "@/lib/app-url"
 import type { ScanResult } from "../types"
 
 type ScanPhase = "camera" | "manual" | "resolving" | "error" | "offline"
@@ -27,7 +28,7 @@ interface QRScannerOverlayProps {
 
 export default function QRScannerOverlay({ open, onClose }: QRScannerOverlayProps) {
   const router = useRouter()
-  const camera = useCamera()
+  const camera = useCamera({ enabled: open })
   const { history, addScan, clearHistory } = useScanHistory()
 
   const initialPhase: ScanPhase =
@@ -55,7 +56,7 @@ export default function QRScannerOverlay({ open, onClose }: QRScannerOverlayProp
     }
   }, [open, camera.permissionState])
 
-  const handleDetect = useCallback(async (code: string) => {
+  const handleDetect = useCallback(async (rawCode: string) => {
     if (phase === "resolving") return
 
     setPhase("resolving")
@@ -63,6 +64,8 @@ export default function QRScannerOverlay({ open, onClose }: QRScannerOverlayProp
     if (navigator.vibrate) {
       navigator.vibrate(100)
     }
+
+    const code = extractQrCodeValue(rawCode)
 
     try {
       const res = await fetch("/api/qr/resolve", {

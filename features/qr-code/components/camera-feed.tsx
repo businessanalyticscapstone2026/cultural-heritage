@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, type RefObject } from "react"
+import { useEffect, useCallback, type RefObject } from "react"
 
 interface CameraFeedProps {
   videoRef: RefObject<HTMLVideoElement | null>
@@ -8,25 +8,55 @@ interface CameraFeedProps {
 }
 
 export function CameraFeed({ videoRef, stream }: CameraFeedProps) {
+  const safePlay = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    // Ensure mobile inline playback requirements are satisfied
+    video.muted = true
+    video.defaultMuted = true
+    video.playsInline = true
+
+    if (video.paused) {
+      video.play().catch(() => {})
+    }
+  }, [videoRef])
+
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
-    if (stream && video.srcObject !== stream) {
-      video.srcObject = stream
+    // Mobile WebKit / Blink inline playback attributes
+    video.muted = true
+    video.defaultMuted = true
+    video.playsInline = true
+    video.setAttribute("playsinline", "true")
+    video.setAttribute("webkit-playsinline", "true")
+
+    if (stream) {
+      if (video.srcObject !== stream) {
+        video.srcObject = stream
+      }
+      safePlay()
+    } else {
+      video.pause()
+      video.srcObject = null
     }
 
-    const handleLoadedMetadata = () => {
-      video.play().catch(() => {})
+    const handleVideoReady = () => {
+      safePlay()
     }
 
-    if (video.srcObject && video.readyState >= 2) {
-      video.play().catch(() => {})
-    }
+    video.addEventListener("loadedmetadata", handleVideoReady)
+    video.addEventListener("canplay", handleVideoReady)
+    video.addEventListener("loadeddata", handleVideoReady)
 
-    video.addEventListener("loadedmetadata", handleLoadedMetadata)
-    return () => video.removeEventListener("loadedmetadata", handleLoadedMetadata)
-  }, [videoRef, stream])
+    return () => {
+      video.removeEventListener("loadedmetadata", handleVideoReady)
+      video.removeEventListener("canplay", handleVideoReady)
+      video.removeEventListener("loadeddata", handleVideoReady)
+    }
+  }, [videoRef, stream, safePlay])
 
   return (
     <video
@@ -34,6 +64,8 @@ export function CameraFeed({ videoRef, stream }: CameraFeedProps) {
       autoPlay
       playsInline
       muted
+      onLoadedMetadata={safePlay}
+      onCanPlay={safePlay}
       className="absolute inset-0 size-full object-cover"
     />
   )

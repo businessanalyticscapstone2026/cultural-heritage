@@ -118,7 +118,7 @@ export default function QRScannerPage() {
   }, [router])
 
   return (
-    <div className="relative flex flex-1 flex-col -m-6 overflow-hidden bg-black">
+    <div className="relative flex min-h-[calc(100dvh-5rem)] w-full flex-1 flex-col overflow-hidden bg-black">
       <PermissionGate
         permissionState={camera.permissionState}
         onRequestPermission={camera.requestPermission}

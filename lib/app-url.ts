@@ -31,5 +31,11 @@ export function extractQrCodeValue(raw: string): string {
     return heritageMatch[1].toLowerCase()
   }
 
+  // 3. Extract from query parameter if present: ?code=... or ?qr=...
+  const queryMatch = trimmed.match(/[?&](?:code|qr)=([A-Za-z0-9_-]+)/i)
+  if (queryMatch) {
+    return queryMatch[1].toUpperCase()
+  }
+
   return trimmed.toUpperCase()
 }

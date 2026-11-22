@@ -21,7 +21,6 @@ import {
   Info,
   MailCheck,
 } from "lucide-react"
-import { useSignIn } from "@clerk/nextjs/legacy"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
@@ -170,15 +169,23 @@ export default function LoginPage() {
   )
 }
 
+/** Messages for `?reason=` values set by the proxy and the OAuth callback. */
+const REASON_ERRORS: Record<string, string> = {
+  "no-profile": "No profile found for this account. Please contact support.",
+  "oauth-error": "Google sign-in did not complete. Please try again.",
+  "profile-error": "We could not set up your profile. Please try again or contact support.",
+  "google-staff-not-allowed": "Staff accounts must sign in with email and password.",
+}
+
 function LoginPageContent() {
   const router = useRouter()
   const supabase = createClient()
-  const { signIn, isLoaded: signInLoaded } = useSignIn()
   const { session, isLoading: authLoading, refreshSession } = useAuth()
   const prefersReducedMotion = useReducedMotion()
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get("redirect")
   const reasonParam = searchParams.get("reason")
+  const reasonError = reasonParam ? REASON_ERRORS[reasonParam] : undefined
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -335,19 +342,21 @@ function LoginPageContent() {
   }
 
   const handleGoogleSignIn = async () => {
-    if (!signInLoaded) return
-
     setError(null)
     setIsGoogleLoading(true)
 
-    try {
-      await signIn.authenticateWithRedirect({
-        strategy: "oauth_google",
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/auth/clerk-bridge-register",
-      })
-    } catch {
-      setError("Unable to sign in with Google. Please try again.")
+    const next = redirectParam ? `?next=${encodeURIComponent(redirectParam)}` : ""
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback${next}`,
+        queryParams: { prompt: "select_account" },
+      },
+    })
+
+    if (oauthError) {
+      console.error("Google sign-in failed:", oauthError)
+      setError(`Unable to start Google sign-in: ${oauthError.message}`)
       setIsGoogleLoading(false)
     }
   }
@@ -443,7 +452,7 @@ function LoginPageContent() {
           ) : (
             <>
               {/* Error / session-expired banner */}
-              {(error || reasonParam === "expired" || reasonParam === "no-profile" || reasonParam === "oauth-error") && (
+              {(error || reasonError || reasonParam === "expired") && (
                 <motion.div
                   role="alert"
                   initial={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
@@ -451,23 +460,18 @@ function LoginPageContent() {
                   transition={{ duration: 0.2 }}
                   className={cn(
                     "flex items-start gap-2 text-sm rounded-lg px-4 py-3 mb-4",
-                    error || reasonParam === "no-profile" || reasonParam === "oauth-error"
+                    error || reasonError
                       ? "bg-error/10 border border-error/20 text-error"
                       : "bg-warning/5 border border-warning/30 text-warning",
                   )}
                 >
-                  {error || reasonParam === "no-profile" || reasonParam === "oauth-error" ? (
+                  {error || reasonError ? (
                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   ) : (
                     <Info className="h-4 w-4 shrink-0 mt-0.5" />
                   )}
                   <span className="flex-1">
-                    {error ??
-                      (reasonParam === "no-profile"
-                        ? "No profile found for this account. Please contact support."
-                        : reasonParam === "oauth-error"
-                          ? "Unable to sign in with Google. Please try again."
-                          : "Your session has expired. Please sign in again.")}
+                    {error ?? reasonError ?? "Your session has expired. Please sign in again."}
                   </span>
                   {error && (
                     <button
@@ -589,7 +593,7 @@ function LoginPageContent() {
                 type="button"
                 variant="outline"
                 onClick={handleGoogleSignIn}
-                disabled={fieldsDisabled || isGoogleLoading || !signInLoaded}
+                disabled={fieldsDisabled || isGoogleLoading}
                 className="w-full h-11 mt-6"
               >
                 {isGoogleLoading ? (

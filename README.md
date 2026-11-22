@@ -20,12 +20,16 @@ Next.js App Router app serving:
 - `app/admin` — PTCAO Administrator portal
 - `app/mto` — Municipal Tourism Office portal
 - `app/(auth)` / `app/auth` — shared login, registration, and the
-  Clerk-to-Supabase auth bridge (`app/auth/clerk-bridge-register`)
+  Supabase OAuth callback (`app/auth/callback`)
 - `app/(public)` / `app/home` — public-facing pages (explore, map, reviews, etc.)
 - `app/api` — Route Handlers (analytics, heritage, GIS, QR, roles, etc.)
 
-Auth is [Clerk](https://clerk.com) (with Google OAuth), bridged into
-Supabase for data access. There is no separate backend server — Supabase
+Auth is Supabase Auth: email + password, and Google OAuth through
+Supabase's built-in Google provider. Google sign-in is for tourists only;
+staff (PTCAO / MTO) must use email + password. For Google to work, the
+Supabase project's Authentication → URL Configuration → Redirect URLs must
+include `<your-site>/auth/callback` (e.g. `http://localhost:3000/auth/callback`
+and the production URL). There is no separate backend server — Supabase
 (Postgres, Auth, Storage) is the entire backend.
 
 **`app/` vs `features/`:** `app/` is routing only (pages, layouts, route
@@ -105,8 +109,6 @@ client-side beyond what's explicitly prefixed `NEXT_PUBLIC_`.**
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (Project Settings → API). Public. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable/anon key for client-side requests. Public. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key. **Server-only** — bypasses RLS. Never expose it client-side or commit it. |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key for the auth SDK. Public. |
-| `CLERK_SECRET_KEY` | Clerk secret key. **Server-only.** Never expose it client-side or commit it. |
 | `TAAL_PORTAL_ALLOWED_ORIGINS` | Comma-separated browser origins allowed to call the Taal portal API (`/api/v1/taal/*`), exact match, no wildcards. Empty blocks all browser origins. Server-only. See `docs/integrations/taal-portal.md`. |
 
 For the canonical, up-to-date list of variables and example values, see

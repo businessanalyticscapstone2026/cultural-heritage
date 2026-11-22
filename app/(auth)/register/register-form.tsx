@@ -1,11 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, useReducedMotion } from "motion/react"
 import { Eye, EyeOff, Mail, Lock, User, Compass, Route, Star, Heart, X, ArrowLeft } from "lucide-react"
-import { useSignUp } from "@clerk/nextjs/legacy"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { BrandLogo } from "@/components/brand/brand-logo"
@@ -39,7 +38,6 @@ const features = [
 export default function RegisterForm() {
   const router = useRouter()
   const supabase = createClient()
-  const { signUp, isLoaded: signUpLoaded } = useSignUp()
   const prefersReducedMotion = useReducedMotion()
 
   const [firstName, setFirstName] = useState("")
@@ -54,28 +52,22 @@ export default function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
 
-  useEffect(() => {
-    const reason = new URLSearchParams(window.location.search).get("reason")
-    if (reason === "oauth-error") {
-      setError("Unable to sign up with Google. Please try again.")
-    }
-  }, [])
-
+  // Supabase has no separate OAuth sign-up: the callback creates the tourist profile.
   const handleGoogleSignUp = async () => {
-    if (!signUpLoaded) return
-
     setError(null)
     setIsGoogleLoading(true)
 
-    try {
-      await signUp.authenticateWithRedirect({
-        strategy: "oauth_google",
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/auth/clerk-bridge-register",
-      })
-    } catch (err) {
-      console.error("Google sign-up failed:", err)
-      setError("Unable to sign up with Google. Please try again.")
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: { prompt: "select_account" },
+      },
+    })
+
+    if (oauthError) {
+      console.error("Google sign-up failed:", oauthError)
+      setError(`Unable to start Google sign-up: ${oauthError.message}`)
       setIsGoogleLoading(false)
     }
   }
@@ -422,9 +414,6 @@ export default function RegisterForm() {
               </Button>
             </form>
 
-            {/* Clerk bot-protection mount point for the custom Google OAuth flow */}
-            <div id="clerk-captcha" />
-
             {/* Divider */}
             <div className="mt-6 flex items-center gap-3">
               <div className="h-px flex-1 bg-gray-200" />
@@ -437,7 +426,7 @@ export default function RegisterForm() {
               type="button"
               variant="outline"
               onClick={handleGoogleSignUp}
-              disabled={isLoading || isGoogleLoading || !signUpLoaded}
+              disabled={isLoading || isGoogleLoading}
               className="w-full h-10 mt-6"
             >
               {isGoogleLoading ? (

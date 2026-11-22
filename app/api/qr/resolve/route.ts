@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { resolveQRCode } from "@/features/qr-code/services"
+import { extractQrCodeValue } from "@/lib/app-url"
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = await resolveQRCode(code)
+    const cleanCode = extractQrCodeValue(code)
+    const result = await resolveQRCode(cleanCode)
 
     if (!result.success) {
       const status = result.error === "not_found" ? 404 : 410

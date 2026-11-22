@@ -2,17 +2,44 @@ import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
 import { revalidateTag } from "next/cache"
 import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
+import { extractQrCodeValue } from "@/lib/app-url"
 import type { ScanResult } from "../types"
 
-export async function resolveQRCode(code: string): Promise<ScanResult> {
+export async function resolveQRCode(rawCode: string): Promise<ScanResult> {
+  const code = extractQrCodeValue(rawCode)
+
+  if (!code) {
+    return {
+      success: false,
+      error: "not_found",
+      message: "This code is not recognized.",
+    }
+  }
+
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const { data: qrCode, error: qrError } = await supabase
+  // 1. Primary lookup: case-insensitive by code_value
+  let { data: qrCode, error: qrError } = await supabase
     .from("qr_codes")
     .select("id, site_id, code_value, status")
-    .eq("code_value", code)
-    .single()
+    .ilike("code_value", code)
+    .maybeSingle()
+
+  // 2. Fallback: if input is a UUID, check if it directly matches site_id or qr_codes.id
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code)
+  if (!qrCode && isUuid) {
+    const { data: qrBySite } = await supabase
+      .from("qr_codes")
+      .select("id, site_id, code_value, status")
+      .or(`site_id.eq.${code},id.eq.${code}`)
+      .maybeSingle()
+
+    if (qrBySite) {
+      qrCode = qrBySite
+      qrError = null
+    }
+  }
 
   if (qrError || !qrCode) {
     return {
@@ -36,7 +63,7 @@ export async function resolveQRCode(code: string): Promise<ScanResult> {
     .eq("id", qrCode.site_id)
     .eq("publication_status", "published")
     .eq("visibility", "public")
-    .single()
+    .maybeSingle()
 
   if (siteError || !site) {
     return {
@@ -54,15 +81,31 @@ export async function resolveQRCode(code: string): Promise<ScanResult> {
   }
 }
 
-export async function recordScanEvent(codeValue: string, deviceType?: string): Promise<void> {
+export async function recordScanEvent(rawCodeValue: string, deviceType?: string): Promise<void> {
+  const codeValue = extractQrCodeValue(rawCodeValue)
+  if (!codeValue) return
+
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
-  const { data: qrCode } = await supabase
+  let { data: qrCode } = await supabase
     .from("qr_codes")
     .select("id, site_id")
-    .eq("code_value", codeValue)
-    .single()
+    .ilike("code_value", codeValue)
+    .maybeSingle()
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(codeValue)
+  if (!qrCode && isUuid) {
+    const { data: qrBySite } = await supabase
+      .from("qr_codes")
+      .select("id, site_id")
+      .or(`site_id.eq.${codeValue},id.eq.${codeValue}`)
+      .maybeSingle()
+
+    if (qrBySite) {
+      qrCode = qrBySite
+    }
+  }
 
   if (!qrCode) return
 

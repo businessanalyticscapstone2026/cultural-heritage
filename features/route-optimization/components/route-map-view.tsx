@@ -2,11 +2,14 @@
 
 import { Map, MapMarker, MarkerContent, MapPopup, MapRoute } from "@/components/ui/map"
 import { MapPin } from "lucide-react"
+import { ROUTE_OPTION_META } from "../constants"
 import type { RouteStop } from "../types"
 
 interface RouteMapViewProps {
   stops: RouteStop[]
   path: [number, number][]
+  /** Line color. Saved routes do not store which option they were, so this defaults to Shortest green. */
+  color?: string
 }
 
 const STOP_COLORS = [
@@ -20,7 +23,7 @@ const STOP_COLORS = [
   "#607D8B",
 ]
 
-export default function RouteMapView({ stops, path }: RouteMapViewProps) {
+export default function RouteMapView({ stops, path, color = ROUTE_OPTION_META.shortest.color }: RouteMapViewProps) {
   if (stops.length === 0) return null
 
   const center: [number, number] = [stops[0].longitude, stops[0].latitude]
@@ -31,7 +34,7 @@ export default function RouteMapView({ stops, path }: RouteMapViewProps) {
         {path.length >= 2 && (
           <MapRoute
             coordinates={path}
-            color="#2E5BFF"
+            color={color}
             width={4}
             opacity={0.7}
           />

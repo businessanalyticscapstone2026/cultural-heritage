@@ -192,7 +192,7 @@ export default function ThresholdSettingsForm({ settings }: ThresholdSettingsFor
         <div>
           <h3 className="text-sm font-medium text-foreground">Route Optimization Config</h3>
           <p className="text-xs text-muted-foreground">
-            Configuration for the Dijkstra route optimization algorithm (CHTS-025).
+            Limits for the tourist Route Planner (CHTS-025). Dijkstra computes each leg; the visiting order is then optimized.
             Stored in
             <code className="mx-1 rounded bg-muted px-1 font-mono text-xs">system_settings.key = &apos;routing_config&apos;</code>.
           </p>
@@ -209,7 +209,7 @@ export default function ThresholdSettingsForm({ settings }: ThresholdSettingsFor
               {...routingForm.register("maxStops", { valueAsNumber: true })}
             />
             <p className="text-xs text-muted-foreground">
-              Maximum number of heritage sites per optimized route.
+              Tourists cannot plan a route with more stops than this; they are asked to remove some.
             </p>
           </div>
           <div className="space-y-1.5">
@@ -222,7 +222,7 @@ export default function ThresholdSettingsForm({ settings }: ThresholdSettingsFor
               {...routingForm.register("maxTravelTimeMinutes", { valueAsNumber: true })}
             />
             <p className="text-xs text-muted-foreground">
-              Upper limit for total route duration in minutes.
+              Route options longer than this are marked &quot;Over time limit&quot;, and &quot;Highlights first&quot; tries to stay under it.
             </p>
           </div>
         </div>
@@ -231,7 +231,7 @@ export default function ThresholdSettingsForm({ settings }: ThresholdSettingsFor
           <div className="space-y-0.5">
             <p className="text-sm font-medium text-foreground">Prefer Shortest Distance</p>
             <p className="text-xs text-muted-foreground">
-              When enabled, Dijkstra optimizes for distance. When disabled, it optimizes for travel time.
+              When on, the Shortest route is recommended and selected first. When off, the Fastest route is.
             </p>
           </div>
           <input

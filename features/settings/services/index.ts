@@ -145,6 +145,19 @@ export async function getGlobalSettingsPublic(): Promise<GlobalSettings> {
   return getCachedGlobalSettingsPublic()
 }
 
+/** Route planner limits. Readable by guests too; falls back to defaults if the row is missing. */
+export async function getRoutingConfigPublic(): Promise<RoutingConfig> {
+  const supabase = createTokenClient("")
+  const { data, error } = await supabase
+    .from("system_settings")
+    .select("value")
+    .eq("key", "routing_config")
+    .maybeSingle()
+
+  if (error) console.error("[Settings] Could not read routing_config, using defaults:", error.message)
+  return parseRoutingConfig((data?.value as Record<string, unknown>) ?? null)
+}
+
 export async function upsertSystemSetting(
   key: string,
   value: Record<string, unknown>,

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test"
 import {
   fetchDrivingDirections,
   fetchMultiStopRoadRoute,
+  fetchDrivingAlternatives,
 } from "./directions"
 
 describe("fetchMultiStopRoadRoute", () => {
@@ -119,5 +120,43 @@ describe("fetchDrivingDirections", () => {
     expect(result?.coordinates).toHaveLength(2)
     expect(result?.distanceKm).toBe(41.1)
     expect(result?.durationMin).toBe(45)
+  })
+})
+
+describe("fetchDrivingAlternatives", () => {
+  const originalFetch = globalThis.fetch
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it("asks OSRM for alternatives and returns the roads fastest first", async () => {
+    let calledUrl = ""
+    globalThis.fetch = mock(async (url: string) => {
+      calledUrl = url
+      return new Response(
+        JSON.stringify({
+          code: "Ok",
+          routes: [
+            { geometry: { coordinates: [[1, 1], [2, 2]] }, distance: 8000, duration: 900 },
+            { geometry: { coordinates: [[1, 1], [3, 3], [2, 2]] }, distance: 9500, duration: 660 },
+          ],
+        }),
+      )
+    }) as unknown as typeof fetch
+
+    const routes = await fetchDrivingAlternatives([1, 1], [2, 2])
+    expect(calledUrl).toContain("alternatives=2")
+    expect(routes?.map((r) => r.durationMin)).toEqual([11, 15])
+    expect(routes?.[0].distanceKm).toBe(9.5)
+  })
+
+  it("returns null when OSRM fails or finds no road", async () => {
+    globalThis.fetch = mock(async () => new Response(JSON.stringify({ code: "NoRoute", routes: [] }))) as unknown as typeof fetch
+    expect(await fetchDrivingAlternatives([1, 1], [2, 2])).toBeNull()
+    globalThis.fetch = mock(async () => {
+      throw new Error("offline")
+    }) as unknown as typeof fetch
+    expect(await fetchDrivingAlternatives([1, 1], [2, 2])).toBeNull()
   })
 })

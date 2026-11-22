@@ -339,15 +339,18 @@ features/recommendation
 
 # Route Optimization
 
-Routing uses:
-
-Dijkstra Shortest Path Algorithm.
-
 Routing belongs inside:
 
 ```
-features/routing
+features/route-optimization
 ```
+
+How it works (details in `features/route-optimization/README.md`):
+
+- Road distances and times between the chosen stops come from OSRM (OpenStreetMap roads). If OSRM is unreachable, straight-line estimates are used and marked "estimated".
+- Dijkstra's Shortest Path computes the cheapest leg between every pair of stops (by distance or by time). Dijkstra does not choose the visiting order of many stops.
+- The visiting order is chosen by an exact method (Held-Karp) up to 10 stops (11 points with "my location"), and by Nearest Neighbor + 2-opt above that.
+- Tourists get several route options (Shortest, Fastest, Balanced, Highlights first, One town at a time, My order). Options are generated without saving; only the one the tourist picks is saved.
 
 UI must never implement routing logic.
 

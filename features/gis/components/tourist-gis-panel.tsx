@@ -31,12 +31,14 @@ import { cn } from "@/lib/utils"
 import { getBoundsFromViewport } from "@/utils/geo"
 import { useGisUiStore } from "../stores/gis-ui"
 import { useNearbySites } from "../hooks/use-nearby-sites"
-import { fetchDrivingDirections } from "../services/directions"
+import { fetchDrivingAlternatives } from "../services/directions"
 import MapEntryState from "./map-entry-state"
 import HeritageStatistics from "./heritage-statistics"
 import NearbyDestinationsList from "./nearby-destinations-list"
 import CuratedTrailsPanel from "./curated-trails-panel"
 import { RoutePlannerPanel } from "@/features/route-optimization/components"
+import { useRoutePlanner } from "@/features/route-optimization/hooks"
+import { ROUTE_OPTION_META } from "@/features/route-optimization/constants"
 import { trackRecommendationClickAction } from "@/features/recommendation/actions/click-track"
 import { DEFAULT_BOUNDARY_STYLE } from "../constants"
 import type { TouristMapSite, TouristMapCategory, CuratedTrail } from "../services/tourist-map"
@@ -44,6 +46,9 @@ import type { SiteWithDistance } from "../hooks/use-nearby-sites"
 import type { DrivingDirections } from "../services/directions"
 import type { GeoFeature, GeoFeatureCollection } from "../types"
 import type { User } from "@supabase/supabase-js"
+
+/** Directions line colors: fastest road always green, another selected road blue, other roads gray. */
+const DIRECTIONS_COLORS = { fastest: "#16A34A", selected: "#2563EB", other: "#6B7280" }
 
 type BoundaryFillPaint = NonNullable<FillLayerSpecification["paint"]>
 type BoundaryLinePaint = NonNullable<LineLayerSpecification["paint"]>
@@ -157,9 +162,7 @@ export default function TouristGISPanel({
     setRecommendedSiteIds,
     routePlanningMode,
     routeStopIds,
-    activeRoute,
-    selectedRouteOptionIndex,
-    selectRouteOption,
+    compareAllRoutes,
     addRouteStop,
     removeRouteStop,
     setRoutePlanningMode,
@@ -173,7 +176,10 @@ export default function TouristGISPanel({
   const [selectedMunicipalityId, setSelectedMunicipalityId] = useState<string | null>(null)
   const [recommendationRecIds, setRecommendationRecIds] = useState<Record<string, string>>({})
   const [directionsSiteId, setDirectionsSiteId] = useState<string | null>(null)
-  const [directionsRoute, setDirectionsRoute] = useState<DrivingDirections | null>(null)
+  // All roads found, fastest first; the selected one is shown in detail.
+  const [directionsRoutes, setDirectionsRoutes] = useState<DrivingDirections[] | null>(null)
+  const [selectedDirectionsIndex, setSelectedDirectionsIndex] = useState(0)
+  const directionsRoute = directionsRoutes?.[selectedDirectionsIndex] ?? null
   const [directionsLoading, setDirectionsLoading] = useState(false)
   const [directionsFailed, setDirectionsFailed] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
@@ -199,6 +205,12 @@ export default function TouristGISPanel({
   }, [setRecommendedSiteIds])
 
   const nearbySites = useNearbySites(sites, userLatitude, userLongitude)
+  const routePlanner = useRoutePlanner(userLatitude, userLongitude)
+  const selectedRouteOption = showRouteOnMap ? routePlanner.selectedOption : null
+  const otherRouteOptions =
+    showRouteOnMap && compareAllRoutes && routePlanner.result
+      ? routePlanner.result.options.filter((o) => o !== selectedRouteOption)
+      : []
   const hasLocation = userLatitude != null && userLongitude != null
 
   const filteredSites = useMemo(
@@ -374,21 +386,22 @@ export default function TouristGISPanel({
 
       const requestId = ++directionsRequestRef.current
       setDirectionsSiteId(site.id)
-      setDirectionsRoute(null)
+      setDirectionsRoutes(null)
+      setSelectedDirectionsIndex(0)
       setDirectionsFailed(false)
       setDirectionsLoading(true)
       handleCloseDetail()
 
       // Road-following route (OSRM, OpenStreetMap-based) from the user to the
       // site. Falls back to a straight line (see render below) if it fails.
-      fetchDrivingDirections(
+      fetchDrivingAlternatives(
         [userLongitude, userLatitude],
         [site.longitude, site.latitude],
-      ).then((route) => {
+      ).then((routes) => {
         if (directionsRequestRef.current !== requestId) return
         setDirectionsLoading(false)
-        setDirectionsRoute(route)
-        setDirectionsFailed(route === null)
+        setDirectionsRoutes(routes)
+        setDirectionsFailed(routes === null)
       })
     },
     [userLatitude, userLongitude, handleCloseDetail],
@@ -397,7 +410,8 @@ export default function TouristGISPanel({
   const handleClearDirections = useCallback(() => {
     directionsRequestRef.current += 1
     setDirectionsSiteId(null)
-    setDirectionsRoute(null)
+    setDirectionsRoutes(null)
+    setSelectedDirectionsIndex(0)
     setDirectionsLoading(false)
     setDirectionsFailed(false)
   }, [])
@@ -428,13 +442,13 @@ export default function TouristGISPanel({
     )
   }, [directionsTarget, directionsRoute, directionsFailed, userLatitude, userLongitude])
 
-  // Fit map viewport to active optimized route bounds when a route is computed
+  // Fit the map to the selected route option whenever the selection changes
   useEffect(() => {
-    if (!activeRoute || !showRouteOnMap || !mapInstanceRef.current) return
-    if (activeRoute.path.length < 2) return
+    if (!selectedRouteOption || !mapInstanceRef.current) return
+    if (selectedRouteOption.path.length < 2) return
 
-    const lngs = activeRoute.path.map((p) => p[0])
-    const lats = activeRoute.path.map((p) => p[1])
+    const lngs = selectedRouteOption.path.map((p) => p[0])
+    const lats = selectedRouteOption.path.map((p) => p[1])
 
     mapInstanceRef.current.fitBounds(
       [
@@ -443,7 +457,7 @@ export default function TouristGISPanel({
       ],
       { padding: 80, duration: 800, maxZoom: 16 },
     )
-  }, [activeRoute, showRouteOnMap])
+  }, [selectedRouteOption])
 
   const handleViewportChange = useCallback(
     (vp: { center: [number, number]; zoom: number }) => {
@@ -583,7 +597,7 @@ export default function TouristGISPanel({
           <CuratedTrailsPanel trails={curatedTrails} />
 
           {/* Route Planner */}
-          <RoutePlannerPanel sites={nearbySites} user={user} />
+          <RoutePlannerPanel sites={nearbySites} user={user} planner={routePlanner} />
 
           {/* Consolidated Filters & Categories Accordion */}
           <div>
@@ -876,37 +890,35 @@ export default function TouristGISPanel({
               </MapMarker>
             )})}
 
-          {/* Alternative route options visualization (clickable dashed lines) */}
-          {showRouteOnMap &&
-            activeRoute?.options &&
-            activeRoute.options.map((opt, idx) => {
-              if (idx === (selectedRouteOptionIndex ?? 0)) return null
-              if (opt.path.length < 2) return null
-              return (
-                <MapRoute
-                  key={`alt-route-${opt.id}`}
-                  id={`alt-route-${opt.id}`}
-                  coordinates={opt.path}
-                  color="#94A3B8"
-                  width={4}
-                  opacity={0.6}
-                  dashArray={[3, 3]}
-                  onClick={() => selectRouteOption(idx)}
-                />
-              )
-            })}
-
-          {/* Active route visualization overlay */}
-          {showRouteOnMap && activeRoute && activeRoute.path.length >= 2 && (
+          {/* Route options overlay: other options thin and dashed (compare mode),
+              the selected option thick and drawn last so it sits on top.
+              Keys include the kind so a newly selected line is re-added above the rest. */}
+          {otherRouteOptions.map((option) => (
             <MapRoute
-              id="active-route-path"
-              coordinates={activeRoute.path}
-              color="#2E5BFF"
+              key={`route-option-${option.kind}`}
+              id={`route-option-${option.kind}`}
+              coordinates={option.path}
+              color={ROUTE_OPTION_META[option.kind].color}
+              width={3}
+              opacity={0.6}
+              dashArray={[2, 2]}
+              interactive={false}
+            />
+          ))}
+          {selectedRouteOption && selectedRouteOption.path.length >= 2 && (
+            <MapRoute
+              key={`route-selected-${selectedRouteOption.kind}`}
+              id={`route-selected-${selectedRouteOption.kind}`}
+              coordinates={selectedRouteOption.path}
+              color={ROUTE_OPTION_META[selectedRouteOption.kind].color}
               width={5}
-              opacity={0.85}
+              opacity={0.9}
+              // Estimated (straight-line) routes are dashed so color is not the only signal.
+              dashArray={selectedRouteOption.estimated ? [1.5, 1.5] : undefined}
+              interactive={false}
             />
           )}
-          {showRouteOnMap && activeRoute && activeRoute.stops.map((stop, index) => (
+          {selectedRouteOption?.stops.map((stop) => (
             <MapMarker
               key={`route-stop-${stop.siteId}`}
               longitude={stop.longitude}
@@ -915,21 +927,20 @@ export default function TouristGISPanel({
               <MarkerContent>
                 <div className="relative">
                   <MapPin
-                    className="size-6 -translate-x-1/2 -translate-y-full drop-shadow-lg"
-                    style={{
-                      fill: ["#2E5BFF","#34A853","#F4B400","#EA4335","#9C27B0","#00BCD4","#FF5722","#607D8B"][index % 8],
-                      color: "#ffffff",
-                    }}
+                    className={cn(
+                      "size-6 -translate-x-1/2 -translate-y-full text-white drop-shadow-lg",
+                      ROUTE_OPTION_META[selectedRouteOption.kind].fillClass,
+                    )}
                   />
-                  <span className="absolute left-1/2 top-0 flex size-4 -translate-x-1/2 -translate-y-1 items-center justify-center rounded-full bg-white text-[8px] font-bold shadow-sm"
-                    style={{ color: ["#2E5BFF","#34A853","#F4B400","#EA4335","#9C27B0","#00BCD4","#FF5722","#607D8B"][index % 8] }}
+                  <span
+                    className="absolute left-1/2 top-0 flex size-4 -translate-x-1/2 -translate-y-1 items-center justify-center rounded-full bg-white text-[8px] font-bold text-ink shadow-sm"
                     aria-hidden="true"
                   >
                     {stop.stopOrder}
                   </span>
                 </div>
               </MarkerContent>
-              <MarkerLabel>{stop.siteName}</MarkerLabel>
+              <MarkerLabel>{`${stop.stopOrder}. ${stop.siteName}`}</MarkerLabel>
             </MapMarker>
           ))}
 
@@ -938,15 +949,34 @@ export default function TouristGISPanel({
               while loading or if the routing request fails */}
           {directionsTarget && hasUserMarker && (
             <>
-              {directionsRoute ? (
-                <MapRoute
-                  id="quick-directions"
-                  coordinates={directionsRoute.coordinates}
-                  color="#4285F4"
-                  width={5}
-                  opacity={0.85}
-                  interactive={false}
-                />
+              {directionsRoutes && directionsRoute ? (
+                <>
+                  {/* Other roads, thinner (the fastest stays green, the rest gray); click one to select it */}
+                  {directionsRoutes.map((route, index) =>
+                    index === selectedDirectionsIndex ? null : (
+                      <MapRoute
+                        key={`quick-directions-alt-${index}`}
+                        id={`quick-directions-alt-${index}`}
+                        coordinates={route.coordinates}
+                        color={index === 0 ? DIRECTIONS_COLORS.fastest : DIRECTIONS_COLORS.other}
+                        width={4}
+                        opacity={0.7}
+                        onClick={() => setSelectedDirectionsIndex(index)}
+                      />
+                    ),
+                  )}
+                  {/* Selected road on top: green when it is the fastest, blue otherwise.
+                      Keyed by index so it is re-added above the gray lines. */}
+                  <MapRoute
+                    key={`quick-directions-${selectedDirectionsIndex}`}
+                    id={`quick-directions-${selectedDirectionsIndex}`}
+                    coordinates={directionsRoute.coordinates}
+                    color={selectedDirectionsIndex === 0 ? DIRECTIONS_COLORS.fastest : DIRECTIONS_COLORS.selected}
+                    width={6}
+                    opacity={0.9}
+                    interactive={false}
+                  />
+                </>
               ) : (
                 <MapRoute
                   id="quick-directions"
@@ -993,33 +1023,75 @@ export default function TouristGISPanel({
 
         {/* Quick directions banner */}
         {directionsTarget && hasUserMarker && (
-          <div className="absolute right-3 top-3 z-10 flex max-w-[calc(100vw-7rem)] items-center gap-2 rounded-lg bg-cream px-3 py-1.5 text-xs font-medium text-ink shadow-sm sm:max-w-none">
-            {directionsLoading ? (
-              <Loader2 className="size-3.5 animate-spin text-[#4285F4]" />
-            ) : (
-              <Navigation className={cn("size-3.5", directionsRoute ? "text-[#4285F4]" : "text-[#EA4335]")} />
-            )}
-            <span>
+          <div className="absolute right-3 top-3 z-10 max-w-[calc(100vw-7rem)] space-y-1.5 rounded-lg bg-cream px-3 py-1.5 text-xs font-medium text-ink shadow-sm sm:max-w-none">
+            <div className="flex items-center gap-2">
               {directionsLoading ? (
-                `Finding route to ${directionsTarget.siteName}…`
-              ) : directionsRoute ? (
-                `${directionsTarget.siteName} · ${directionsRoute.distanceKm.toFixed(1)} km · ~${directionsRoute.durationMin} min`
+                <Loader2 className="size-3.5 animate-spin text-[#4285F4]" />
               ) : (
-                <>
-                  Directions to {directionsTarget.siteName}
-                  {directionsTarget.distanceKm != null &&
-                    ` · ${directionsTarget.distanceKm < 1 ? `${(directionsTarget.distanceKm * 1000).toFixed(0)}m` : `${directionsTarget.distanceKm.toFixed(1)}km`} (straight-line, road route unavailable)`}
-                </>
+                <Navigation className={cn("size-3.5", directionsRoute ? "text-green-600" : "text-[#EA4335]")} />
               )}
-            </span>
-            <button
-              type="button"
-              onClick={handleClearDirections}
-              className="rounded p-0.5 text-ink-soft hover:text-ink"
-              aria-label="Clear directions"
-            >
-              <X className="size-3.5" />
-            </button>
+              <span>
+                {directionsLoading ? (
+                  `Finding routes to ${directionsTarget.siteName}…`
+                ) : directionsRoute ? (
+                  directionsTarget.siteName
+                ) : (
+                  <>
+                    Directions to {directionsTarget.siteName}
+                    {directionsTarget.distanceKm != null &&
+                      ` · ${directionsTarget.distanceKm < 1 ? `${(directionsTarget.distanceKm * 1000).toFixed(0)}m` : `${directionsTarget.distanceKm.toFixed(1)}km`} (straight-line, road route unavailable)`}
+                  </>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={handleClearDirections}
+                className="ml-auto rounded p-0.5 text-ink-soft hover:text-ink"
+                aria-label="Clear directions"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            {directionsRoutes && (
+              <div className="space-y-1" role="group" aria-label="Possible roads">
+                {directionsRoutes.map((route, index) => {
+                  const fastest = directionsRoutes[0]
+                  const isSelected = index === selectedDirectionsIndex
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => setSelectedDirectionsIndex(index)}
+                      aria-pressed={isSelected}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-md border px-2 py-1 text-left transition-colors focus-visible:ring-3 focus-visible:ring-accent/50",
+                        isSelected ? "border-ink/40 bg-card" : "border-transparent hover:bg-card/70",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-1 w-4 shrink-0 rounded-full",
+                          index === 0 ? "bg-green-600" : isSelected ? "bg-blue-600" : "bg-gray-500",
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className="font-semibold">{index === 0 ? "Fastest" : `Road ${index + 1}`}</span>
+                      <span className="text-ink-soft">
+                        {route.durationMin} min · {route.distanceKm.toFixed(1)} km
+                      </span>
+                      {index > 0 && (
+                        <span className="ml-auto font-mono text-[10px] text-ink-soft">
+                          +{route.durationMin - fastest.durationMin} min
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+                {directionsRoutes.length === 1 && (
+                  <p className="text-[10px] font-normal text-ink-soft">Only one road found.</p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

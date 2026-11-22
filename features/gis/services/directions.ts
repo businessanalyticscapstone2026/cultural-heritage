@@ -21,7 +21,22 @@ export interface MultiStopRoadRoute {
 // Public OSRM demo endpoint — no API key, rate-limited for light/demo use.
 // Swap for a self-hosted OSRM (or other routing provider) instance before
 // relying on this for production-scale traffic.
-const OSRM_ROUTE_URL = "https://router.project-osrm.org/route/v1/driving"
+export const OSRM_BASE_URL = "https://router.project-osrm.org"
+const OSRM_ROUTE_URL = `${OSRM_BASE_URL}/route/v1/driving`
+
+export type OsrmProfile = "driving" | "walking"
+
+// The public demo above only routes cars. Walking uses the FOSSGIS OSRM foot server
+// (same API, ignores one-way streets). Same light-use caveat as the demo.
+const OSRM_PROFILE_URLS: Record<OsrmProfile, string> = {
+  driving: `${OSRM_BASE_URL}/{service}/v1/driving`,
+  walking: "https://routing.openstreetmap.de/routed-foot/{service}/v1/foot",
+}
+
+/** OSRM endpoint for a service ("route", "table") and travel profile. */
+export function osrmUrl(service: "route" | "table", profile: OsrmProfile): string {
+  return OSRM_PROFILE_URLS[profile].replace("{service}", service)
+}
 
 /**
  * Fetches a road-following driving route between two points via OSRM
@@ -54,15 +69,16 @@ export async function fetchDrivingDirections(
 
 /**
  * Fetches road-following route geometry and metrics across multiple stops via OSRM.
- * Accepts an ordered array of [longitude, latitude] coordinates.
+ * Accepts an ordered array of [longitude, latitude] coordinates and a travel profile.
  * Returns null on any failure so callers can fall back to a straight line.
  */
 export async function fetchMultiStopRoadRoute(
   waypoints: [number, number][],
+  profile: OsrmProfile = "driving",
 ): Promise<MultiStopRoadRoute | null> {
   if (waypoints.length < 2) return null
   const coordsString = waypoints.map(([lng, lat]) => `${lng},${lat}`).join(";")
-  const url = `${OSRM_ROUTE_URL}/${coordsString}?overview=full&geometries=geojson`
+  const url = `${osrmUrl("route", profile)}/${coordsString}?overview=full&geometries=geojson`
 
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(6000) })
@@ -85,6 +101,41 @@ export async function fetchMultiStopRoadRoute(
       totalDurationMin: Math.round(route.duration / 60),
       legs,
     }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Up to 3 different roads from origin to destination (OSRM alternatives),
+ * sorted fastest first. Returns null on any failure so callers can fall back
+ * to a straight line. Often only one road exists, so the list may have 1 item.
+ */
+export async function fetchDrivingAlternatives(
+  origin: [number, number],
+  destination: [number, number],
+): Promise<DrivingDirections[] | null> {
+  const url = `${OSRM_ROUTE_URL}/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?overview=full&geometries=geojson&alternatives=2`
+
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(6000) })
+    if (!response.ok) return null
+
+    const data = await response.json()
+    const routes = (data.routes ?? []) as {
+      geometry?: { coordinates?: [number, number][] }
+      distance: number
+      duration: number
+    }[]
+    const parsed = routes
+      .filter((r) => r.geometry?.coordinates?.length)
+      .map((r) => ({
+        coordinates: r.geometry!.coordinates!,
+        distanceKm: Math.round((r.distance / 1000) * 10) / 10,
+        durationMin: Math.round(r.duration / 60),
+      }))
+      .sort((a, b) => a.durationMin - b.durationMin || a.distanceKm - b.distanceKm)
+    return parsed.length > 0 ? parsed : null
   } catch {
     return null
   }

@@ -1,12 +1,15 @@
 "use client"
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react"
-import { Route, MapPin, Plus, X, Trash2, ChevronUp, ChevronDown, Navigation, Clock, RotateCcw, Sparkles, LogIn } from "lucide-react"
+import { Route, MapPin, Plus, X, Trash2, ChevronUp, ChevronDown, Sparkles, Info } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
+import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
 import { useGisUiStore } from "@/features/gis/stores/gis-ui"
-import { useCreateRoute } from "../hooks"
-import type { OptimizedRoute } from "../types"
+import { useSaveRoute, type RoutePlanner } from "../hooks"
+import type { RouteStartMode, RouteTravelMode } from "../types"
 import type { SiteWithDistance } from "@/features/gis/hooks/use-nearby-sites"
+import RouteOptionsList, { RouteOptionsSkeleton } from "./route-options-list"
 
 const STOP_COLORS = [
   "#2E5BFF",
@@ -19,27 +22,47 @@ const STOP_COLORS = [
   "#607D8B",
 ]
 
+const START_MODES: { value: RouteStartMode; label: string }[] = [
+  { value: "origin", label: "My location" },
+  { value: "best", label: "Best start" },
+  { value: "first", label: "First stop" },
+]
+
+const TRAVEL_MODES: { value: RouteTravelMode; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "walking", label: "Walk" },
+  { value: "driving", label: "Drive" },
+]
+
 interface RoutePlannerPanelProps {
   sites: SiteWithDistance[]
   user: { id: string } | null
+  /** Route options state, shared with the map (see useRoutePlanner). */
+  planner: RoutePlanner
 }
 
-export default function RoutePlannerPanel({ sites, user }: RoutePlannerPanelProps) {
+export default function RoutePlannerPanel({ sites, user, planner }: RoutePlannerPanelProps) {
   const {
     routePlanningMode,
     routeStopIds,
-    activeRoute,
-    selectedRouteOptionIndex,
+    routeRoundTrip,
+    routeTravelMode,
+    compareAllRoutes,
     setRoutePlanningMode,
     addRouteStop,
     removeRouteStop,
     reorderRouteStops,
     clearRouteStops,
-    setActiveRoute,
-    selectRouteOption,
+    setRouteStartMode,
+    setRouteRoundTrip,
+    setRouteTravelMode,
+    setSelectedOptionKind,
+    setCompareAllRoutes,
   } = useGisUiStore()
 
-  const { create, loading, error } = useCreateRoute()
+  const { result, error, loading, findRoutes, startMode, hasLocation, selectedOption } = planner
+  const saver = useSaveRoute()
+  const isSaved = saver.saved !== null && saver.saved.option === selectedOption
   const [routeName, setRouteName] = useState("My Heritage Tour")
   const [addQuery, setAddQuery] = useState("")
   const [showAddDropdown, setShowAddDropdown] = useState(false)
@@ -77,27 +100,21 @@ export default function RoutePlannerPanel({ sites, user }: RoutePlannerPanelProp
     (siteId: string) => {
       addRouteStop(siteId)
       setAddQuery("")
-      setShowAddDropdown(false)
+      // Focus first: focusing opens the list, so close it afterwards.
       addInputRef.current?.focus()
+      setShowAddDropdown(false)
     },
     [addRouteStop],
   )
 
-  const handleOptimize = useCallback(async () => {
-    if (routeStopIds.length < 2) return
-    const result = await create(routeName, routeStopIds)
-    if (result) {
-      setActiveRoute(result)
-    }
-  }, [routeStopIds, routeName, create, setActiveRoute])
+  const handleSave = useCallback(() => {
+    if (selectedOption) saver.save(routeName, selectedOption)
+  }, [saver, routeName, selectedOption])
 
   const handleClearAll = useCallback(() => {
     clearRouteStops()
     setRouteName("My Heritage Tour")
   }, [clearRouteStops])
-
-  const totalDistance = activeRoute?.totalDistanceKm ?? null
-  const totalDuration = activeRoute?.totalDurationMin ?? null
 
   return (
     <div className="border-b border-ink/10">
@@ -205,7 +222,15 @@ export default function RoutePlannerPanel({ sites, user }: RoutePlannerPanelProp
               </div>
 
               {/* Add stop search */}
-              <div className="relative">
+              <div
+                className="relative"
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget)) setShowAddDropdown(false)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setShowAddDropdown(false)
+                }}
+              >
                 <div className="relative">
                   <Plus className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-soft" />
                   <input
@@ -226,6 +251,8 @@ export default function RoutePlannerPanel({ sites, user }: RoutePlannerPanelProp
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -4 }}
                       className="absolute inset-x-0 top-full z-20 mt-1 max-h-40 overflow-y-auto rounded-xl border border-ink/10 bg-card shadow-lg"
+                      // Keep focus in the search box while clicking a result (Safari does not focus buttons on click).
+                      onMouseDown={(e) => e.preventDefault()}
                     >
                       {filteredAddable.slice(0, 8).map((site) => (
                         <button
@@ -244,20 +271,79 @@ export default function RoutePlannerPanel({ sites, user }: RoutePlannerPanelProp
                 </AnimatePresence>
               </div>
 
+              {/* Start point and round trip */}
+              <fieldset className="space-y-1">
+                <legend className="text-[11px] font-medium text-ink-soft">Start from</legend>
+                <div className="flex gap-1">
+                  {START_MODES.filter((m) => m.value !== "origin" || hasLocation).map((m) => (
+                    <label
+                      key={m.value}
+                      className={cn(
+                        "flex-1 cursor-pointer rounded-lg border px-1.5 py-1 text-center text-[11px] transition-colors has-focus-visible:ring-3 has-focus-visible:ring-accent/50",
+                        startMode === m.value ? "border-ink bg-ink text-white" : "border-ink/15 bg-card text-ink hover:border-ink/30",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="route-start-mode"
+                        value={m.value}
+                        checked={startMode === m.value}
+                        onChange={() => setRouteStartMode(m.value)}
+                        className="sr-only"
+                      />
+                      {m.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="space-y-1">
+                <legend className="text-[11px] font-medium text-ink-soft">Travel by</legend>
+                <div className="flex gap-1">
+                  {TRAVEL_MODES.map((m) => (
+                    <label
+                      key={m.value}
+                      className={cn(
+                        "flex-1 cursor-pointer rounded-lg border px-1.5 py-1 text-center text-[11px] transition-colors has-focus-visible:ring-3 has-focus-visible:ring-accent/50",
+                        routeTravelMode === m.value ? "border-ink bg-ink text-white" : "border-ink/15 bg-card text-ink hover:border-ink/30",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="route-travel-mode"
+                        value={m.value}
+                        checked={routeTravelMode === m.value}
+                        onChange={() => setRouteTravelMode(m.value)}
+                        className="sr-only"
+                      />
+                      {m.label}
+                    </label>
+                  ))}
+                </div>
+                {routeTravelMode === "auto" && result && (
+                  <p className="text-[10px] text-ink-soft">
+                    {result.travelMode === "walking" ? "Walking: stops are close together." : "Driving: stops are far apart."}
+                  </p>
+                )}
+              </fieldset>
+              <label className="flex cursor-pointer items-center justify-between text-[11px] text-ink">
+                <span>Return to start</span>
+                <Switch size="sm" checked={routeRoundTrip} onCheckedChange={(checked) => setRouteRoundTrip(checked)} />
+              </label>
+
               {/* Route actions */}
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={handleOptimize}
+                  onClick={findRoutes}
                   disabled={routeStopIds.length < 2 || loading}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent py-2 text-xs font-medium text-white transition-all hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent py-2 text-xs font-medium text-white transition-all hover:bg-accent/90 focus-visible:ring-3 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {loading ? (
                     <span className="size-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   ) : (
                     <Sparkles className="size-3.5" />
                   )}
-                  {loading ? "Optimizing..." : "Optimize Route"}
+                  {loading ? "Finding routes..." : "Find best routes"}
                 </button>
                 {routeStopIds.length > 0 && (
                   <button
@@ -270,97 +356,43 @@ export default function RoutePlannerPanel({ sites, user }: RoutePlannerPanelProp
                   </button>
                 )}
               </div>
+              {routeStopIds.length < 2 && stopSites.length > 0 && (
+                <p className="text-[11px] text-ink-soft">Add at least 2 stops to find routes.</p>
+              )}
 
               {error && (
-                <p className="text-[11px] text-error" role="alert">{error}</p>
+                <p className="text-[11px] text-red-700" role="alert">{error}</p>
               )}
 
-              {/* Route options selector */}
-              {activeRoute?.options && activeRoute.options.length > 1 && (
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
-                      Route Options ({activeRoute.options.length})
-                    </span>
-                    <span className="text-[9px] text-ink-soft/70">Tap card or line on map</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {activeRoute.options.map((opt, idx) => {
-                      const isSelected = selectedRouteOptionIndex === idx
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => selectRouteOption(idx)}
-                          className={`flex w-full items-center justify-between rounded-xl border p-2.5 text-left transition-all ${
-                            isSelected
-                              ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent/30"
-                              : "border-ink/10 bg-card hover:border-ink/20 hover:bg-muted/30"
-                          }`}
-                        >
-                          <div className="min-w-0 flex-1 pr-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-xs font-semibold ${isSelected ? "text-accent" : "text-ink"}`}>
-                                {opt.title}
-                              </span>
-                              {opt.badge && (
-                                <span
-                                  className={`rounded-full px-1.5 py-0.2 text-[9px] font-medium ${
-                                    isSelected
-                                      ? "bg-accent text-white"
-                                      : "bg-ink/5 text-ink-soft"
-                                  }`}
-                                >
-                                  {opt.badge}
-                                </span>
-                              )}
-                            </div>
-                            <p className="truncate text-[10px] text-ink-soft mt-0.5">{opt.description}</p>
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className={`text-xs font-bold ${isSelected ? "text-accent" : "text-ink"}`}>
-                              {opt.totalDistanceKm} km
-                            </p>
-                            <p className="text-[10px] text-ink-soft">~{opt.totalDurationMin} min</p>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+              {loading && <RouteOptionsSkeleton />}
 
-              {/* Route result */}
-              {activeRoute && (
-                <div className="rounded-xl border border-accent/20 bg-accent/5 p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <Navigation className="size-3 text-accent" />
-                      <span className="text-xs font-semibold text-ink">
-                        {totalDistance != null ? `${totalDistance} km` : "—"}
+              {result && (
+                <div className="space-y-2">
+                  {result.excludedSites.length > 0 && (
+                    <p className="flex gap-1 rounded-lg border border-ink/10 bg-parchment/60 p-2 text-[11px] text-ink">
+                      <Info className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+                      <span>
+                        {result.excludedSites.length} site{result.excludedSites.length === 1 ? " was" : "s were"} left out
+                        because {result.excludedSites.length === 1 ? "it has" : "they have"} no usable map location:{" "}
+                        {result.excludedSites.map((s) => s.name).join(", ")}.
                       </span>
-                    </div>
-                    <span className="text-ink/20">·</span>
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="size-3 text-accent" />
-                      <span className="text-xs font-semibold text-ink">
-                        {totalDuration != null ? `~${totalDuration} min` : "—"}
-                      </span>
-                    </div>
-                    <span className="text-ink/20">·</span>
-                    <span className="text-xs text-ink-soft">{activeRoute.stops.length} stops</span>
-                  </div>
-                  {activeRoute.hasEstimatedEdges && (
-                    <p className="mt-1 text-[10px] text-ink-soft/60">
-                      Some distances estimated (Haversine)
                     </p>
                   )}
-                  {!user && (
-                    <p className="mt-2 flex items-center gap-1 text-[10px] text-ink-soft/60">
-                      <LogIn className="size-3" />
-                      <span>Log in to save this route to your profile.</span>
-                    </p>
-                  )}
+                  {result.warnings.map((w) => (
+                    <p key={w} className="text-[11px] text-ink-soft">{w}</p>
+                  ))}
+                  <RouteOptionsList
+                    result={result}
+                    selected={selectedOption}
+                    onSelect={setSelectedOptionKind}
+                    compareAll={compareAllRoutes}
+                    onCompareAllChange={setCompareAllRoutes}
+                    canSave={user !== null}
+                    onSave={handleSave}
+                    saving={saver.saving}
+                    saveError={isSaved ? null : saver.error}
+                    savedId={isSaved ? saver.saved!.id : null}
+                  />
                 </div>
               )}
             </div>

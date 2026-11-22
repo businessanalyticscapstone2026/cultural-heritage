@@ -1,9 +1,23 @@
 import { createClient } from "@/utils/supabase/server"
-import { haversineDistance } from "@/utils/geo"
 import { fetchMultiStopRoadRoute } from "@/features/gis/services/directions"
-import type { OptimizedRoute, RouteStop, RouteEdge, DijkstraResult, CreateRouteInput, RouteOption } from "../types"
-const ESTIMATED_SPEED_KMH = 40
-const DEFAULT_TRAVEL_TIME_MIN_FACTOR = 1.5
+import { getRoutingConfigPublic } from "@/features/settings/services"
+import { haversineDistance } from "@/utils/geo"
+import { AUTO_WALK_MAX_KM, NEUTRAL_RATING } from "../constants"
+import type {
+  OptimizedRoute,
+  RouteStop,
+  CreateRouteInput,
+  GenerateRouteOptionsInput,
+  RouteOption,
+  RouteOptionsResult,
+  ExcludedSite,
+  RouteTravelMode,
+} from "../types"
+import { dijkstra, type RouteGraph } from "./dijkstra"
+import { coordinateProblem, getRoadMatrix, type MatrixPoint, type RoadMatrix } from "./matrix"
+import { planRouteOptions, type PlannedOption } from "./options"
+
+export { dijkstra } from "./dijkstra"
 
 interface RawSite {
   id: string
@@ -14,444 +28,277 @@ interface RawSite {
   media: { file_url: string; is_primary: boolean }[]
 }
 
-function estimateTravelTime(distanceKm: number): number {
-  return Math.round((distanceKm / ESTIMATED_SPEED_KMH) * 60 * DEFAULT_TRAVEL_TIME_MIN_FACTOR)
+interface PlannerSite extends RawSite {
+  average_rating: number | null
+  review_count: number | null
+}
+
+const PLANNER_SITE_COLUMNS =
+  "id, site_name, latitude, longitude, average_rating, review_count, municipality:municipalities(name), media:heritage_site_media(file_url, is_primary)"
+
+/** Id used for the tourist's own location in the distance table. */
+const ORIGIN_ID = "origin"
+
+/** Complete graph built from the road table: one edge per direction, with distance and time. */
+function graphFromMatrix(points: MatrixPoint[], matrix: RoadMatrix): RouteGraph {
+  const graph: RouteGraph = new Map()
+  points.forEach((a, i) => {
+    const edges = new Map()
+    points.forEach((b, j) => {
+      if (i === j) return
+      edges.set(b.id, {
+        from: a.id,
+        to: b.id,
+        distanceKm: matrix.distanceKm[i][j],
+        travelTimeMin: matrix.durationMin[i][j],
+        isEstimated: matrix.estimated,
+      })
+    })
+    graph.set(a.id, edges)
+  })
+  return graph
+}
+
+/** Resolves "auto": walk when every pair of points is within AUTO_WALK_MAX_KM. */
+export function resolveTravelMode(
+  mode: RouteTravelMode,
+  points: MatrixPoint[],
+): Exclude<RouteTravelMode, "auto"> {
+  if (mode !== "auto") return mode
+  const close = points.every((a) =>
+    points.every((b) => haversineDistance(a.latitude, a.longitude, b.latitude, b.longitude) <= AUTO_WALK_MAX_KM),
+  )
+  return close ? "walking" : "driving"
 }
 
 /**
- * Builds RouteStop array and road-following path coordinates for a given sequence of site IDs.
+ * Computes up to 6 route options for the chosen stops. Saves nothing.
+ *
+ * Steps: load sites (one query) -> leave out sites without a valid map location ->
+ * road distance table (OSRM) -> Dijkstra for every pair (by distance and by time) ->
+ * solver picks each option's order -> road line per distinct order (OSRM).
  */
-async function buildRouteForSequence(
+export async function generateRouteOptions(
   supabase: ReturnType<typeof createClient>,
-  orderedIds: string[],
-  edges: RouteEdge[],
-): Promise<{
-  stops: RouteStop[]
-  path: [number, number][]
+  input: GenerateRouteOptionsInput,
+): Promise<RouteOptionsResult> {
+  const config = await getRoutingConfigPublic()
+  const siteIds = [...new Set(input.siteIds)]
+  if (siteIds.length > config.maxStops) {
+    throw new Error(
+      `A route can have at most ${config.maxStops} stops. You picked ${siteIds.length}, please remove ${siteIds.length - config.maxStops}.`,
+    )
+  }
+
+  const { data, error } = await supabase.from("heritage_sites").select(PLANNER_SITE_COLUMNS).in("id", siteIds)
+  if (error) {
+    console.error("[Route] Failed to load sites:", error.message)
+    throw new Error("Could not load the selected sites. Please try again.")
+  }
+  const sitesById = new Map(((data ?? []) as unknown as PlannerSite[]).map((s) => [s.id, s]))
+
+  // Keep the user's order; leave out sites we cannot place on the map.
+  const routable: PlannerSite[] = []
+  const excludedSites: ExcludedSite[] = []
+  for (const id of siteIds) {
+    const site = sitesById.get(id)
+    const problem = site ? coordinateProblem(site.latitude, site.longitude) : "Site not found"
+    if (site && !problem) routable.push(site)
+    else excludedSites.push({ id, name: site?.site_name ?? "Unknown site", reason: problem ?? "Site not found" })
+  }
+  if (routable.length < 2) {
+    const missing = excludedSites.map((s) => s.name).join(", ")
+    throw new Error(
+      `Not enough sites have map locations to build a route.${missing ? ` Left out: ${missing}.` : ""}`,
+    )
+  }
+
+  const useOrigin = input.startMode === "origin" && input.origin !== null
+  const points: MatrixPoint[] = [
+    ...(useOrigin && input.origin
+      ? [{ id: ORIGIN_ID, latitude: input.origin.latitude, longitude: input.origin.longitude }]
+      : []),
+    ...routable.map((s) => ({ id: s.id, latitude: Number(s.latitude), longitude: Number(s.longitude) })),
+  ]
+
+  const travelMode = resolveTravelMode(input.travelMode, points)
+  const matrix = await getRoadMatrix(points, travelMode)
+  const graph = graphFromMatrix(points, matrix)
+  // Dijkstra gives the cheapest leg between every pair: by kilometres, and by minutes.
+  const legKm = points.map((a) => points.map((b) => (a.id === b.id ? 0 : dijkstra(graph, a.id, b.id).distance)))
+  const legMin = points.map((a) =>
+    points.map((b) => (a.id === b.id ? 0 : dijkstra(graph, a.id, b.id, { weight: "time" }).time)),
+  )
+
+  const { options: planned, recommendedKind } = planRouteOptions({
+    legKm,
+    legMin,
+    towns: points.map((p) => sitesById.get(p.id)?.municipality?.name ?? null),
+    ratings: points.map((p) => {
+      const site = sitesById.get(p.id)
+      if (!site) return 0
+      return (site.review_count ?? 0) > 0 ? Number(site.average_rating) / 5 : NEUTRAL_RATING
+    }),
+    start: useOrigin || input.startMode === "first" ? 0 : null,
+    roundTrip: input.roundTrip,
+    maxTravelTimeMinutes: config.maxTravelTimeMinutes,
+    preferShortestDistance: config.preferShortestDistance,
+    myOrder: input.includeMyOrder ? points.map((_, i) => i) : null,
+  })
+
+  const options = await Promise.all(
+    planned.map((p) =>
+      buildOption(p, { points, sitesById, legKm, legMin, matrix, roundTrip: input.roundTrip, travelMode }),
+    ),
+  )
+
+  const warnings: string[] = []
+  if (options.some((o) => o.estimated)) warnings.push("Showing estimated distances. The road map service could not be reached.")
+  if (options.some((o) => o.exceedsTimeLimit)) {
+    warnings.push(`Some routes take longer than the ${config.maxTravelTimeMinutes}-minute limit.`)
+  }
+
+  return {
+    options,
+    recommendedKind,
+    excludedSites,
+    warnings,
+    startsAtOrigin: useOrigin,
+    roundTrip: input.roundTrip,
+    travelMode,
+  }
+}
+
+/**
+ * Turns a planned order into a full option with stops and the map line.
+ * All numbers come from the road table (the same numbers used to choose the
+ * order), so Shortest is never longer than another card. The OSRM route call
+ * is only used for the road-following line.
+ */
+async function buildOption(
+  planned: PlannedOption,
+  ctx: {
+    points: MatrixPoint[]
+    sitesById: Map<string, PlannerSite>
+    legKm: number[][]
+    legMin: number[][]
+    matrix: RoadMatrix
+    roundTrip: boolean
+    travelMode: Exclude<RouteTravelMode, "auto">
+  },
+): Promise<RouteOption> {
+  const order = planned.order
+  const waypoints: [number, number][] = order.map((i) => [ctx.points[i].longitude, ctx.points[i].latitude])
+  if (ctx.roundTrip) waypoints.push(waypoints[0])
+
+  // Road-following line; if it fails we draw a straight dashed line.
+  const road = await fetchMultiStopRoadRoute(waypoints, ctx.travelMode)
+
+  const stops: RouteStop[] = []
+  let minutesSoFar = 0
+  order.forEach((pointIndex, k) => {
+    let legKm: number | null = null
+    let legMin: number | null = null
+    if (k > 0) {
+      legKm = Math.round(ctx.legKm[order[k - 1]][pointIndex] * 10) / 10
+      legMin = Math.round(ctx.legMin[order[k - 1]][pointIndex])
+      minutesSoFar += legMin
+    }
+    const site = ctx.sitesById.get(ctx.points[pointIndex].id)
+    if (!site) return // "my location" is not a stop
+    const arrival = new Date()
+    arrival.setMinutes(arrival.getMinutes() + minutesSoFar)
+    stops.push({
+      siteId: site.id,
+      siteName: site.site_name,
+      latitude: Number(site.latitude),
+      longitude: Number(site.longitude),
+      stopOrder: stops.length + 1,
+      distanceFromPrevKm: legKm,
+      travelTimeFromPrevMin: legMin,
+      estimatedArrival: arrival.toISOString(),
+      edgeIsEstimated: k > 0 && ctx.matrix.estimated,
+      thumbnail: site.media?.find((m) => m.is_primary)?.file_url ?? null,
+      municipalityName: site.municipality?.name ?? null,
+    })
+  })
+
+  return {
+    kind: planned.kind,
+    labels: planned.labels,
+    orderedSiteIds: stops.map((s) => s.siteId),
+    stops,
+    totalDistanceKm: planned.totalDistanceKm,
+    totalDurationMin: planned.totalDurationMin,
+    townChanges: planned.townChanges,
+    path: road?.coordinates.length ? road.coordinates : waypoints,
+    estimated: ctx.matrix.estimated || !road,
+    exceedsTimeLimit: planned.exceedsTimeLimit,
+    deltaVsShortest: planned.deltaVsShortest,
+  }
+}
+
+export interface SaveRouteInput {
+  touristId: string | null
+  name: string
   totalDistanceKm: number
   totalDurationMin: number
-  hasEstimatedEdges: boolean
-}> {
-  const stops: RouteStop[] = []
-  let cumulativeTime = 0
+  stops: { siteId: string; distanceFromPrevKm: number | null; travelTimeFromPrevMin: number | null }[]
+}
 
-  const { data: sitesRaw } = await supabase
-    .from("heritage_sites")
-    .select("id, site_name, latitude, longitude, municipality:municipalities(name), media:heritage_site_media(file_url, is_primary)")
-    .in("id", Array.from(new Set(orderedIds)))
-
-  const siteMap = new Map<string, RawSite>()
-  for (const s of (sitesRaw ?? []) as unknown as RawSite[]) {
-    siteMap.set(s.id, s)
-  }
-
-  for (let i = 0; i < orderedIds.length; i++) {
-    const siteId = orderedIds[i]
-    const site = siteMap.get(siteId)
-
-    let distanceFromPrev: number | null = null
-    let travelTimeFromPrev: number | null = null
-    let isEstimated = false
-    let estimatedArrival: string | null = null
-
-    if (i > 0) {
-      const prevId = orderedIds[i - 1]
-      const edge = edges.find(
-        (e) => (e.from === prevId && e.to === siteId) || (e.from === siteId && e.to === prevId),
-      )
-      if (edge) {
-        distanceFromPrev = edge.distanceKm
-        travelTimeFromPrev = edge.travelTimeMin
-        isEstimated = edge.isEstimated
-        cumulativeTime += edge.travelTimeMin
-        const arrival = new Date()
-        arrival.setMinutes(arrival.getMinutes() + cumulativeTime)
-        estimatedArrival = arrival.toISOString()
-      }
-    } else {
-      estimatedArrival = new Date().toISOString()
-    }
-
-    const primaryMedia = site?.media?.find((m) => m.is_primary)
-
-    stops.push({
-      siteId,
-      siteName: site?.site_name ?? "Unknown site",
-      latitude: site?.latitude != null ? Number(site.latitude) : 0,
-      longitude: site?.longitude != null ? Number(site.longitude) : 0,
-      stopOrder: i + 1,
-      distanceFromPrevKm: distanceFromPrev,
-      travelTimeFromPrevMin: travelTimeFromPrev,
-      estimatedArrival,
-      edgeIsEstimated: isEstimated,
-      thumbnail: primaryMedia?.file_url ?? null,
-      municipalityName: site?.municipality?.name ?? null,
+/** Saves one chosen route option into `routes` and `route_stops`. */
+export async function saveRoute(
+  supabase: ReturnType<typeof createClient>,
+  input: SaveRouteInput,
+): Promise<{ id: string; createdAt: string }> {
+  const { data: route, error: routeError } = await supabase
+    .from("routes")
+    .insert({
+      tourist_id: input.touristId,
+      name: input.name,
+      total_distance_km: input.totalDistanceKm,
+      total_duration_minutes: input.totalDurationMin,
+      status: "draft",
+      is_curated: false,
     })
+    .select("id, created_at")
+    .single()
+
+  if (routeError || !route) {
+    console.error("[Route] Failed to save route:", routeError?.message)
+    throw new Error("Could not save the route. Please try again.")
   }
 
-  let path: [number, number][] = []
-  let totalDistanceKm = 0
-  let totalDurationMin = 0
-  let hasEstimatedEdges = false
-
-  if (stops.length >= 2) {
-    const waypoints: [number, number][] = stops.map((s) => [s.longitude, s.latitude])
-    const roadRoute = await fetchMultiStopRoadRoute(waypoints)
-
-    if (roadRoute && roadRoute.coordinates.length > 0) {
-      path = roadRoute.coordinates
-      totalDistanceKm = roadRoute.totalDistanceKm
-      totalDurationMin = roadRoute.totalDurationMin
-      hasEstimatedEdges = false
-
-      let cumulativeRoadMinutes = 0
-      for (let i = 1; i < stops.length; i++) {
-        const leg = roadRoute.legs[i - 1]
-        if (leg) {
-          stops[i].distanceFromPrevKm = leg.distanceKm
-          stops[i].travelTimeFromPrevMin = leg.durationMin
-          stops[i].edgeIsEstimated = false
-
-          cumulativeRoadMinutes += leg.durationMin
-          const arrival = new Date()
-          arrival.setMinutes(arrival.getMinutes() + cumulativeRoadMinutes)
-          stops[i].estimatedArrival = arrival.toISOString()
-        }
-      }
-    }
-  }
-
-  if (path.length === 0) {
-    path = stops.map((s) => [s.longitude, s.latitude])
-    totalDistanceKm = Math.round(stops.reduce((acc, s) => acc + (s.distanceFromPrevKm ?? 0), 0) * 10) / 10
-    totalDurationMin = Math.round(stops.reduce((acc, s) => acc + (s.travelTimeFromPrevMin ?? 0), 0))
-    hasEstimatedEdges = stops.some((s) => s.edgeIsEstimated)
-  }
-
-  return { stops, path, totalDistanceKm, totalDurationMin, hasEstimatedEdges }
-}
-
-/**
- * Classic Dijkstra shortest-path on an undirected weighted graph.
- *
- * NOTE: Dijkstra solves single-pair shortest path. When called across N
- * stops we compute the all-pairs shortest-path matrix and then order the
- * itinerary via Nearest-Neighbor (a TSP approximation). See
- * `computeItineraryOrder()` below for the full algorithm documentation.
- */
-export function dijkstra(
-  graph: Map<string, Map<string, RouteEdge>>,
-  start: string,
-  end: string,
-): DijkstraResult {
-  const distances = new Map<string, number>()
-  const times = new Map<string, number>()
-  const previous = new Map<string, string | null>()
-  const unvisited = new Set<string>()
-
-  for (const node of graph.keys()) {
-    distances.set(node, Infinity)
-    times.set(node, 0)
-    previous.set(node, null)
-    unvisited.add(node)
-  }
-  distances.set(start, 0)
-  times.set(start, 0)
-
-  while (unvisited.size > 0) {
-    let current: string | null = null
-    let minDist = Infinity
-    for (const node of unvisited) {
-      const d = distances.get(node)!
-      if (d < minDist) {
-        minDist = d
-        current = node
-      }
-    }
-
-    if (current === null || current === end) break
-    unvisited.delete(current)
-
-    const neighbors = graph.get(current)
-    if (!neighbors) continue
-
-    for (const [neighbor, edge] of neighbors) {
-      if (!unvisited.has(neighbor)) continue
-      const altDist = distances.get(current)! + edge.distanceKm
-      if (altDist < distances.get(neighbor)!) {
-        distances.set(neighbor, altDist)
-        times.set(neighbor, times.get(current)! + edge.travelTimeMin)
-        previous.set(neighbor, current)
-      }
-    }
-  }
-
-  const path: string[] = []
-  let current: string | null = end
-  while (current !== null) {
-    path.unshift(current)
-    current = previous.get(current) ?? null
-  }
-
-  return {
-    distance: distances.get(end) ?? 0,
-    time: times.get(end) ?? 0,
-    path: path.length > 1 ? path : [],
-  }
-}
-
-interface SiteRow {
-  id: string
-  site_name: string
-  latitude: number | null
-  longitude: number | null
-  municipality: { name: string } | null
-  media: { file_url: string; is_primary: boolean }[]
-}
-
-/**
- * Build the adjacency graph for a set of site IDs.
- *
- * Queries the `site_distances` table for pre-computed edges. For any pair
- * not found, falls back to Haversine distance + estimated travel time.
- * Each edge records whether it is estimated so the UI can display a badge.
- */
-async function buildGraph(
-  supabase: ReturnType<typeof createClient>,
-  siteIds: string[],
-): Promise<{
-  graph: Map<string, Map<string, RouteEdge>>
-  sites: Map<string, SiteRow>
-  hasEstimatedEdges: boolean
-}> {
-  const { data: sitesRaw } = await supabase
-    .from("heritage_sites")
-    .select("id, site_name, latitude, longitude, municipality:municipalities(name), media:heritage_site_media(file_url, is_primary)")
-    .in("id", siteIds)
-
-  const sites = new Map<string, SiteRow>()
-  for (const s of (sitesRaw ?? []) as unknown as SiteRow[]) {
-    sites.set(s.id, s)
-  }
-
-  const { data: distances } = await supabase
-    .from("site_distances")
-    .select("site_a_id, site_b_id, distance_km, travel_time_minutes")
-    .or(
-      siteIds.map((id) => `and(site_a_id.eq.${id},site_b_id.in.(${siteIds.join(",")}))`).join(","),
-    )
-
-  const edgeMap = new Map<string, Map<string, RouteEdge>>()
-  let hasEstimatedEdges = false
-
-  const distanceLookup = new Map<string, { distanceKm: number; travelTimeMin: number | null }>()
-  for (const d of (distances ?? []) as { site_a_id: string; site_b_id: string; distance_km: number; travel_time_minutes: number | null }[]) {
-    const key = [d.site_a_id, d.site_b_id].sort().join(":")
-    distanceLookup.set(key, { distanceKm: d.distance_km, travelTimeMin: d.travel_time_minutes })
-  }
-
-  for (let i = 0; i < siteIds.length; i++) {
-    for (let j = i + 1; j < siteIds.length; j++) {
-      const a = siteIds[i]
-      const b = siteIds[j]
-      const key = [a, b].sort().join(":")
-
-      let distanceKm: number
-      let travelTimeMin: number
-      let isEstimated = false
-
-      const existing = distanceLookup.get(key)
-      if (existing) {
-        distanceKm = existing.distanceKm
-        travelTimeMin = existing.travelTimeMin ?? estimateTravelTime(distanceKm)
-      } else {
-        const siteA = sites.get(a)
-        const siteB = sites.get(b)
-        if (
-          siteA?.latitude != null && siteA?.longitude != null &&
-          siteB?.latitude != null && siteB?.longitude != null
-        ) {
-          distanceKm = Math.round(haversineDistance(
-            Number(siteA.latitude), Number(siteA.longitude),
-            Number(siteB.latitude), Number(siteB.longitude),
-          ) * 10) / 10
-          travelTimeMin = estimateTravelTime(distanceKm)
-          isEstimated = true
-          hasEstimatedEdges = true
-        } else {
-          continue
-        }
-      }
-
-      const edgeAB: RouteEdge = { from: a, to: b, distanceKm, travelTimeMin, isEstimated }
-      const edgeBA: RouteEdge = { from: b, to: a, distanceKm, travelTimeMin, isEstimated }
-
-      if (!edgeMap.has(a)) edgeMap.set(a, new Map())
-      if (!edgeMap.has(b)) edgeMap.set(b, new Map())
-      edgeMap.get(a)!.set(b, edgeAB)
-      edgeMap.get(b)!.set(a, edgeBA)
-    }
-  }
-
-  return { graph: edgeMap, sites, hasEstimatedEdges }
-}
-
-/**
- * Compute a near-optimal multi-stop itinerary order.
- *
- * ALGORITHM DOCUMENTATION:
- * ------------------------
- * The task description asks for "Dijkstra's shortest-path algorithm for
- * multi-stop itinerary planning." Strictly speaking, Dijkstra solves the
- * single-source shortest-path problem between two points — it does NOT
- * solve the problem of visiting N distinct sites in the optimal order
- * (that is the Traveling Salesman Problem, NP-hard).
- *
- * What we implement here:
- *  1. Dijkstra's algorithm on the pairwise distance graph to compute the
- *     shortest distance and travel time between every pair of selected
- *     sites (all-pairs shortest path).
- *  2. Nearest-Neighbor heuristic to order the stops: start at the site
- *     closest to the tourist's location (or first selected site), then
- *     greedily visit the nearest unvisited site at each step.
- *
- * Why Nearest-Neighbor instead of a literal TSP solver:
- *  - NP-hard problems like TSP are intractable beyond ~20 sites;
- *    a tourist is unlikely to visit more than 10-15 sites in a day.
- *  - NN provides a 1.5-approximation in practice and runs in O(n²).
- *  - Dijkstra alone literally cannot produce a multi-stop ordering.
- *
- * If the intended requirement is truly a two-point shortest path (e.g.,
- * from the tourist's current location to a single destination), use
- * `dijkstra()` directly. For multi-stop ordering, this NN-approximation
- * is the correct practical solution.
- */
-async function computeItineraryOrder(
-  supabase: ReturnType<typeof createClient>,
-  siteIds: string[],
-  originLat?: number | null,
-  originLng?: number | null,
-): Promise<{
-  orderedIds: string[]
-  edges: RouteEdge[]
-  totalDistance: number
-  totalTime: number
-  hasEstimated: boolean
-}> {
-  if (siteIds.length <= 1) {
+  let minutesSoFar = 0
+  const stopInserts = input.stops.map((stop, i) => {
+    minutesSoFar += stop.travelTimeFromPrevMin ?? 0
+    const arrival = new Date()
+    arrival.setMinutes(arrival.getMinutes() + minutesSoFar)
     return {
-      orderedIds: [...siteIds],
-      edges: [],
-      totalDistance: 0,
-      totalTime: 0,
-      hasEstimated: false,
+      route_id: route.id,
+      site_id: stop.siteId,
+      stop_order: i + 1,
+      distance_from_prev_km: stop.distanceFromPrevKm,
+      estimated_arrival: arrival.toISOString(),
     }
+  })
+
+  const { error: stopsError } = await supabase.from("route_stops").insert(stopInserts)
+  if (stopsError) {
+    console.error("[Route] Failed to save route stops:", stopsError.message)
+    // Do not leave a route without stops behind.
+    const { error: cleanupError } = await supabase.from("routes").delete().eq("id", route.id)
+    if (cleanupError) console.error("[Route] Failed to remove half-saved route:", cleanupError.message)
+    throw new Error("Could not save the route stops. Please try again.")
   }
 
-  const { graph, sites, hasEstimatedEdges } = await buildGraph(supabase, siteIds)
-
-  if (graph.size === 0) {
-    return {
-      orderedIds: [...siteIds],
-      edges: [],
-      totalDistance: 0,
-      totalTime: 0,
-      hasEstimated: false,
-    }
-  }
-
-  const allPairDist = new Map<string, Map<string, { distance: number; time: number }>>()
-  const allPairPath = new Map<string, Map<string, string[]>>()
-
-  const nodes = Array.from(graph.keys())
-  for (const a of nodes) {
-    const distMap = new Map<string, { distance: number; time: number }>()
-    const pathMap = new Map<string, string[]>()
-    for (const b of nodes) {
-      if (a === b) continue
-      const result = dijkstra(graph, a, b)
-      distMap.set(b, { distance: result.distance, time: result.time })
-      pathMap.set(b, result.path)
-    }
-    allPairDist.set(a, distMap)
-    allPairPath.set(a, pathMap)
-  }
-
-  // Nearest-Neighbor heuristic
-  const unvisited = new Set(siteIds)
-  const ordered: string[] = []
-
-  // Start from the site closest to origin, or first site
-  let current: string
-  if (originLat != null && originLng != null) {
-    let minDist = Infinity
-    let closestSite = siteIds[0]
-    for (const id of siteIds) {
-      const site = sites.get(id)
-      if (site?.latitude != null && site?.longitude != null) {
-        const d = haversineDistance(originLat, originLng, Number(site.latitude), Number(site.longitude))
-        if (d < minDist) {
-          minDist = d
-          closestSite = id
-        }
-      }
-    }
-    current = closestSite
-  } else {
-    current = siteIds[0]
-  }
-
-  unvisited.delete(current)
-  ordered.push(current)
-
-  const routeEdges: RouteEdge[] = []
-  let totalDistance = 0
-  let totalTime = 0
-
-  while (unvisited.size > 0) {
-    let nearest: string | null = null
-    let nearestDist = Infinity
-
-    for (const candidate of unvisited) {
-      const distData = allPairDist.get(current)?.get(candidate)
-      if (distData && distData.distance < nearestDist) {
-        nearestDist = distData.distance
-        nearest = candidate
-      }
-    }
-
-    if (nearest === null) break
-
-    const distData = allPairDist.get(current)!.get(nearest)!
-    const pathKeys = allPairPath.get(current)!.get(nearest)!
-
-    totalDistance += distData.distance
-    totalTime += distData.time
-
-    // Build edges from the Dijkstra path
-    for (let p = 0; p < pathKeys.length - 1; p++) {
-      const from = pathKeys[p]
-      const to = pathKeys[p + 1]
-      const edge = graph.get(from)?.get(to)
-      if (edge) {
-        routeEdges.push(edge)
-      }
-    }
-
-    unvisited.delete(nearest)
-    ordered.push(nearest)
-    current = nearest
-  }
-
-  return {
-    orderedIds: ordered,
-    edges: routeEdges,
-    totalDistance: Math.round(totalDistance * 10) / 10,
-    totalTime: Math.round(totalTime),
-    hasEstimated: hasEstimatedEdges,
-  }
+  return { id: route.id, createdAt: route.created_at }
 }
 
+/**
+ * Old one-step flow kept for existing callers: build the options, take the
+ * recommended one, and save it. Starts from the tourist's home location if set.
+ */
 export async function createRoute(
   supabase: ReturnType<typeof createClient>,
   input: CreateRouteInput,
@@ -460,147 +307,51 @@ export async function createRoute(
     throw new Error("At least one site is required to create a route")
   }
 
-  // Fetch tourist profile for origin-based ordering
-  let originLat: number | null = null
-  let originLng: number | null = null
+  let origin: { latitude: number; longitude: number } | null = null
   if (input.touristId) {
     const { data: profile } = await supabase
       .from("tourist_profiles")
       .select("home_latitude, home_longitude")
       .eq("id", input.touristId)
       .maybeSingle()
-    if (profile) {
-      originLat = profile.home_latitude ? Number(profile.home_latitude) : null
-      originLng = profile.home_longitude ? Number(profile.home_longitude) : null
+    if (profile?.home_latitude && profile?.home_longitude) {
+      origin = { latitude: Number(profile.home_latitude), longitude: Number(profile.home_longitude) }
     }
   }
 
-  const { orderedIds, edges } =
-    await computeItineraryOrder(supabase, input.siteIds, originLat, originLng)
+  const result = await generateRouteOptions(supabase, {
+    siteIds: input.siteIds,
+    startMode: origin ? "origin" : "first",
+    origin,
+    roundTrip: false,
+    travelMode: "auto",
+    includeMyOrder: false,
+  })
+  const option = result.options.find((o) => o.labels.includes(result.recommendedKind)) ?? result.options[0]
 
-  // 1. Build Option 1: Fastest Route (Optimal sequence via Dijkstra + NN)
-  const optimalRoute = await buildRouteForSequence(supabase, orderedIds, edges)
-
-  const options: RouteOption[] = [
-    {
-      id: "optimal",
-      strategy: "optimal",
-      title: "Fastest Route",
-      description: "Dijkstra-optimized shortest driving sequence",
-      badge: "Recommended",
-      totalDistanceKm: optimalRoute.totalDistanceKm,
-      totalDurationMin: optimalRoute.totalDurationMin,
-      path: optimalRoute.path,
-      stops: optimalRoute.stops,
-      hasEstimatedEdges: optimalRoute.hasEstimatedEdges,
-    },
-  ]
-
-  // 2. Build Option 2: Custom Sequence (as ordered by the user, if different from optimal)
-  if (input.siteIds.length >= 2) {
-    const isCustomDifferent = input.siteIds.some((id, idx) => id !== orderedIds[idx])
-    if (isCustomDifferent) {
-      const customRoute = await buildRouteForSequence(supabase, input.siteIds, edges)
-      options.push({
-        id: "custom",
-        strategy: "custom",
-        title: "Custom Sequence",
-        description: "Follows your exact stop order as selected",
-        badge: "As Added",
-        totalDistanceKm: customRoute.totalDistanceKm,
-        totalDurationMin: customRoute.totalDurationMin,
-        path: customRoute.path,
-        stops: customRoute.stops,
-        hasEstimatedEdges: customRoute.hasEstimatedEdges,
-      })
-    }
-  }
-
-  // 3. Build Option 3: Round-Trip Circuit (loops back to the starting site)
-  if (orderedIds.length >= 2) {
-    const roundTripIds = [...orderedIds, orderedIds[0]]
-    const roundTripRoute = await buildRouteForSequence(supabase, roundTripIds, edges)
-    const startSiteName = roundTripRoute.stops[0]?.siteName ?? "start"
-    options.push({
-      id: "roundtrip",
-      strategy: "roundtrip",
-      title: "Round-Trip Circuit",
-      description: `Returns to starting site (${startSiteName})`,
-      badge: "Full Loop",
-      totalDistanceKm: roundTripRoute.totalDistanceKm,
-      totalDurationMin: roundTripRoute.totalDurationMin,
-      path: roundTripRoute.path,
-      stops: roundTripRoute.stops,
-      hasEstimatedEdges: roundTripRoute.hasEstimatedEdges,
-    })
-  }
-
-  const finalTotalDistance = optimalRoute.totalDistanceKm
-  const finalTotalTime = optimalRoute.totalDurationMin
-  const finalHasEstimated = optimalRoute.hasEstimatedEdges
-  const stops = optimalRoute.stops
-  const path = optimalRoute.path
-
-  // Persist route (guests and staff without tourist_profiles have tourist_id = null)
-  const { data: route, error: routeError } = await supabase
-    .from("routes")
-    .insert({
-      tourist_id: input.touristId ?? null,
+  let saved: { id: string; createdAt: string } | null = null
+  try {
+    saved = await saveRoute(supabase, {
+      touristId: input.touristId,
       name: input.name,
-      total_distance_km: finalTotalDistance,
-      total_duration_minutes: finalTotalTime,
-      status: "draft",
-      is_curated: false,
+      totalDistanceKm: option.totalDistanceKm,
+      totalDurationMin: option.totalDurationMin,
+      stops: option.stops,
     })
-    .select("id, created_at")
-    .single()
-
-  if (routeError) {
-    console.error("[Route] Failed to persist route:", routeError)
-    return {
-      id: null,
-      name: input.name,
-      stops,
-      totalDistanceKm: finalTotalDistance,
-      totalDurationMin: finalTotalTime,
-      path,
-      hasEstimatedEdges: finalHasEstimated,
-      status: "draft",
-      createdAt: new Date().toISOString(),
-      options,
-      selectedOptionIndex: 0,
-    }
-  }
-
-  // Persist stops
-  const stopInserts = stops.map((stop) => ({
-    route_id: route.id,
-    site_id: stop.siteId,
-    stop_order: stop.stopOrder,
-    distance_from_prev_km: stop.distanceFromPrevKm,
-    estimated_arrival: stop.estimatedArrival,
-  }))
-
-  const { error: stopsError } = await supabase
-    .from("route_stops")
-    .insert(stopInserts)
-
-  if (stopsError) {
-    console.error("[Route] Failed to persist route stops:", stopsError)
+  } catch {
+    // Same as before: the route is still shown even if saving failed.
   }
 
   return {
-    id: route.id,
+    id: saved?.id ?? null,
     name: input.name,
-    stops,
-    totalDistanceKm: finalTotalDistance,
-    totalDurationMin: finalTotalTime,
-    path,
-    hasEstimatedEdges: finalHasEstimated,
+    stops: option.stops,
+    totalDistanceKm: option.totalDistanceKm,
+    totalDurationMin: option.totalDurationMin,
+    path: option.path,
+    hasEstimatedEdges: option.estimated,
     status: "draft",
-    createdAt: route.created_at,
-    options,
-    selectedOptionIndex: 0,
+    createdAt: saved?.createdAt ?? new Date().toISOString(),
   }
 }
 

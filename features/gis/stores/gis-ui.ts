@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import type { OptimizedRoute } from "@/features/route-optimization/types"
+import type { RouteOptionKind, RouteStartMode, RouteTravelMode } from "@/features/route-optimization/types"
 
 export interface MapBounds {
   north: number
@@ -26,9 +26,17 @@ interface GisUiState {
 
   routePlanningMode: boolean
   routeStopIds: string[]
-  activeRoute: OptimizedRoute | null
   showRouteOnMap: boolean
-  selectedRouteOptionIndex: number
+  /** Route option card the tourist picked (null = the recommended one). */
+  selectedOptionKind: RouteOptionKind | null
+  /** Draw every route option on the map, not only the selected one. */
+  compareAllRoutes: boolean
+  /** Where the route starts (null = automatic: my location if known, else best start). */
+  routeStartMode: RouteStartMode | null
+  routeRoundTrip: boolean
+  routeTravelMode: RouteTravelMode
+  /** True once the tourist moved a stop by hand (shows the "My order" option). */
+  routeOrderEdited: boolean
 
   selectSite: (siteId: string | null) => void
   openDetail: (siteId: string) => void
@@ -50,9 +58,12 @@ interface GisUiState {
   removeRouteStop: (siteId: string) => void
   reorderRouteStops: (fromIndex: number, toIndex: number) => void
   clearRouteStops: () => void
-  setActiveRoute: (route: OptimizedRoute | null) => void
-  selectRouteOption: (index: number) => void
   setShowRouteOnMap: (show: boolean) => void
+  setSelectedOptionKind: (kind: RouteOptionKind | null) => void
+  setCompareAllRoutes: (compare: boolean) => void
+  setRouteStartMode: (mode: RouteStartMode) => void
+  setRouteRoundTrip: (roundTrip: boolean) => void
+  setRouteTravelMode: (mode: RouteTravelMode) => void
 }
 
 export const useGisUiStore = create<GisUiState>((set) => ({
@@ -73,9 +84,13 @@ export const useGisUiStore = create<GisUiState>((set) => ({
 
   routePlanningMode: false,
   routeStopIds: [],
-  activeRoute: null,
   showRouteOnMap: false,
-  selectedRouteOptionIndex: 0,
+  selectedOptionKind: null,
+  compareAllRoutes: false,
+  routeStartMode: null,
+  routeRoundTrip: false,
+  routeTravelMode: "auto",
+  routeOrderEdited: false,
 
   selectSite: (siteId) => set({ selectedSiteId: siteId }),
 
@@ -120,9 +135,8 @@ export const useGisUiStore = create<GisUiState>((set) => ({
   removeRouteStop: (siteId) =>
     set((state) => ({
       routeStopIds: state.routeStopIds.filter((id) => id !== siteId),
-      activeRoute: null,
       showRouteOnMap: false,
-      selectedRouteOptionIndex: 0,
+      selectedOptionKind: null,
     })),
 
   reorderRouteStops: (fromIndex, toIndex) =>
@@ -130,37 +144,16 @@ export const useGisUiStore = create<GisUiState>((set) => ({
       const next = [...state.routeStopIds]
       const [moved] = next.splice(fromIndex, 1)
       next.splice(toIndex, 0, moved)
-      return { routeStopIds: next, activeRoute: null, showRouteOnMap: false, selectedRouteOptionIndex: 0 }
+      return { routeStopIds: next, showRouteOnMap: false, selectedOptionKind: null, routeOrderEdited: true }
     }),
 
   clearRouteStops: () =>
-    set({ routeStopIds: [], activeRoute: null, showRouteOnMap: false, selectedRouteOptionIndex: 0 }),
-
-  setActiveRoute: (route) =>
-    set({
-      activeRoute: route,
-      showRouteOnMap: route !== null,
-      selectedRouteOptionIndex: route?.selectedOptionIndex ?? 0,
-    }),
-
-  selectRouteOption: (index) =>
-    set((state) => {
-      const route = state.activeRoute
-      if (!route?.options?.[index]) return state
-      const opt = route.options[index]
-      return {
-        selectedRouteOptionIndex: index,
-        activeRoute: {
-          ...route,
-          selectedOptionIndex: index,
-          stops: opt.stops,
-          totalDistanceKm: opt.totalDistanceKm,
-          totalDurationMin: opt.totalDurationMin,
-          path: opt.path,
-          hasEstimatedEdges: opt.hasEstimatedEdges,
-        },
-      }
-    }),
+    set({ routeStopIds: [], showRouteOnMap: false, selectedOptionKind: null, routeOrderEdited: false }),
 
   setShowRouteOnMap: (show) => set({ showRouteOnMap: show }),
+  setSelectedOptionKind: (kind) => set({ selectedOptionKind: kind }),
+  setCompareAllRoutes: (compare) => set({ compareAllRoutes: compare }),
+  setRouteStartMode: (mode) => set({ routeStartMode: mode, showRouteOnMap: false, selectedOptionKind: null }),
+  setRouteRoundTrip: (roundTrip) => set({ routeRoundTrip: roundTrip, showRouteOnMap: false, selectedOptionKind: null }),
+  setRouteTravelMode: (mode) => set({ routeTravelMode: mode, showRouteOnMap: false, selectedOptionKind: null }),
 }))

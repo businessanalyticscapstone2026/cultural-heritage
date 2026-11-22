@@ -16,13 +16,54 @@ export interface UseCameraReturn {
   facingMode: "environment" | "user"
 }
 
-export function useCamera(): UseCameraReturn {
+export interface UseCameraOptions {
+  enabled?: boolean
+}
+
+export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
+  const { enabled = true } = options
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [permissionState, setPermissionState] = useState<CameraPermissionState>("prompt")
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [isTorchSupported, setIsTorchSupported] = useState(false)
   const [isTorchOn, setIsTorchOn] = useState(false)
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment")
+
+  const acquireMediaStream = useCallback(async (facing: "environment" | "user"): Promise<MediaStream> => {
+    const constraintAttempts: MediaStreamConstraints[] = [
+      {
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      },
+      {
+        video: {
+          facingMode: { ideal: facing },
+        },
+        audio: false,
+      },
+      {
+        video: true,
+        audio: false,
+      },
+    ]
+
+    let lastError: unknown = null
+    for (const constraints of constraintAttempts) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints)
+      } catch (err) {
+        lastError = err
+        if (err instanceof DOMException && err.name === "NotAllowedError") {
+          throw err
+        }
+      }
+    }
+    throw lastError
+  }, [])
 
   const startStream = useCallback(async (facing: "environment" | "user") => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -31,21 +72,20 @@ export function useCamera(): UseCameraReturn {
     }
 
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
-      })
+      const mediaStream = await acquireMediaStream(facing)
 
       setStream(mediaStream)
       setPermissionState("granted")
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream
+        videoRef.current.play().catch(() => {})
       }
 
       try {
         const track = mediaStream.getVideoTracks()[0]
-        const capabilities = track.getCapabilities() as { torch?: boolean }
-        setIsTorchSupported(!!capabilities.torch)
+        const capabilities = track?.getCapabilities?.() as { torch?: boolean } | undefined
+        setIsTorchSupported(!!capabilities?.torch)
       } catch {
         setIsTorchSupported(false)
       }
@@ -56,7 +96,7 @@ export function useCamera(): UseCameraReturn {
         setPermissionState("unavailable")
       }
     }
-  }, [])
+  }, [acquireMediaStream])
 
   const requestPermission = useCallback(async () => {
     await startStream(facingMode)
@@ -82,27 +122,40 @@ export function useCamera(): UseCameraReturn {
     await startStream(newFacing)
   }, [facingMode, stream, startStream])
 
-  // Auto-detect permission state on mount and start camera if already granted
+  // Lifecycle control: stop tracks when disabled, probe permissions and start when enabled
   useEffect(() => {
+    if (!enabled) {
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop())
+        setStream(null)
+      }
+      return
+    }
+
     if (!navigator.mediaDevices?.getUserMedia) {
       setPermissionState("unavailable")
       return
     }
 
-    // Check Permissions API if available
+    let isMounted = true
+
     if (navigator.permissions?.query) {
       navigator.permissions.query({ name: "camera" as PermissionName }).then((result) => {
+        if (!isMounted) return
         if (result.state === "granted") {
           startStream(facingMode)
         } else if (result.state === "denied") {
           setPermissionState("denied")
         }
-        // "prompt" stays as default — PermissionGate will show the enable button
       }).catch(() => {
         // Permissions API not supported — stay in "prompt" state
       })
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    return () => {
+      isMounted = false
+    }
+  }, [enabled]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     return () => {

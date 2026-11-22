@@ -1,11 +1,18 @@
 "use client"
 
 import { useState } from "react"
+import { usePathname } from "next/navigation"
 import { ScanBarcode } from "lucide-react"
 import QRScannerOverlay from "./qr-scanner-overlay"
 
 export default function QRScannerFAB() {
   const [open, setOpen] = useState(false)
+  const pathname = usePathname()
+
+  // Do not display the floating scanner button if the user is already on the dedicated scan page
+  if (pathname === "/scan") {
+    return null
+  }
 
   return (
     <>
@@ -17,7 +24,7 @@ export default function QRScannerFAB() {
         <ScanBarcode className="h-6 w-6" />
       </button>
 
-      <QRScannerOverlay open={open} onClose={() => setOpen(false)} />
+      {open && <QRScannerOverlay open={open} onClose={() => setOpen(false)} />}
     </>
   )
 }

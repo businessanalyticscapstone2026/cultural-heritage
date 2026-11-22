@@ -29,11 +29,11 @@ export default function TopSitesTable({
   }, [filterKey, filters])
 
   return (
-    <Card>
+    <Card className="flex h-full min-h-[380px] flex-col justify-between">
       <CardHeader>
         <CardTitle className="text-base">Top Visited Heritage Sites</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         {error && <div className="text-sm text-destructive"><p>{error}</p></div>}
         {!sites && !error && (
           <div className="space-y-2">
@@ -46,7 +46,7 @@ export default function TopSitesTable({
           <p className="py-8 text-center text-sm text-muted-foreground">No visit data</p>
         )}
         {sites && sites.length > 0 && (
-          <div className="max-h-96 overflow-auto">
+          <div className="flex-1 max-h-[310px] overflow-auto pr-1">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-card">

@@ -35,11 +35,11 @@ export default function VisitsByMunicipalityPanel({
   const total = data ? data.reduce((sum, d) => sum + d.visits, 0) : 0
 
   return (
-    <Card>
+    <Card className="flex h-full flex-col justify-between">
       <CardHeader>
         <CardTitle className="text-base">Visits by Municipality</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col justify-center">
         {error && <div className="text-sm text-destructive"><p>{error}</p></div>}
         {!data && !error && <Skeleton className="h-[300px] w-full" />}
         {data && data.length === 0 && (

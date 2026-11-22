@@ -20,8 +20,8 @@ function DonutWithLegend({
   const total = data.reduce((sum, d) => sum + d.count, 0)
 
   return (
-    <div>
-      <div className="relative mx-auto h-52 max-w-xs">
+    <div className="flex flex-1 flex-col justify-between">
+      <div className="relative mx-auto h-52 max-w-xs w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -58,7 +58,7 @@ function DonutWithLegend({
           <span className="text-[11px] text-muted-foreground">Visitors</span>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1.5">
+      <div className="mt-4 flex min-h-[36px] flex-wrap items-center justify-center gap-x-3 gap-y-1.5">
         {data.map((entry, i) => (
           <span key={entry.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span
@@ -101,13 +101,13 @@ export default function DemographicsRow({
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      <Card>
+      <Card className="flex h-full flex-col justify-between">
         <CardHeader>
           <CardTitle className="text-base">Visitors by Age Group</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col justify-between">
           {error && <div className="text-sm text-destructive"><p>{error}</p></div>}
-          {!ageData && !error && <Skeleton className="h-[250px] w-full" />}
+          {!ageData && !error && <Skeleton className="h-[280px] w-full" />}
           {ageData && ageData.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">No demographic data</p>
           )}
@@ -120,13 +120,13 @@ export default function DemographicsRow({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="flex h-full flex-col justify-between">
         <CardHeader>
           <CardTitle className="text-base">Visitors by Type</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col justify-between">
           {error && <div className="text-sm text-destructive"><p>{error}</p></div>}
-          {!typeData && !error && <Skeleton className="h-[250px] w-full" />}
+          {!typeData && !error && <Skeleton className="h-[280px] w-full" />}
           {typeData && typeData.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">No demographic data</p>
           )}

@@ -76,9 +76,9 @@ export default async function AnalyticsPage({
             <VisitorTrendChart key={`trend-${filterKey}`} filters={filters} />
           </div>
 
-          <div id="visits-by-municipality" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div id="visits-by-municipality" className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
             <VisitsByMunicipalityPanel key={`muni-${filterKey}`} filters={filters} />
-            <div id="recommendation-funnel">
+            <div id="recommendation-funnel" className="h-full">
               <RecommendationFunnel key={`funnel-${filterKey}`} filters={filters} />
             </div>
           </div>
@@ -87,11 +87,11 @@ export default async function AnalyticsPage({
             <DemographicsRow key={`demo-${filterKey}`} filters={filters} />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div id="top-categories">
+          <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+            <div id="top-categories" className="h-full">
               <TopCategoriesChart key={`cats-${filterKey}`} filters={filters} />
             </div>
-            <div id="top-sites">
+            <div id="top-sites" className="h-full">
               <TopSitesTable key={`sites-${filterKey}`} filters={filters} />
             </div>
           </div>

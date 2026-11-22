@@ -36,7 +36,7 @@ export default function SummaryMetricsRow({
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-32 rounded-xl" />
+          <Skeleton key={i} className="h-36 rounded-xl" />
         ))}
       </div>
     )

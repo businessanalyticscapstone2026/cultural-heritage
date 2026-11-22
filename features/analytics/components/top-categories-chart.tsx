@@ -42,11 +42,11 @@ export default function TopCategoriesChart({
   const total = data ? data.reduce((sum, d) => sum + d.visits, 0) : 0
 
   return (
-    <Card>
+    <Card className="flex h-full min-h-[380px] flex-col justify-between">
       <CardHeader>
         <CardTitle className="text-base">Top Heritage Categories</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col justify-center">
         {error && <div className="text-sm text-destructive"><p>{error}</p></div>}
         {!data && !error && <Skeleton className="h-[300px] w-full" />}
         {data && data.length === 0 && (

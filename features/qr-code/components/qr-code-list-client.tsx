@@ -7,14 +7,12 @@ import SiteThumbnail from "@/components/ui/site-thumbnail"
 import {
   SearchIcon,
   FilterIcon,
-  PlusIcon,
   MoreHorizontalIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   QrCodeIcon,
   ClockIcon,
   SmartphoneIcon,
-  View,
 } from "lucide-react"
 import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
@@ -27,7 +25,7 @@ interface QRCodeListClientProps {
   initialQrCodes: QRCodeWithSite[]
   kpiCounts: QRKpiCounts
   initialScans: QRScanLogEntry[]
-  sites: SiteOption[]
+  sites?: SiteOption[]
 }
 
 const PAGE_SIZE = 10
@@ -47,7 +45,6 @@ export default function QRCodeListClient({
   initialQrCodes,
   kpiCounts: initialKpiCounts,
   initialScans,
-  sites,
 }: QRCodeListClientProps) {
   const [qrCodes, setQrCodes] = useState<QRCodeWithSite[]>(initialQrCodes)
   const [kpiCounts, setKpiCounts] = useState(initialKpiCounts)
@@ -60,10 +57,6 @@ export default function QRCodeListClient({
   const [selectedQrSvg, setSelectedQrSvg] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
-  const [showGenerateDialog, setShowGenerateDialog] = useState(false)
-  const [generateSiteId, setGenerateSiteId] = useState("")
-  const [generating, setGenerating] = useState(false)
-  const [generateError, setGenerateError] = useState<string | null>(null)
   const [regenerateTarget, setRegenerateTarget] = useState<QRCodeWithSite | null>(null)
 
   const filtered = useMemo(() => {
@@ -142,28 +135,6 @@ export default function QRCodeListClient({
       throw error
     }
   }, [])
-
-  const handleGenerate = useCallback(async () => {
-    if (!generateSiteId || generating) return
-    setGenerating(true)
-    setGenerateError(null)
-
-    try {
-      const { generateQrCodeAction } = await import("../actions/qr-management")
-      const newQrCode = await generateQrCodeAction(generateSiteId)
-      setQrCodes((prev) => [newQrCode, ...prev])
-      const site = sites.find((s) => s.id === generateSiteId)
-      notifySuccess(site ? `QR code generated for "${site.siteName}".` : "QR code generated.")
-      setShowGenerateDialog(false)
-      setGenerateSiteId("")
-    } catch (error) {
-      const message = errorReason(error, "Failed to generate QR code.")
-      setGenerateError(message)
-      notifyError(message)
-    } finally {
-      setGenerating(false)
-    }
-  }, [generateSiteId, generating, sites])
 
   const handleRegenerate = useCallback(async (qrCode: QRCodeWithSite) => {
     setRegenerateTarget(qrCode)
@@ -253,10 +224,6 @@ export default function QRCodeListClient({
             Filter
           </Button>
         </div>
-        <Button size="sm" onClick={() => { setShowGenerateDialog(true); setGenerateError(null) }}>
-          <PlusIcon className="size-4 mr-1" />
-          Generate QR Code
-        </Button>
       </div>
 
       {/* Filter Row */}
@@ -275,53 +242,6 @@ export default function QRCodeListClient({
         </div>
       )}
 
-      {/* Generate QR Code Dialog */}
-      {showGenerateDialog && (
-        <>
-          <div className="fixed inset-0 z-50 bg-black/30" onClick={() => !generating && setShowGenerateDialog(false)} />
-          <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl border bg-background shadow-xl p-6">
-            <h3 className="text-lg font-semibold mb-4">Generate QR Code</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">Select Heritage Site</label>
-                <select
-                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={generateSiteId}
-                  onChange={(e) => setGenerateSiteId(e.target.value)}
-                >
-                  <option value="">Choose a site...</option>
-                  {sites.map((s) => (
-                    <option key={s.id} value={s.id}>{s.siteName}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                {generateError && (
-                  <p className="mr-auto text-xs text-destructive rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2">
-                    {generateError}
-                  </p>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => { setShowGenerateDialog(false); setGenerateSiteId(""); setGenerateError(null) }}
-                  disabled={generating}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleGenerate}
-                  disabled={!generateSiteId || generating}
-                >
-                  {generating ? "Generating..." : "Generate"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
       {/* Main Content: Table + Recent Scans */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* QR Codes Table */}
@@ -329,16 +249,11 @@ export default function QRCodeListClient({
           {paginated.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-muted-foreground">
               <QrCodeIcon className="size-10 mb-2 text-muted-foreground" />
-              <p className="text-sm">No QR codes found</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                onClick={() => { setShowGenerateDialog(true); setGenerateError(null) }}
-              >
-                <PlusIcon className="size-3.5 mr-1" />
-                Generate your first QR code
-              </Button>            </div>
+              <p className="text-sm font-medium text-foreground">No QR codes found</p>
+              <p className="text-xs text-muted-foreground mt-1 text-center max-w-sm">
+                QR codes are automatically generated when new heritage sites are added.
+              </p>
+            </div>
           ) : (
             <div className="rounded-xl border overflow-hidden">
               <table className="w-full text-sm">

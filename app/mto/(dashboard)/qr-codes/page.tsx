@@ -4,7 +4,6 @@ import {
   getMtoQrCodes,
   getMtoQrKpiCounts,
   getMtoRecentScanLogs,
-  getMtoSitesForQrGeneration,
 } from "@/features/qr-code/services/qr-management"
 import QRCodeListClient from "@/features/qr-code/components/qr-code-list-client"
 
@@ -32,11 +31,10 @@ export default async function QRCodesPage() {
     )
   }
 
-  const [qrCodes, kpiCounts, recentScans, sites] = await Promise.all([
+  const [qrCodes, kpiCounts, recentScans] = await Promise.all([
     getMtoQrCodes(municipalityId),
     getMtoQrKpiCounts(municipalityId),
     getMtoRecentScanLogs(municipalityId, 20),
-    getMtoSitesForQrGeneration(municipalityId),
   ])
 
   return (
@@ -44,7 +42,6 @@ export default async function QRCodesPage() {
       initialQrCodes={qrCodes}
       kpiCounts={kpiCounts}
       initialScans={recentScans}
-      sites={sites}
     />
   )
 }

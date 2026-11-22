@@ -28,6 +28,7 @@ interface GisUiState {
   routeStopIds: string[]
   activeRoute: OptimizedRoute | null
   showRouteOnMap: boolean
+  selectedRouteOptionIndex: number
 
   selectSite: (siteId: string | null) => void
   openDetail: (siteId: string) => void
@@ -50,6 +51,7 @@ interface GisUiState {
   reorderRouteStops: (fromIndex: number, toIndex: number) => void
   clearRouteStops: () => void
   setActiveRoute: (route: OptimizedRoute | null) => void
+  selectRouteOption: (index: number) => void
   setShowRouteOnMap: (show: boolean) => void
 }
 
@@ -73,6 +75,7 @@ export const useGisUiStore = create<GisUiState>((set) => ({
   routeStopIds: [],
   activeRoute: null,
   showRouteOnMap: false,
+  selectedRouteOptionIndex: 0,
 
   selectSite: (siteId) => set({ selectedSiteId: siteId }),
 
@@ -119,6 +122,7 @@ export const useGisUiStore = create<GisUiState>((set) => ({
       routeStopIds: state.routeStopIds.filter((id) => id !== siteId),
       activeRoute: null,
       showRouteOnMap: false,
+      selectedRouteOptionIndex: 0,
     })),
 
   reorderRouteStops: (fromIndex, toIndex) =>
@@ -126,14 +130,37 @@ export const useGisUiStore = create<GisUiState>((set) => ({
       const next = [...state.routeStopIds]
       const [moved] = next.splice(fromIndex, 1)
       next.splice(toIndex, 0, moved)
-      return { routeStopIds: next, activeRoute: null, showRouteOnMap: false }
+      return { routeStopIds: next, activeRoute: null, showRouteOnMap: false, selectedRouteOptionIndex: 0 }
     }),
 
   clearRouteStops: () =>
-    set({ routeStopIds: [], activeRoute: null, showRouteOnMap: false }),
+    set({ routeStopIds: [], activeRoute: null, showRouteOnMap: false, selectedRouteOptionIndex: 0 }),
 
   setActiveRoute: (route) =>
-    set({ activeRoute: route, showRouteOnMap: route !== null }),
+    set({
+      activeRoute: route,
+      showRouteOnMap: route !== null,
+      selectedRouteOptionIndex: route?.selectedOptionIndex ?? 0,
+    }),
+
+  selectRouteOption: (index) =>
+    set((state) => {
+      const route = state.activeRoute
+      if (!route?.options?.[index]) return state
+      const opt = route.options[index]
+      return {
+        selectedRouteOptionIndex: index,
+        activeRoute: {
+          ...route,
+          selectedOptionIndex: index,
+          stops: opt.stops,
+          totalDistanceKm: opt.totalDistanceKm,
+          totalDurationMin: opt.totalDurationMin,
+          path: opt.path,
+          hasEstimatedEdges: opt.hasEstimatedEdges,
+        },
+      }
+    }),
 
   setShowRouteOnMap: (show) => set({ showRouteOnMap: show }),
 }))

@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { haversineDistance } from "@/utils/geo"
 import { fetchMultiStopRoadRoute } from "@/features/gis/services/directions"
-import type { OptimizedRoute, RouteStop, RouteEdge, DijkstraResult, CreateRouteInput } from "../types"
+import type { OptimizedRoute, RouteStop, RouteEdge, DijkstraResult, CreateRouteInput, RouteOption } from "../types"
 const ESTIMATED_SPEED_KMH = 40
 const DEFAULT_TRAVEL_TIME_MIN_FACTOR = 1.5
 
@@ -16,6 +16,119 @@ interface RawSite {
 
 function estimateTravelTime(distanceKm: number): number {
   return Math.round((distanceKm / ESTIMATED_SPEED_KMH) * 60 * DEFAULT_TRAVEL_TIME_MIN_FACTOR)
+}
+
+/**
+ * Builds RouteStop array and road-following path coordinates for a given sequence of site IDs.
+ */
+async function buildRouteForSequence(
+  supabase: ReturnType<typeof createClient>,
+  orderedIds: string[],
+  edges: RouteEdge[],
+): Promise<{
+  stops: RouteStop[]
+  path: [number, number][]
+  totalDistanceKm: number
+  totalDurationMin: number
+  hasEstimatedEdges: boolean
+}> {
+  const stops: RouteStop[] = []
+  let cumulativeTime = 0
+
+  const { data: sitesRaw } = await supabase
+    .from("heritage_sites")
+    .select("id, site_name, latitude, longitude, municipality:municipalities(name), media:heritage_site_media(file_url, is_primary)")
+    .in("id", Array.from(new Set(orderedIds)))
+
+  const siteMap = new Map<string, RawSite>()
+  for (const s of (sitesRaw ?? []) as unknown as RawSite[]) {
+    siteMap.set(s.id, s)
+  }
+
+  for (let i = 0; i < orderedIds.length; i++) {
+    const siteId = orderedIds[i]
+    const site = siteMap.get(siteId)
+
+    let distanceFromPrev: number | null = null
+    let travelTimeFromPrev: number | null = null
+    let isEstimated = false
+    let estimatedArrival: string | null = null
+
+    if (i > 0) {
+      const prevId = orderedIds[i - 1]
+      const edge = edges.find(
+        (e) => (e.from === prevId && e.to === siteId) || (e.from === siteId && e.to === prevId),
+      )
+      if (edge) {
+        distanceFromPrev = edge.distanceKm
+        travelTimeFromPrev = edge.travelTimeMin
+        isEstimated = edge.isEstimated
+        cumulativeTime += edge.travelTimeMin
+        const arrival = new Date()
+        arrival.setMinutes(arrival.getMinutes() + cumulativeTime)
+        estimatedArrival = arrival.toISOString()
+      }
+    } else {
+      estimatedArrival = new Date().toISOString()
+    }
+
+    const primaryMedia = site?.media?.find((m) => m.is_primary)
+
+    stops.push({
+      siteId,
+      siteName: site?.site_name ?? "Unknown site",
+      latitude: site?.latitude != null ? Number(site.latitude) : 0,
+      longitude: site?.longitude != null ? Number(site.longitude) : 0,
+      stopOrder: i + 1,
+      distanceFromPrevKm: distanceFromPrev,
+      travelTimeFromPrevMin: travelTimeFromPrev,
+      estimatedArrival,
+      edgeIsEstimated: isEstimated,
+      thumbnail: primaryMedia?.file_url ?? null,
+      municipalityName: site?.municipality?.name ?? null,
+    })
+  }
+
+  let path: [number, number][] = []
+  let totalDistanceKm = 0
+  let totalDurationMin = 0
+  let hasEstimatedEdges = false
+
+  if (stops.length >= 2) {
+    const waypoints: [number, number][] = stops.map((s) => [s.longitude, s.latitude])
+    const roadRoute = await fetchMultiStopRoadRoute(waypoints)
+
+    if (roadRoute && roadRoute.coordinates.length > 0) {
+      path = roadRoute.coordinates
+      totalDistanceKm = roadRoute.totalDistanceKm
+      totalDurationMin = roadRoute.totalDurationMin
+      hasEstimatedEdges = false
+
+      let cumulativeRoadMinutes = 0
+      for (let i = 1; i < stops.length; i++) {
+        const leg = roadRoute.legs[i - 1]
+        if (leg) {
+          stops[i].distanceFromPrevKm = leg.distanceKm
+          stops[i].travelTimeFromPrevMin = leg.durationMin
+          stops[i].edgeIsEstimated = false
+
+          cumulativeRoadMinutes += leg.durationMin
+          const arrival = new Date()
+          arrival.setMinutes(arrival.getMinutes() + cumulativeRoadMinutes)
+          stops[i].estimatedArrival = arrival.toISOString()
+        }
+      }
+    }
+  }
+
+  if (path.length === 0) {
+    path = stops.map((s) => [s.longitude, s.latitude])
+    totalDistanceKm = Math.round(stops.reduce((acc, s) => acc + (s.distanceFromPrevKm ?? 0), 0) * 10) / 10
+    totalDurationMin = Math.round(stops.reduce((acc, s) => acc + (s.travelTimeFromPrevMin ?? 0), 0))
+    hasEstimatedEdges = stops.some((s) => s.edgeIsEstimated)
+  }
+
+  return { stops, path, totalDistanceKm, totalDurationMin, hasEstimatedEdges }
 }
 
 /**
@@ -362,102 +475,71 @@ export async function createRoute(
     }
   }
 
-  const { orderedIds, edges, totalDistance, totalTime, hasEstimated } =
+  const { orderedIds, edges } =
     await computeItineraryOrder(supabase, input.siteIds, originLat, originLng)
 
-  // Build stop details
-  const stops: RouteStop[] = []
-  let cumulativeTime = 0
+  // 1. Build Option 1: Fastest Route (Optimal sequence via Dijkstra + NN)
+  const optimalRoute = await buildRouteForSequence(supabase, orderedIds, edges)
 
-  for (let i = 0; i < orderedIds.length; i++) {
-    const siteId = orderedIds[i]
-    const { data: siteRaw } = await supabase
-      .from("heritage_sites")
-      .select("id, site_name, latitude, longitude, municipality:municipalities(name), media:heritage_site_media(file_url, is_primary)")
-      .eq("id", siteId)
-      .single()
+  const options: RouteOption[] = [
+    {
+      id: "optimal",
+      strategy: "optimal",
+      title: "Fastest Route",
+      description: "Dijkstra-optimized shortest driving sequence",
+      badge: "Recommended",
+      totalDistanceKm: optimalRoute.totalDistanceKm,
+      totalDurationMin: optimalRoute.totalDurationMin,
+      path: optimalRoute.path,
+      stops: optimalRoute.stops,
+      hasEstimatedEdges: optimalRoute.hasEstimatedEdges,
+    },
+  ]
 
-    const site = siteRaw as unknown as RawSite | null
-
-    let distanceFromPrev: number | null = null
-    let travelTimeFromPrev: number | null = null
-    let isEstimated = false
-    let estimatedArrival: string | null = null
-
-    if (i > 0) {
-      const prevId = orderedIds[i - 1]
-      const edge = edges.find(
-        (e) => (e.from === prevId && e.to === siteId) || (e.from === siteId && e.to === prevId),
-      )
-      if (edge) {
-        distanceFromPrev = edge.distanceKm
-        travelTimeFromPrev = edge.travelTimeMin
-        isEstimated = edge.isEstimated
-        cumulativeTime += edge.travelTimeMin
-        const arrival = new Date()
-        arrival.setMinutes(arrival.getMinutes() + cumulativeTime)
-        estimatedArrival = arrival.toISOString()
-      }
-    } else {
-      // First stop: arrival is now
-      estimatedArrival = new Date().toISOString()
+  // 2. Build Option 2: Custom Sequence (as ordered by the user, if different from optimal)
+  if (input.siteIds.length >= 2) {
+    const isCustomDifferent = input.siteIds.some((id, idx) => id !== orderedIds[idx])
+    if (isCustomDifferent) {
+      const customRoute = await buildRouteForSequence(supabase, input.siteIds, edges)
+      options.push({
+        id: "custom",
+        strategy: "custom",
+        title: "Custom Sequence",
+        description: "Follows your exact stop order as selected",
+        badge: "As Added",
+        totalDistanceKm: customRoute.totalDistanceKm,
+        totalDurationMin: customRoute.totalDurationMin,
+        path: customRoute.path,
+        stops: customRoute.stops,
+        hasEstimatedEdges: customRoute.hasEstimatedEdges,
+      })
     }
+  }
 
-    const primaryMedia = site?.media?.find((m) => m.is_primary)
-
-    stops.push({
-      siteId,
-      siteName: site?.site_name ?? "Unknown site",
-      latitude: site?.latitude != null ? Number(site.latitude) : 0,
-      longitude: site?.longitude != null ? Number(site.longitude) : 0,
-      stopOrder: i + 1,
-      distanceFromPrevKm: distanceFromPrev,
-      travelTimeFromPrevMin: travelTimeFromPrev,
-      estimatedArrival,
-      edgeIsEstimated: isEstimated,
-      thumbnail: primaryMedia?.file_url ?? null,
-      municipalityName: site?.municipality?.name ?? null,
+  // 3. Build Option 3: Round-Trip Circuit (loops back to the starting site)
+  if (orderedIds.length >= 2) {
+    const roundTripIds = [...orderedIds, orderedIds[0]]
+    const roundTripRoute = await buildRouteForSequence(supabase, roundTripIds, edges)
+    const startSiteName = roundTripRoute.stops[0]?.siteName ?? "start"
+    options.push({
+      id: "roundtrip",
+      strategy: "roundtrip",
+      title: "Round-Trip Circuit",
+      description: `Returns to starting site (${startSiteName})`,
+      badge: "Full Loop",
+      totalDistanceKm: roundTripRoute.totalDistanceKm,
+      totalDurationMin: roundTripRoute.totalDurationMin,
+      path: roundTripRoute.path,
+      stops: roundTripRoute.stops,
+      hasEstimatedEdges: roundTripRoute.hasEstimatedEdges,
     })
   }
 
-  // Build path coordinates for map rendering (road-following geometry via OpenStreetMap/OSRM)
-  let path: [number, number][] = []
-  let finalTotalDistance = totalDistance
-  let finalTotalTime = totalTime
-  let finalHasEstimated = hasEstimated
-
-  if (stops.length >= 2) {
-    const waypoints: [number, number][] = stops.map((s) => [s.longitude, s.latitude])
-    const roadRoute = await fetchMultiStopRoadRoute(waypoints)
-
-    if (roadRoute && roadRoute.coordinates.length > 0) {
-      path = roadRoute.coordinates
-      finalTotalDistance = roadRoute.totalDistanceKm
-      finalTotalTime = roadRoute.totalDurationMin
-      finalHasEstimated = false
-
-      // Update per-stop travel metrics with actual road leg distances and times
-      let cumulativeRoadMinutes = 0
-      for (let i = 1; i < stops.length; i++) {
-        const leg = roadRoute.legs[i - 1]
-        if (leg) {
-          stops[i].distanceFromPrevKm = leg.distanceKm
-          stops[i].travelTimeFromPrevMin = leg.durationMin
-          stops[i].edgeIsEstimated = false
-
-          cumulativeRoadMinutes += leg.durationMin
-          const arrival = new Date()
-          arrival.setMinutes(arrival.getMinutes() + cumulativeRoadMinutes)
-          stops[i].estimatedArrival = arrival.toISOString()
-        }
-      }
-    }
-  }
-
-  // Graceful fallback to stop coordinates if road route is unreachable
-  if (path.length === 0) {
-    path = stops.map((s) => [s.longitude, s.latitude])
-  }
+  const finalTotalDistance = optimalRoute.totalDistanceKm
+  const finalTotalTime = optimalRoute.totalDurationMin
+  const finalHasEstimated = optimalRoute.hasEstimatedEdges
+  const stops = optimalRoute.stops
+  const path = optimalRoute.path
 
   // Persist route (guests and staff without tourist_profiles have tourist_id = null)
   const { data: route, error: routeError } = await supabase
@@ -485,6 +567,8 @@ export async function createRoute(
       hasEstimatedEdges: finalHasEstimated,
       status: "draft",
       createdAt: new Date().toISOString(),
+      options,
+      selectedOptionIndex: 0,
     }
   }
 
@@ -515,6 +599,8 @@ export async function createRoute(
     hasEstimatedEdges: finalHasEstimated,
     status: "draft",
     createdAt: route.created_at,
+    options,
+    selectedOptionIndex: 0,
   }
 }
 

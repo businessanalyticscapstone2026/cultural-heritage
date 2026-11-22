@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Landmark, Image, Map, FileText, QrCode } from "lucide-react"
+import { Landmark, Image, Map, FileText } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { ROUTES } from "@/lib/constants"
 
@@ -36,19 +36,11 @@ const actions = [
     iconBg: "bg-purple-100",
     iconColor: "text-purple-600",
   },
-  {
-    label: "Generate QR Code",
-    description: "Create QR code for heritage profile",
-    href: ROUTES.MTO.QR_CODES,
-    icon: QrCode,
-    iconBg: "bg-rose-100",
-    iconColor: "text-rose-600",
-  },
 ]
 
 export default function QuickActionsRow() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {actions.map((action) => (
         <Link key={action.href} href={action.href}>
           <Card className="h-full transition-colors hover:bg-muted/50">

@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Bell, MapPin } from "lucide-react"
+import { MapPin } from "lucide-react"
 import { useRole } from "@/context/role-context"
 import { getTodayScanCountAction } from "@/features/mto-dashboard/actions/dashboard"
 import StaffIdentityMenu from "@/components/layout/staff-identity-menu"
+import NotificationMenu, { type NotificationItem } from "@/components/layout/notification-menu"
 
 export default function MTOTopbar() {
   const { municipalityName } = useRole()
@@ -20,6 +21,18 @@ export default function MTOTopbar() {
     return () => { cancelled = true }
   }, [])
 
+  const notifications: NotificationItem[] =
+    scanCount > 0
+      ? [
+          {
+            id: "today-scans",
+            title: `${scanCount} QR ${scanCount === 1 ? "scan" : "scans"} today`,
+            description: "Visitors scanned heritage site QR codes in your municipality.",
+            href: "/mto/qr-codes",
+          },
+        ]
+      : []
+
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-6">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -31,18 +44,7 @@ export default function MTOTopbar() {
         )}
       </div>
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="relative text-muted-foreground hover:text-foreground"
-        >
-          <Bell className="size-5" />
-          {scanCount > 0 && (
-            <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-              {scanCount > 99 ? "99+" : scanCount}
-            </span>
-          )}
-        </button>
+        <NotificationMenu items={notifications} />
         <StaffIdentityMenu roleLabelFallback="Tourism Officer" />
       </div>
     </header>

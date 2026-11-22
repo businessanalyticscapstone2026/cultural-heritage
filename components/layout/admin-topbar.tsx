@@ -1,6 +1,7 @@
 "use client"
 
-import { Bell, MapPin } from "lucide-react"
+import { MapPin } from "lucide-react"
+import NotificationMenu from "@/components/layout/notification-menu"
 import StaffIdentityMenu from "@/components/layout/staff-identity-menu"
 
 export default function AdminTopbar() {
@@ -11,13 +12,7 @@ export default function AdminTopbar() {
         <span>First District of Batangas</span>
       </div>
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <Bell className="size-5" />
-        </button>
+        <NotificationMenu items={[]} />
         <StaffIdentityMenu roleLabelFallback="PTCAO Administrator" profileHref="/admin/settings" />
       </div>
     </header>

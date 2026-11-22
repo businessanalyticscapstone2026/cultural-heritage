@@ -20,6 +20,7 @@ const publicRoutes = [
   "/nearby",
   "/saved",
   "/scan",
+  "/qr",
   "/about",
   "/maintenance",
   // Supabase OAuth callback (/auth/callback): no session exists yet when it is hit.

@@ -53,25 +53,18 @@ export default async function MTOAnalyticsPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_240px]">
-        <div className="space-y-6">
-          <div id="filter-settings">
-            <FilterBar categories={categories ?? []} />
-          </div>
-
-          <div id="summary-metrics">
-            <SummaryMetricsRow searchParams={params} initialData={bundle.summaryMetrics} />
-          </div>
-
-          <AnalyticsVisualizations filters={filters} filterKey={filterKey} initialData={bundle} />
-        </div>
-
-        <div id="summary-metrics">
-          <SummaryMetricsRow key={`metrics-${filterKey}`} searchParams={params} />
-        </div>
-
-        <AnalyticsVisualizations filters={filters} filterKey={filterKey} />
+      {/* Filter Toolbar */}
+      <div id="filter-settings">
+        <FilterBar categories={categories ?? []} />
       </div>
+
+      {/* Summary KPI Cards */}
+      <div id="summary-metrics">
+        <SummaryMetricsRow searchParams={params} initialData={bundle.summaryMetrics} />
+      </div>
+
+      {/* Analytics Visualizations */}
+      <AnalyticsVisualizations filters={filters} filterKey={filterKey} initialData={bundle} />
     </div>
   )
 }

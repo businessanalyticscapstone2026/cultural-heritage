@@ -99,6 +99,7 @@ export default function MTOGISPanel({
     categories.map((c) => c.id),
   )
   const [searchQuery, setSearchQuery] = useState("")
+  const [needsCoordinatesOnly, setNeedsCoordinatesOnly] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const mapRef = useRef<{ map: maplibregl.Map | null }>({ map: null })
 
@@ -107,7 +108,10 @@ export default function MTOGISPanel({
     defaultValues: { latitude: "", longitude: "", elevation: "", geoAccuracy: "" },
   })
 
+  const needsCoordinatesCount = sites.filter((s) => s.latitude == null || s.longitude == null).length
+
   const filteredSites = sites.filter((s) => {
+    if (needsCoordinatesOnly && s.latitude != null && s.longitude != null) return false
     if (categoryFilter !== "all" && s.categoryId !== categoryFilter) return false
     if (statusFilter !== "all" && s.publicationStatus !== statusFilter) return false
     if (!visibleCategoryIds.includes(s.categoryId ?? "")) return false
@@ -359,6 +363,29 @@ export default function MTOGISPanel({
               {filteredSites.length}
             </Badge>
           </div>
+          {needsCoordinatesCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setNeedsCoordinatesOnly((prev) => !prev)}
+              aria-pressed={needsCoordinatesOnly}
+              className={cn(
+                "mb-2 flex w-full items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                needsCoordinatesOnly
+                  ? "border-warning bg-warning/10 font-medium text-warning"
+                  : "border-warning/40 text-warning hover:bg-warning/5",
+              )}
+            >
+              <Crosshair className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="flex-1">
+                Needs coordinates ({needsCoordinatesCount})
+                <span className="block text-[10px] font-normal text-muted-foreground">
+                  {needsCoordinatesOnly
+                    ? "Showing only sites without a pin. Open one and use Click Map to Pin."
+                    : "Show sites without a map pin"}
+                </span>
+              </span>
+            </button>
+          )}
           {filteredSites.length === 0 ? (
             <p className="py-8 text-center text-xs text-muted-foreground">
               No sites match the current filters.

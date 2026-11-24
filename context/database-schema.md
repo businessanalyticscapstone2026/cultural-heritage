@@ -9,6 +9,7 @@ created_at timestamp with time zone NOT NULL DEFAULT now(),
 status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'active'::text, 'inactive'::text])),
 default_map_center jsonb,
 updated_at timestamp with time zone NOT NULL DEFAULT now(),
+documented_site_count integer CHECK (documented_site_count IS NULL OR documented_site_count >= 0), -- documented inventory (paper Table 4.1); encoded count is live from heritage_sites
 CONSTRAINT municipalities_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.roles (

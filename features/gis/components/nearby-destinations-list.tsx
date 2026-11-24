@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Navigation, Star, ChevronDown, ChevronRight, Plus } from "lucide-react"
+import { Navigation, Star, ChevronDown, ChevronRight, Plus, MapPinOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useGisUiStore } from "../stores/gis-ui"
 import type { SiteWithDistance } from "../hooks/use-nearby-sites"
@@ -115,6 +115,12 @@ export default function NearbyDestinationsList({
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-0.5">
+                        {site.latitude == null && (
+                          <span className="flex items-center gap-0.5 whitespace-nowrap rounded-full bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">
+                            <MapPinOff className="size-2.5" aria-hidden="true" />
+                            No pin yet
+                          </span>
+                        )}
                         {site.distanceKm != null && (
                           <span className="whitespace-nowrap text-[10px] font-medium text-accent">
                             {site.distanceKm < 1

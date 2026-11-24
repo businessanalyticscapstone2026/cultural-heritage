@@ -2,12 +2,21 @@ import { unstable_cache } from "next/cache"
 import { createTokenClient } from "@/utils/supabase/cached"
 import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { placeStackedSitesAtBarangay } from "./coordinate-groups"
+import { BARANGAY_CENTRES } from "../data/barangay-centres"
 
 export interface TouristMapSite {
   id: string
   siteName: string
-  latitude: number
-  longitude: number
+  /** Null when the site has no pin yet; such sites are listed but not drawn on the map. */
+  latitude: number | null
+  longitude: number | null
+  geoAccuracy: string | null
+  /**
+   * "barangay" when the recorded coordinate was a shared placeholder and the map
+   * shows the site at its barangay centre instead (display only, DB unchanged).
+   */
+  approximateLocation: "barangay" | null
   shortDescription: string | null
   barangay: string | null
   municipalityId: string | null
@@ -44,8 +53,8 @@ export interface CuratedTrail {
 }
 
 /**
- * Query 1: Fetch all published + public heritage sites with coordinates and
- *          category / municipality / primary-image joins.
+ * Query 1: Fetch all published + public heritage sites (with or without
+ *          coordinates) and category / municipality / primary-image joins.
  * Feeds: map markers, sidebar site list, detail panel.
  */
 async function fetchTouristMapSites(client?: SupabaseClient): Promise<TouristMapSite[]> {
@@ -55,7 +64,7 @@ async function fetchTouristMapSites(client?: SupabaseClient): Promise<TouristMap
     .from("heritage_sites")
     .select(
       `
-      id, site_name, latitude, longitude, short_description,
+      id, site_name, latitude, longitude, geo_accuracy, short_description,
       barangay, municipality_id, category_id,
       average_rating, review_count,
       category:heritage_categories(name, color, icon),
@@ -65,14 +74,12 @@ async function fetchTouristMapSites(client?: SupabaseClient): Promise<TouristMap
     )
     .eq("publication_status", "published")
     .eq("visibility", "public")
-    .not("latitude", "is", null)
-    .not("longitude", "is", null)
     .order("site_name", { ascending: true })
     .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
 
   if (error) throw new Error(`Failed to fetch map sites: ${error.message}`)
 
-  return (data ?? []).map((row) => {
+  const sites = (data ?? []).map((row) => {
     // Supabase returns a to-one embed (belongs-to a single category/municipality)
     // as a plain object, not an array — despite the array-shaped cast some
     // callers use elsewhere. Handle both shapes defensively.
@@ -88,8 +95,9 @@ async function fetchTouristMapSites(client?: SupabaseClient): Promise<TouristMap
     return {
       id: row.id as string,
       siteName: row.site_name as string,
-      latitude: row.latitude as number,
-      longitude: row.longitude as number,
+      latitude: row.latitude == null ? null : Number(row.latitude),
+      longitude: row.longitude == null ? null : Number(row.longitude),
+      geoAccuracy: (row.geo_accuracy ?? null) as string | null,
       shortDescription: (row.short_description ?? null) as string | null,
       barangay: (row.barangay ?? null) as string | null,
       municipalityId: (row.municipality_id ?? null) as string | null,
@@ -103,6 +111,8 @@ async function fetchTouristMapSites(client?: SupabaseClient): Promise<TouristMap
       reviewCount: (row.review_count ?? 0) as number,
     }
   })
+
+  return placeStackedSitesAtBarangay(sites, BARANGAY_CENTRES)
 }
 
 const getCachedTouristMapSites = unstable_cache(
@@ -145,17 +155,19 @@ async function fetchCuratedTrails(client?: SupabaseClient): Promise<CuratedTrail
   if (error) throw new Error(`Failed to fetch curated trails: ${error.message}`)
 
   return (routes ?? []).map((route) => {
-    const stops = ((route.stops ?? []) as Record<string, unknown>[]).map((s) => {
-      type StopSite = { id: string; site_name: string; latitude: number; longitude: number }
+    type StopSite = { id: string; site_name: string; latitude: number | null; longitude: number | null }
+    // Stops whose site has no pin yet are dropped instead of being drawn at 0,0.
+    const stops = ((route.stops ?? []) as Record<string, unknown>[]).flatMap((s) => {
       const siteRaw = s.site as StopSite[] | StopSite | null
       const site = Array.isArray(siteRaw) ? (siteRaw[0] ?? null) : siteRaw
-      return {
-        siteId: site?.id ?? "",
-        siteName: site?.site_name ?? "",
+      if (!site || site.latitude == null || site.longitude == null) return []
+      return [{
+        siteId: site.id,
+        siteName: site.site_name,
         stopOrder: s.stop_order as number,
-        latitude: site?.latitude ?? 0,
-        longitude: site?.longitude ?? 0,
-      }
+        latitude: Number(site.latitude),
+        longitude: Number(site.longitude),
+      }]
     }).sort((a, b) => a.stopOrder - b.stopOrder)
 
     return {

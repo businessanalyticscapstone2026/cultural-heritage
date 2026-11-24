@@ -79,6 +79,7 @@ export default function MapEntryState({
             <p className="mt-1.5 text-sm text-ink-soft">
               {totalSites} heritage site{totalSites !== 1 ? "s" : ""} across{" "}
               {municipalityMap.length} municipalit{municipalityMap.length !== 1 ? "ies" : "y"}
+              {sites.length > totalSites && ` · ${sites.length - totalSites} more not yet pinned`}
             </p>
           </div>
 

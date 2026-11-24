@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react"
+import { Fragment, useState, useCallback, useMemo, useEffect, useRef } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import {
@@ -23,6 +23,7 @@ import {
   PanelLeftOpen,
   PanelLeft,
   SlidersHorizontal,
+  MapPinOff,
 } from "lucide-react"
 import type MapLibreGL from "maplibre-gl"
 import type { FillLayerSpecification, LineLayerSpecification } from "maplibre-gl"
@@ -32,6 +33,7 @@ import { getBoundsFromViewport } from "@/utils/geo"
 import { useGisUiStore } from "../stores/gis-ui"
 import { useNearbySites } from "../hooks/use-nearby-sites"
 import { fetchDrivingAlternatives } from "../services/directions"
+import { SPIDERFY_MAX_SITES, coordinateKey, groupByCoordinate, hasCoordinates, spiderfyOffsets } from "../services/coordinate-groups"
 import MapEntryState from "./map-entry-state"
 import HeritageStatistics from "./heritage-statistics"
 import NearbyDestinationsList from "./nearby-destinations-list"
@@ -46,6 +48,7 @@ import type { SiteWithDistance } from "../hooks/use-nearby-sites"
 import type { DrivingDirections } from "../services/directions"
 import type { GeoFeature, GeoFeatureCollection } from "../types"
 import type { User } from "@supabase/supabase-js"
+import type { InventoryCoverage } from "@/features/municipalities/services/inventory-coverage"
 
 /** Directions line colors: fastest road always green, another selected road blue, other roads gray. */
 const DIRECTIONS_COLORS = { fastest: "#16A34A", selected: "#2563EB", other: "#6B7280" }
@@ -117,6 +120,7 @@ interface TouristGISPanelProps {
   sites: TouristMapSite[]
   categories: TouristMapCategory[]
   curatedTrails: CuratedTrail[]
+  inventoryCoverage: InventoryCoverage | null
   municipalities: { id: string; name: string }[]
   boundaries: GeoFeatureCollection
   user: User | null
@@ -135,6 +139,7 @@ export default function TouristGISPanel({
   sites,
   categories,
   curatedTrails,
+  inventoryCoverage,
   municipalities,
   boundaries,
   user,
@@ -246,6 +251,19 @@ export default function TouristGISPanel({
     ],
   )
 
+  const pinnedSites = useMemo(() => nearbySites.filter(hasCoordinates), [nearbySites])
+  const pinnedCount = filteredSites.filter(hasCoordinates).length
+  const unpinnedCount = filteredSites.length - pinnedCount
+  const markerGroups = useMemo(() => groupByCoordinate(filteredSites), [filteredSites])
+  // Stack currently fanned out on the map (exact-coordinate group key).
+  const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null)
+  // How many published sites share each exact coordinate (all sites, not just filtered).
+  const coordinateShareCounts = useMemo(() => {
+    const counts = new globalThis.Map<string, number>()
+    for (const group of groupByCoordinate(sites)) counts.set(group.key, group.sites.length)
+    return counts
+  }, [sites])
+
   const boundaryFillPaint: BoundaryFillPaint = useMemo(
     () =>
       (selectedMunicipalityId
@@ -300,10 +318,13 @@ export default function TouristGISPanel({
 
   const handleSiteClick = useCallback(
     (site: SiteWithDistance) => {
-      if (routePlanningMode) {
+      const pinned = hasCoordinates(site)
+      // Sites without a pin cannot be routed; open their details instead.
+      if (routePlanningMode && pinned) {
         addRouteStop(site.id)
         return
       }
+      setExpandedGroupKey(pinned ? coordinateKey(site.latitude, site.longitude) : null)
       setSelectedSite(site)
       openDetail(site.id)
       setShowFilters(false)
@@ -339,6 +360,11 @@ export default function TouristGISPanel({
   }, [closeDetail])
 
   const isSiteInTrip = selectedSite ? routeStopIds.includes(selectedSite.id) : false
+  const selectedSitePinned = selectedSite != null && hasCoordinates(selectedSite)
+  const selectedSiteSharedCount =
+    selectedSite && hasCoordinates(selectedSite)
+      ? coordinateShareCounts.get(coordinateKey(selectedSite.latitude, selectedSite.longitude)) ?? 1
+      : 0
 
   const handleToggleTrip = useCallback(() => {
     if (!selectedSite) return
@@ -362,18 +388,18 @@ export default function TouristGISPanel({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [isDetailOpen, handleCloseDetail])
 
-  const hasCoordinates = filteredSites.length > 0
+  const firstPinned = markerGroups[0]
   const mapCenter: [number, number] =
     userLatitude != null && userLongitude != null
       ? [userLongitude, userLatitude]
-      : hasCoordinates
-        ? [filteredSites[0].longitude, filteredSites[0].latitude]
+      : firstPinned
+        ? [firstPinned.longitude, firstPinned.latitude]
         : [120.78, 13.92]
 
   const hasUserMarker = userLatitude != null && userLongitude != null
 
   const directionsTarget = directionsSiteId
-    ? nearbySites.find((s) => s.id === directionsSiteId) ?? null
+    ? pinnedSites.find((s) => s.id === directionsSiteId) ?? null
     : null
 
   // Guards against a stale fetch response (from a superseded or cleared
@@ -383,6 +409,7 @@ export default function TouristGISPanel({
   const handleGetDirections = useCallback(
     (site: SiteWithDistance) => {
       if (userLatitude == null || userLongitude == null) return
+      if (!hasCoordinates(site)) return
 
       const requestId = ++directionsRequestRef.current
       setDirectionsSiteId(site.id)
@@ -476,6 +503,36 @@ export default function TouristGISPanel({
     dismissEntryState()
   }, [hasUserMarker, dismissEntryState])
 
+  const siteCountSummary =
+    unpinnedCount > 0
+      ? `${pinnedCount} on map · ${unpinnedCount} not yet pinned`
+      : `${pinnedCount} on map`
+
+  const renderSiteMarkerButton = (site: SiteWithDistance) => {
+    const recommended = isRecommendedSite(site.id)
+    return (
+      <button
+        type="button"
+        className={cn(
+          "flex size-7 items-center justify-center rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
+          selectedSiteId === site.id && "scale-125 ring-2 ring-accent",
+          recommended && "ring-2 ring-accent/40",
+        )}
+        style={{
+          backgroundColor: site.categoryColor ?? "#6366f1",
+        }}
+        title={`${site.siteName}${recommended ? " ★" : ""}`}
+        aria-label={`${site.siteName}${site.distanceKm != null ? `, ${site.distanceKm < 1 ? `${(site.distanceKm * 1000).toFixed(0)}m` : `${site.distanceKm.toFixed(1)}km`}` : ""}`}
+      >
+        {recommended ? (
+          <Sparkles className="size-3.5 text-white" />
+        ) : (
+          <Landmark className="size-3 text-white" />
+        )}
+      </button>
+    )
+  }
+
   return (
     <div className="relative flex h-full gap-0 overflow-hidden">
       {/* Sidebar */}
@@ -493,10 +550,15 @@ export default function TouristGISPanel({
         <div className="flex shrink-0 items-center justify-between border-b border-ink/10 px-4 py-3 bg-cream">
           <div className="flex items-center gap-2">
             <MapIcon className="size-4 text-accent" />
-            <h2 className="text-sm font-semibold text-ink">Heritage Map</h2>
-            <Badge variant="secondary" className="bg-parchment text-[10px] text-ink-soft">
-              {filteredSites.length}
-            </Badge>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-ink">Heritage Map</h2>
+                <Badge variant="secondary" className="bg-parchment text-[10px] text-ink-soft">
+                  {filteredSites.length}
+                </Badge>
+              </div>
+              <p className="text-[10px] text-ink-soft">{siteCountSummary}</p>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -597,7 +659,7 @@ export default function TouristGISPanel({
           <CuratedTrailsPanel trails={curatedTrails} />
 
           {/* Route Planner */}
-          <RoutePlannerPanel sites={nearbySites} user={user} planner={routePlanner} />
+          <RoutePlannerPanel sites={pinnedSites} user={user} planner={routePlanner} />
 
           {/* Consolidated Filters & Categories Accordion */}
           <div>
@@ -741,7 +803,7 @@ export default function TouristGISPanel({
           </div>
 
           {/* Heritage Statistics — counts update on pan/zoom via mapBounds */}
-          <HeritageStatistics sites={sites} categories={categories} />
+          <HeritageStatistics sites={sites} categories={categories} inventoryCoverage={inventoryCoverage} />
 
           {/* Nearby Destinations */}
           <NearbyDestinationsList
@@ -804,6 +866,7 @@ export default function TouristGISPanel({
             <Badge variant="secondary" className="bg-parchment text-[10px] text-ink-soft">
               {filteredSites.length}
             </Badge>
+            <span className="font-normal text-ink-soft">{siteCountSummary}</span>
           </button>
         )}
         {/* Map Entry State — summary overlay shown on first load */}
@@ -850,45 +913,112 @@ export default function TouristGISPanel({
             </MapMarker>
           )}
 
-          {/* Site markers */}
-          {filteredSites
-            .filter((s) => s.latitude != null && s.longitude != null)
-            .map((site) => {
-              const recommended = isRecommendedSite(site.id)
+          {/* Site markers: one marker per exact coordinate. A stack of N sites shows
+              an "N" badge. On click, small stacks fan out into pins next to the point;
+              large stacks open a list popup on the point so nothing moves off it. */}
+          {markerGroups.map((group) => {
+            if (group.sites.length === 1) {
+              const site = group.sites[0]
               return (
-              <MapMarker
-                key={site.id}
-                longitude={site.longitude}
-                latitude={site.latitude}
-                onClick={() => handleSiteClick(site)}
-              >
-                <MarkerContent>
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex size-7 items-center justify-center rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
-                      selectedSiteId === site.id && "scale-125 ring-2 ring-accent",
-                      recommended && "ring-2 ring-accent/40",
-                    )}
-                    style={{
-                      backgroundColor: site.categoryColor ?? "#6366f1",
-                    }}
-                    title={site.siteName}
-                    aria-label={`${site.siteName}${site.distanceKm != null ? `, ${site.distanceKm < 1 ? `${(site.distanceKm * 1000).toFixed(0)}m` : `${site.distanceKm.toFixed(1)}km`}` : ""}`}
+                <MapMarker
+                  key={site.id}
+                  longitude={site.longitude}
+                  latitude={site.latitude}
+                  onClick={() => handleSiteClick(site)}
+                >
+                  <MarkerContent>{renderSiteMarkerButton(site)}</MarkerContent>
+                  <MarkerLabel>
+                    {site.siteName}
+                    {isRecommendedSite(site.id) && " ★"}
+                  </MarkerLabel>
+                </MapMarker>
+              )
+            }
+
+            const expanded = expandedGroupKey === group.key
+            const listInPopup = group.sites.length > SPIDERFY_MAX_SITES
+            const offsets = expanded && !listInPopup ? spiderfyOffsets(group.sites.length) : []
+            return (
+              <Fragment key={group.key}>
+                <MapMarker
+                  longitude={group.longitude}
+                  latitude={group.latitude}
+                  onClick={() => setExpandedGroupKey(expanded ? null : group.key)}
+                >
+                  <MarkerContent>
+                    <button
+                      type="button"
+                      aria-expanded={expanded}
+                      aria-label={`${group.sites.length} heritage sites at this location. ${expanded ? "Collapse" : "Show each site"}`}
+                      title={`${group.sites.length} sites at this location`}
+                      className={cn(
+                        "flex size-9 items-center justify-center rounded-full border-2 border-white bg-ink text-xs font-bold text-cream shadow-lg transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
+                        expanded && "ring-2 ring-accent",
+                      )}
+                    >
+                      {expanded ? <X className="size-4" /> : group.sites.length}
+                    </button>
+                  </MarkerContent>
+                  {!expanded && <MarkerLabel>{`${group.sites.length} sites here`}</MarkerLabel>}
+                </MapMarker>
+                {expanded && listInPopup && (
+                  <MapPopup
+                    longitude={group.longitude}
+                    latitude={group.latitude}
+                    onClose={() => setExpandedGroupKey(null)}
+                    closeButton
+                    offset={22}
+                    maxWidth="300px"
+                    className="p-0"
                   >
-                    {recommended ? (
-                      <Sparkles className="size-3.5 text-white" />
-                    ) : (
-                      <Landmark className="size-3 text-white" />
-                    )}
-                  </button>
-                </MarkerContent>
-                <MarkerLabel>
-                  {site.siteName}
-                  {recommended && " ★"}
-                </MarkerLabel>
-              </MapMarker>
-            )})}
+                    <div className="w-64">
+                      <p className="border-b border-ink/10 px-3 py-2 text-xs font-semibold text-ink">
+                        {group.sites.length} sites at this location
+                        <span className="block text-[10px] font-normal text-ink-soft">
+                          {[...new Set(group.sites.map((s) => s.municipalityName).filter(Boolean))].join(", ")}
+                          {" · exact positions not recorded yet"}
+                        </span>
+                      </p>
+                      <ul className="max-h-64 overflow-y-auto py-1" aria-label="Sites at this location">
+                        {group.sites.map((site) => (
+                          <li key={site.id}>
+                            <button
+                              type="button"
+                              onClick={() => handleSiteClick(site)}
+                              className={cn(
+                                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-parchment focus-visible:bg-parchment focus-visible:outline-none",
+                                selectedSiteId === site.id && "bg-accent/10 font-medium",
+                              )}
+                            >
+                              <span
+                                className="inline-block size-2 shrink-0 rounded-full"
+                                style={{ backgroundColor: site.categoryColor ?? "#6366f1" }}
+                              />
+                              <span className="min-w-0 flex-1 truncate text-ink">{site.siteName}</span>
+                              {isRecommendedSite(site.id) && <Sparkles className="size-3 shrink-0 text-accent" />}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </MapPopup>
+                )}
+                {expanded &&
+                  !listInPopup &&
+                  group.sites.map((site, index) => (
+                    <MapMarker
+                      key={`${site.id}-spider`}
+                      longitude={site.longitude}
+                      latitude={site.latitude}
+                      offset={offsets[index]}
+                      onClick={() => handleSiteClick(site)}
+                    >
+                      <MarkerContent>{renderSiteMarkerButton(site)}</MarkerContent>
+                    </MapMarker>
+                  ))}
+              </Fragment>
+            )
+          })}
 
           {/* Route options overlay: other options thin and dashed (compare mode),
               the selected option thick and drawn last so it sits on top.
@@ -1015,7 +1145,7 @@ export default function TouristGISPanel({
         {!desktopSidebarOpen && (
           <div className="absolute left-3 top-14 z-10 hidden gap-2 lg:flex">
             <span className="rounded-lg bg-cream/95 px-3 py-1.5 text-xs font-medium text-ink shadow-sm backdrop-blur">
-              {filteredSites.length} site{filteredSites.length !== 1 ? "s" : ""}
+              {siteCountSummary}
               {hasLocation && " · sorted by distance"}
             </span>
           </div>
@@ -1172,6 +1302,26 @@ export default function TouristGISPanel({
                     .join(", ")}
                 </p>
 
+                {!selectedSitePinned ? (
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-warning">
+                    <MapPinOff className="size-3.5" aria-hidden="true" />
+                    No pin yet: this site&apos;s map location has not been recorded.
+                  </p>
+                ) : (
+                  (selectedSite.approximateLocation === "barangay" ||
+                    selectedSite.geoAccuracy === "approximate" ||
+                    selectedSiteSharedCount > 1) && (
+                    <p className="flex items-center gap-1.5 text-xs text-ink-soft">
+                      <MapPin className="size-3.5" aria-hidden="true" />
+                      {selectedSite.approximateLocation === "barangay"
+                        ? `Approximate location: pinned at the centre of ${selectedSite.barangay}. The exact spot has not been recorded yet.`
+                        : selectedSite.geoAccuracy === "approximate"
+                          ? "Approximate location"
+                          : `Coordinates may be approximate (shared with ${selectedSiteSharedCount - 1} other site${selectedSiteSharedCount > 2 ? "s" : ""})`}
+                    </p>
+                  )
+                )}
+
                 {selectedSite.shortDescription && (
                   <p className="text-sm leading-relaxed text-ink-soft">
                     {selectedSite.shortDescription}
@@ -1218,7 +1368,10 @@ export default function TouristGISPanel({
                 <button
                   type="button"
                   onClick={handleToggleTrip}
+                  disabled={!selectedSitePinned}
+                  title={selectedSitePinned ? undefined : "This site has no map pin yet"}
                   className={cn(
+                    "disabled:cursor-not-allowed disabled:opacity-40",
                     "flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
                     isSiteInTrip
                       ? "border border-accent bg-accent text-white hover:bg-accent/90"
@@ -1241,8 +1394,14 @@ export default function TouristGISPanel({
                 <button
                   type="button"
                   onClick={() => handleGetDirections(selectedSite)}
-                  disabled={!hasUserMarker}
-                  title={hasUserMarker ? undefined : "Enable location to get directions"}
+                  disabled={!hasUserMarker || !selectedSitePinned}
+                  title={
+                    !selectedSitePinned
+                      ? "This site has no map pin yet"
+                      : hasUserMarker
+                        ? undefined
+                        : "Enable location to get directions"
+                  }
                   className="flex w-full items-center justify-center gap-2 rounded-full border border-ink/10 bg-cream px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-parchment disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Navigation className="size-4" />

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
+import { getInventoryCoverage } from "@/features/municipalities/services/inventory-coverage"
 import { getTouristMapSites, getTouristMapCategories, getCuratedTrails } from "@/features/gis/services/tourist-map"
 import { getMunicipalityBoundaries } from "@/features/gis/services"
 import { getMunicipalityOptions } from "@/features/municipalities/services"
@@ -30,12 +31,13 @@ export default async function HomeMapPage({ searchParams }: HomeMapPageProps) {
     homeLongitude = profile?.home_longitude ?? null
   }
 
-  const [sites, categories, curatedTrails, municipalities, boundaries] = await Promise.all([
+  const [sites, categories, curatedTrails, municipalities, boundaries, inventoryCoverage] = await Promise.all([
     getTouristMapSites(),
     getTouristMapCategories(),
     getCuratedTrails(),
     getMunicipalityOptions(),
     getMunicipalityBoundaries(),
+    getInventoryCoverage(),
   ])
 
   return (
@@ -44,6 +46,7 @@ export default async function HomeMapPage({ searchParams }: HomeMapPageProps) {
         sites={sites}
         categories={categories}
         curatedTrails={curatedTrails}
+        inventoryCoverage={inventoryCoverage}
         municipalities={municipalities}
         boundaries={boundaries}
         user={user}

@@ -5,11 +5,13 @@ import { TouristGISPanel } from "@/features/gis/components"
 import type { TouristMapSite, TouristMapCategory, CuratedTrail } from "@/features/gis/services/tourist-map"
 import type { GeoFeatureCollection } from "@/features/gis/types"
 import type { User } from "@supabase/supabase-js"
+import type { InventoryCoverage } from "@/features/municipalities/services/inventory-coverage"
 
 interface TouristMapClientProps {
   sites: TouristMapSite[]
   categories: TouristMapCategory[]
   curatedTrails: CuratedTrail[]
+  inventoryCoverage: InventoryCoverage | null
   municipalities: { id: string; name: string }[]
   boundaries: GeoFeatureCollection
   user: User | null
@@ -25,6 +27,7 @@ export function TouristMapClient({
   sites,
   categories,
   curatedTrails,
+  inventoryCoverage,
   municipalities,
   boundaries,
   user,
@@ -44,6 +47,7 @@ export function TouristMapClient({
       sites={sites}
       categories={categories}
       curatedTrails={curatedTrails}
+      inventoryCoverage={inventoryCoverage}
       municipalities={municipalities}
       boundaries={boundaries}
       user={user}

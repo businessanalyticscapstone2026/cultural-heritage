@@ -20,6 +20,9 @@ import {
   ShieldCheck,
 } from "lucide-react"
 import { getDashboardData } from "@/features/dashboard/services"
+import { getInventoryCoverage } from "@/features/municipalities/services/inventory-coverage"
+import InventoryCoverageCard from "@/features/municipalities/components/inventory-coverage-card"
+import { resolveAccessToken } from "@/utils/supabase/cached"
 import { DonutChart } from "@/components/dashboard/donut-chart"
 import { VisitsLineChart } from "@/components/dashboard/visits-line-chart"
 import { HeritageMap } from "@/components/dashboard/heritage-map"
@@ -28,7 +31,10 @@ import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
 import { formatCategoryName } from "@/lib/format-category"
 
 export default async function AdminDashboardPage() {
-  const data = await getDashboardData()
+  const [data, coverage] = await Promise.all([
+    getDashboardData(),
+    resolveAccessToken().then(getInventoryCoverage),
+  ])
   const totalCategoryCount = data.categoryBreakdown.reduce((acc, c) => acc + c.count, 0)
   const totalVisits = data.visitOverview.reduce((acc, v) => acc + v.count, 0)
 
@@ -92,6 +98,14 @@ export default async function AdminDashboardPage() {
           />
         </StaggerItem>
       </Stagger>
+
+      {/* Inventory coverage: encoded sites vs documented inventory (paper Table 4.1) */}
+      <Reveal>
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="mb-3 font-semibold">Heritage Inventory Coverage</h2>
+          <InventoryCoverageCard coverage={coverage} />
+        </div>
+      </Reveal>
 
       {/* Quick Actions */}
       <Reveal>

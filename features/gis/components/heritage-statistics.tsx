@@ -6,15 +6,19 @@ import { cn } from "@/lib/utils"
 import { useGisUiStore } from "../stores/gis-ui"
 import { isPointInBounds } from "@/utils/geo"
 import type { TouristMapSite, TouristMapCategory } from "../services/tourist-map"
+import type { InventoryCoverage } from "@/features/municipalities/services/inventory-coverage"
+import InventoryCoverageCard from "@/features/municipalities/components/inventory-coverage-card"
 
 interface HeritageStatisticsProps {
   sites: TouristMapSite[]
   categories: TouristMapCategory[]
+  inventoryCoverage: InventoryCoverage | null
 }
 
 export default function HeritageStatistics({
   sites,
   categories,
+  inventoryCoverage,
 }: HeritageStatisticsProps) {
   const { mapBounds, showStatsPanel, setShowStatsPanel } = useGisUiStore()
 
@@ -78,6 +82,13 @@ export default function HeritageStatistics({
 
       {showStatsPanel && (
         <div className="space-y-3 px-4 pb-3">
+          <div>
+            <span className="text-[10px] font-medium uppercase tracking-wider text-ink-soft">
+              Inventory Coverage
+            </span>
+            <InventoryCoverageCard coverage={inventoryCoverage} compact className="mt-1.5" />
+          </div>
+
           {stats.total === 0 && (
             <p className="py-2 text-center text-xs text-ink-soft">
               No sites in the current view. Pan or zoom to explore.

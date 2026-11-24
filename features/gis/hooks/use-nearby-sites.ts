@@ -25,7 +25,10 @@ export function useNearbySites(
 
     const withDistance = sites.map((s) => ({
       ...s,
-      distanceKm: haversineDistance(originLat, originLng, s.latitude, s.longitude),
+      distanceKm:
+        s.latitude != null && s.longitude != null
+          ? haversineDistance(originLat, originLng, s.latitude, s.longitude)
+          : null,
     }))
 
     withDistance.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))

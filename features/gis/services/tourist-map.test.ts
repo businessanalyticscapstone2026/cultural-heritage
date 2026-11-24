@@ -94,4 +94,62 @@ describe("getTouristMapSites", () => {
     expect(site.municipalityId).toBeNull()
     expect(site.municipalityName).toBeNull()
   })
+
+  test("keeps sites without coordinates (listed as 'No pin yet') and maps numeric strings to numbers", async () => {
+    setup([
+      {
+        id: SITE_WITH_CATEGORY_ID,
+        site_name: "Pinned Site",
+        latitude: "13.880800",
+        longitude: "120.922500",
+        geo_accuracy: "approximate",
+        category: null,
+        municipality: null,
+        media: [],
+      },
+      {
+        id: SITE_WITHOUT_CATEGORY_ID,
+        site_name: "Unpinned Site",
+        latitude: null,
+        longitude: null,
+        geo_accuracy: null,
+        category: null,
+        municipality: null,
+        media: [],
+      },
+    ])
+
+    const { getTouristMapSites } = await import("./tourist-map")
+    const [pinned, unpinned] = await getTouristMapSites()
+
+    expect(pinned.latitude).toBe(13.8808)
+    expect(pinned.longitude).toBe(120.9225)
+    expect(pinned.geoAccuracy).toBe("approximate")
+    expect(unpinned.latitude).toBeNull()
+    expect(unpinned.longitude).toBeNull()
+  })
+})
+
+describe("getCuratedTrails", () => {
+  test("drops stops whose site has no coordinates instead of drawing them at 0,0", async () => {
+    setup([
+      {
+        id: "route-1",
+        name: "Taal Walk",
+        total_distance_km: 1.2,
+        total_duration_minutes: 30,
+        stops: [
+          { stop_order: 2, site: { id: "b", site_name: "No Pin", latitude: null, longitude: null } },
+          { stop_order: 1, site: { id: "a", site_name: "Basilica", latitude: 13.8872, longitude: 120.9297 } },
+        ],
+      },
+    ])
+
+    const { getCuratedTrails } = await import("./tourist-map")
+    const [trail] = await getCuratedTrails()
+
+    expect(trail.stops).toEqual([
+      { siteId: "a", siteName: "Basilica", stopOrder: 1, latitude: 13.8872, longitude: 120.9297 },
+    ])
+  })
 })

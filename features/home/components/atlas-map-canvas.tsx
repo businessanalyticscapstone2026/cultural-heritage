@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { MapPin } from "lucide-react"
 import { Map, MapMarker, MarkerContent, MarkerPopup } from "@/components/ui/map"
 import type { HomeMapPin } from "@/features/home/types"
@@ -11,10 +12,15 @@ interface AtlasMapCanvasProps {
 }
 
 export function AtlasMapCanvas({ pins }: AtlasMapCanvasProps) {
-  const center: [number, number] =
-    pins.length > 0
-      ? [pins[0].longitude, pins[0].latitude]
-      : DISTRICT_CENTER
+  const center: [number, number] = useMemo(() => {
+    if (pins.length === 0) return DISTRICT_CENTER
+    const lngs = pins.map((p) => p.longitude)
+    const lats = pins.map((p) => p.latitude)
+    return [
+      (Math.min(...lngs) + Math.max(...lngs)) / 2,
+      (Math.min(...lats) + Math.max(...lats)) / 2,
+    ]
+  }, [pins])
 
   return (
     <Map center={center} zoom={10} className="h-full w-full" theme="light">

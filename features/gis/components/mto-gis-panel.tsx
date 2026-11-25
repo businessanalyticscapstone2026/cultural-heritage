@@ -40,10 +40,6 @@ const MarkerContent = dynamic(
   () => import("@/components/ui/map").then((m) => m.MarkerContent),
   { ssr: false },
 )
-const MarkerLabel = dynamic(
-  () => import("@/components/ui/map").then((m) => m.MarkerLabel),
-  { ssr: false },
-)
 const MapControls = dynamic(
   () => import("@/components/ui/map").then((m) => m.MapControls),
   { ssr: false },
@@ -461,7 +457,6 @@ export default function MTOGISPanel({
                     <Landmark className="size-2.5 text-white" />
                   </button>
                 </MarkerContent>
-                <MarkerLabel>{site.siteName}</MarkerLabel>
               </MapMarker>
             ))}
 

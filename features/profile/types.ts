@@ -8,6 +8,7 @@ export interface ProfileData {
   preferredCategoryIds: string[]
   travelStyle: string | null
   groupType: string | null
+  ageGroup: string | null
   accessibilityNeeds: string[]
   onboarded: boolean
 }

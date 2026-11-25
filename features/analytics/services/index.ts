@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { createTokenClient, resolveAccessToken } from "@/utils/supabase/cached"
 import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
-import { FIRST_DISTRICT_MUNICIPALITIES } from "@/lib/constants"
+import { FIRST_DISTRICT_MUNICIPALITIES, DEFAULT_AGE_GROUP } from "@/lib/constants"
 import { unwrapOne } from "@/lib/unwrap-one"
 import { MUNICIPALITY_COLORS, computeChange } from "../utils"
 import type {
@@ -292,7 +292,7 @@ async function fetchDemographics(
   const typeCounts = new Map<string, number>()
 
   for (const row of data) {
-    const age = (row.age_group as string) ?? "Unknown"
+    const age = (row.age_group as string) ?? DEFAULT_AGE_GROUP
     const type = ((row as unknown as { visitor_origin: string }).visitor_origin) ?? "Unknown"
     ageCounts.set(age, (ageCounts.get(age) ?? 0) + 1)
     typeCounts.set(type, (typeCounts.get(type) ?? 0) + 1)

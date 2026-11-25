@@ -14,7 +14,7 @@ const createStaffSchema = z.object({
   last_name: z.string().min(1, "Last name is required"),
   username: z.string().min(1, "Username is required"),
   role_id: z.string().min(1, "Role is required"),
-  municipality_id: z.string().optional(),
+  municipality_id: z.string().nullable().optional(),
 })
 
 const STAFF_RELATIONS_SELECT = `

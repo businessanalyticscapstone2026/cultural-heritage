@@ -47,13 +47,18 @@ export async function saveOnboardingStepTravelAction(
   userId: string,
   travelStyle: string | null,
   groupType: string | null,
+  ageGroup?: string | null,
 ) {
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
 
   const { error } = await supabase
     .from("tourist_profiles")
-    .update({ travel_style: travelStyle, group_type: groupType })
+    .update({
+      travel_style: travelStyle,
+      group_type: groupType,
+      age_group: ageGroup ?? null,
+    })
     .eq("id", userId)
 
   if (error) throw new Error(error.message)

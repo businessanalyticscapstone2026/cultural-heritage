@@ -23,7 +23,7 @@ const FEATURED_LIMIT = 4
 const TRENDING_LIMIT = 3
 const RECOMMENDED_LIMIT = 3
 const TESTIMONIAL_LIMIT = 3
-const MAP_PIN_LIMIT = 50
+const MAP_PIN_LIMIT = 500
 const DISTRICT_EVENTS_LIMIT = 3
 const TRENDING_WINDOW_DAYS = 30
 /** Below this many engagement events (visits + clicks) we fall back to most-reviewed. */

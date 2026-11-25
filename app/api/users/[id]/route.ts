@@ -7,12 +7,12 @@ import { getActorScope, getRoleNameById, getTargetMunicipalityId } from "@/lib/m
 import { logAuditEvent } from "@/features/audit/services"
 import { z } from "zod"
 
-const updateStaffSchema = z.object({
+export const updateStaffSchema = z.object({
   first_name: z.string().min(1, "First name is required").optional(),
-  last_name: z.string().min(1, "Last name is required").optional(),
+  last_name: z.string().min(1, "Last name is required").nullable().optional(),
   username: z.string().min(1, "Username is required").optional(),
   role_id: z.string().min(1, "Role is required").optional(),
-  municipality_id: z.string().optional(),
+  municipality_id: z.string().nullable().optional(),
 })
 
 const STAFF_RELATIONS_SELECT = `
@@ -179,6 +179,29 @@ export async function PATCH(
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Keep auth.users user_metadata synchronized if service role key is available
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const adminClient = createAdminClient()
+      const metadataUpdates: Record<string, string> = {}
+      if (first_name !== undefined) metadataUpdates.first_name = first_name
+      if (last_name !== undefined) metadataUpdates.last_name = last_name ?? ""
+      if (username !== undefined) metadataUpdates.username = username
+      if (first_name !== undefined || last_name !== undefined) {
+        const fn = first_name ?? data?.first_name ?? ""
+        const ln = last_name ?? data?.last_name ?? ""
+        metadataUpdates.full_name = [fn, ln].filter(Boolean).join(" ")
+      }
+      if (Object.keys(metadataUpdates).length > 0) {
+        await adminClient.auth.admin.updateUserById(id, {
+          user_metadata: metadataUpdates,
+        })
+      }
+    } catch {
+      // Non-blocking for auth metadata sync
+    }
   }
 
   try {

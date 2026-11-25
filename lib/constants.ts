@@ -98,6 +98,15 @@ export const GROUP_TYPES = [
   { value: "mixed", label: "Mixed" },
 ] as const
 
+export const AGE_GROUPS = [
+  { value: "18-24", label: "18 – 24" },
+  { value: "25-34", label: "25 – 34" },
+  { value: "35-54", label: "35 – 54" },
+  { value: "55+", label: "55+" },
+] as const
+
+export const DEFAULT_AGE_GROUP = "18-24"
+
 export const ACCESSIBILITY_NEEDS = [
   { value: "wheelchair", label: "Wheelchair Accessible" },
   { value: "visual", label: "Visual Assistance" },

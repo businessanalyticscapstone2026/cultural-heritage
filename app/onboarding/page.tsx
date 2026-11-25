@@ -21,7 +21,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { BrandLogo } from "@/components/brand/brand-logo"
 import { useAuth } from "@/context/auth-context"
-import { TRAVEL_STYLES, GROUP_TYPES, ACCESSIBILITY_NEEDS } from "@/lib/constants"
+import { TRAVEL_STYLES, GROUP_TYPES, AGE_GROUPS, ACCESSIBILITY_NEEDS } from "@/lib/constants"
 import {
   saveOnboardingStep1Action,
   saveOnboardingStep2Action,
@@ -135,6 +135,7 @@ export default function OnboardingPage() {
   const [homeLongitude, setHomeLongitude] = useState<number | null>(null)
   const [travelStyle, setTravelStyle] = useState<string | null>(null)
   const [groupType, setGroupType] = useState<string | null>(null)
+  const [ageGroup, setAgeGroup] = useState<string | null>(null)
   const [accessibilityNeeds, setAccessibilityNeeds] = useState<string[]>([])
   const [interests, setInterests] = useState<string[]>([])
   const [interestInput, setInterestInput] = useState("")
@@ -230,7 +231,7 @@ export default function OnboardingPage() {
       } else if (step === 1) {
         await saveOnboardingStep2Action(userId, homeLatitude, homeLongitude)
       } else if (step === 2) {
-        await saveOnboardingStepTravelAction(userId, travelStyle, groupType)
+        await saveOnboardingStepTravelAction(userId, travelStyle, groupType, ageGroup)
       } else if (step === 3) {
         await saveOnboardingStepAccessibilityAction(userId, accessibilityNeeds, interests)
         await completeOnboardingAction(userId)
@@ -243,7 +244,7 @@ export default function OnboardingPage() {
     } finally {
       setIsSaving(false)
     }
-  }, [step, userId, selectedCategoryIds, homeLatitude, homeLongitude, travelStyle, groupType, accessibilityNeeds, interests, router])
+  }, [step, userId, selectedCategoryIds, homeLatitude, homeLongitude, travelStyle, groupType, ageGroup, accessibilityNeeds, interests, router])
 
   const handleSkip = useCallback(async () => {
     if (!userId) return
@@ -251,7 +252,7 @@ export default function OnboardingPage() {
     try {
       await saveOnboardingStep1Action(userId, selectedCategoryIds)
       await saveOnboardingStep2Action(userId, homeLatitude, homeLongitude)
-      await saveOnboardingStepTravelAction(userId, travelStyle, groupType)
+      await saveOnboardingStepTravelAction(userId, travelStyle, groupType, ageGroup)
       await saveOnboardingStepAccessibilityAction(userId, accessibilityNeeds, interests)
       await completeOnboardingAction(userId)
       router.push("/home")
@@ -260,7 +261,7 @@ export default function OnboardingPage() {
     } finally {
       setIsSaving(false)
     }
-  }, [userId, selectedCategoryIds, homeLatitude, homeLongitude, travelStyle, groupType, accessibilityNeeds, interests, router])
+  }, [userId, selectedCategoryIds, homeLatitude, homeLongitude, travelStyle, groupType, ageGroup, accessibilityNeeds, interests, router])
 
   if (!session) {
     return null
@@ -492,6 +493,36 @@ export default function OnboardingPage() {
                       >
                         <span className={`text-sm ${isSelected ? "font-semibold text-[#0B2A4A]" : "text-gray-600"}`}>
                           {type.label}
+                        </span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-[#1D5FA8]" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Age Group */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-[#0B2A4A]">Age Group</h3>
+                  <span className="text-xs text-gray-400">Optional</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {AGE_GROUPS.map((group) => {
+                    const isSelected = ageGroup === group.value
+                    return (
+                      <button
+                        key={group.value}
+                        type="button"
+                        onClick={() => setAgeGroup(isSelected ? null : group.value)}
+                        className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-center transition-all ${
+                          isSelected
+                            ? "border-[#1D5FA8] bg-[#EAF2FB] ring-1 ring-[#1D5FA8]/20"
+                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <span className={`text-sm ${isSelected ? "font-semibold text-[#0B2A4A]" : "text-gray-600"}`}>
+                          {group.label}
                         </span>
                         {isSelected && <Check className="w-3.5 h-3.5 text-[#1D5FA8]" />}
                       </button>

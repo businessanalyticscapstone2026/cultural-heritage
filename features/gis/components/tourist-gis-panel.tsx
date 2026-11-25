@@ -48,7 +48,6 @@ import type { SiteWithDistance } from "../hooks/use-nearby-sites"
 import type { DrivingDirections } from "../services/directions"
 import type { GeoFeature, GeoFeatureCollection } from "../types"
 import type { User } from "@supabase/supabase-js"
-import type { InventoryCoverage } from "@/features/municipalities/services/inventory-coverage"
 
 /** Directions line colors: fastest road always green, another selected road blue, other roads gray. */
 const DIRECTIONS_COLORS = { fastest: "#16A34A", selected: "#2563EB", other: "#6B7280" }
@@ -120,7 +119,6 @@ interface TouristGISPanelProps {
   sites: TouristMapSite[]
   categories: TouristMapCategory[]
   curatedTrails: CuratedTrail[]
-  inventoryCoverage: InventoryCoverage | null
   municipalities: { id: string; name: string }[]
   boundaries: GeoFeatureCollection
   user: User | null
@@ -139,7 +137,6 @@ export default function TouristGISPanel({
   sites,
   categories,
   curatedTrails,
-  inventoryCoverage,
   municipalities,
   boundaries,
   user,
@@ -803,7 +800,7 @@ export default function TouristGISPanel({
           </div>
 
           {/* Heritage Statistics — counts update on pan/zoom via mapBounds */}
-          <HeritageStatistics sites={sites} categories={categories} inventoryCoverage={inventoryCoverage} />
+          <HeritageStatistics sites={sites} categories={categories} />
 
           {/* Nearby Destinations */}
           <NearbyDestinationsList

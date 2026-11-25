@@ -1,6 +1,5 @@
 import { cookies } from "next/headers"
 import { createClient, getAuthenticatedUser } from "@/utils/supabase/server"
-import { getInventoryCoverage } from "@/features/municipalities/services/inventory-coverage"
 import { getTouristMapSites, getTouristMapCategories, getCuratedTrails } from "@/features/gis/services/tourist-map"
 import { getMunicipalityBoundaries } from "@/features/gis/services"
 import { getMunicipalityOptions } from "@/features/municipalities/services"
@@ -19,7 +18,6 @@ export default async function MapPage({ searchParams }: MapPageProps) {
     getCuratedTrails(),
     getMunicipalityOptions(),
     getMunicipalityBoundaries(),
-    getInventoryCoverage(),
   ])
 
   const [sp, user] = await Promise.all([searchParams, getAuthenticatedUser()])
@@ -37,7 +35,7 @@ export default async function MapPage({ searchParams }: MapPageProps) {
   const supabase = createClient(cookieStore)
 
   // 2. Fetch user profile and await map data concurrently
-  const [profileResult, [sites, categories, curatedTrails, municipalities, boundaries, inventoryCoverage]] = await Promise.all([
+  const [profileResult, [sites, categories, curatedTrails, municipalities, boundaries]] = await Promise.all([
     supabase
       .from("tourist_profiles")
       .select("home_latitude, home_longitude")
@@ -54,7 +52,6 @@ export default async function MapPage({ searchParams }: MapPageProps) {
       sites={sites}
       categories={categories}
       curatedTrails={curatedTrails}
-      inventoryCoverage={inventoryCoverage}
       municipalities={municipalities}
       boundaries={boundaries}
       user={user}

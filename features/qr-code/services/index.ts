@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { revalidateTag } from "next/cache"
 import { CACHE_REVALIDATE_SECONDS, CACHE_TAGS } from "@/lib/cache-tags"
 import { extractQrCodeValue } from "@/lib/app-url"
+import { DEFAULT_AGE_GROUP } from "@/lib/constants"
 import type { ScanResult } from "../types"
 
 export async function resolveQRCode(rawCode: string): Promise<ScanResult> {
@@ -128,6 +129,16 @@ export async function recordScanEvent(rawCodeValue: string, deviceType?: string)
       data: { user },
     } = await supabase.auth.getUser()
 
+    let ageGroup: string = DEFAULT_AGE_GROUP
+    if (user) {
+      const { data: profile } = await supabase
+        .from("tourist_profiles")
+        .select("age_group")
+        .eq("id", user.id)
+        .maybeSingle()
+      ageGroup = profile?.age_group ?? DEFAULT_AGE_GROUP
+    }
+
     const { error: visitError } = await supabase.from("tourist_visits").insert({
       site_id: qrCode.site_id,
       visit_date: new Date().toISOString().slice(0, 10),
@@ -135,6 +146,7 @@ export async function recordScanEvent(rawCodeValue: string, deviceType?: string)
       visitor_type: "domestic",
       source: "qr_scan",
       tourist_id: user?.id ?? null,
+      age_group: ageGroup,
     })
     if (visitError) {
       console.warn("[QR] Failed to mirror tourist_visits:", visitError)

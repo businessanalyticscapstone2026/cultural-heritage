@@ -4,6 +4,7 @@ import { getHeritageSiteById, isBookmarked } from "@/features/heritage/services"
 import { getNearbySites } from "@/features/heritage/services/nearby"
 import { createClient } from "@/utils/supabase/server"
 import { cookies } from "next/headers"
+import { DEFAULT_AGE_GROUP } from "@/lib/constants"
 import HeritageDetailClient from "@/features/heritage/components/heritage-detail-client"
 
 interface PageProps {
@@ -50,6 +51,17 @@ export default async function HeritageDetailPage({ params, searchParams }: PageP
     const cookieStore = await cookies()
     const supabase = createClient(cookieStore)
     const { data: { user } } = await supabase.auth.getUser()
+
+    let ageGroup: string = DEFAULT_AGE_GROUP
+    if (user) {
+      const { data: profile } = await supabase
+        .from("tourist_profiles")
+        .select("age_group")
+        .eq("id", user.id)
+        .maybeSingle()
+      ageGroup = profile?.age_group ?? DEFAULT_AGE_GROUP
+    }
+
     await supabase.from("tourist_visits").insert({
       site_id: id,
       visit_date: today,
@@ -57,6 +69,7 @@ export default async function HeritageDetailPage({ params, searchParams }: PageP
       visitor_type: "domestic",
       source: "direct_search",
       tourist_id: user?.id ?? null,
+      age_group: ageGroup,
     })
   } catch {
     // Non-blocking

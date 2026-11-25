@@ -13,7 +13,7 @@ export async function getProfileAction(userId: string) {
 
   const { data, error } = await supabase
     .from("tourist_profiles")
-    .select("first_name, last_name, home_latitude, home_longitude, interests, preferred_category_ids, travel_style, group_type, accessibility_needs, onboarding_completed_at")
+    .select("first_name, last_name, home_latitude, home_longitude, interests, preferred_category_ids, travel_style, group_type, age_group, accessibility_needs, onboarding_completed_at")
     .eq("id", userId)
     .maybeSingle()
 
@@ -29,6 +29,7 @@ export async function getProfileAction(userId: string) {
     preferredCategoryIds: (data?.preferred_category_ids as string[]) ?? [],
     travelStyle: (data?.travel_style as string) ?? null,
     groupType: (data?.group_type as string) ?? null,
+    ageGroup: (data?.age_group as string) ?? null,
     accessibilityNeeds: (data?.accessibility_needs as string[]) ?? [],
     onboarded: data?.onboarding_completed_at != null,
   }
@@ -45,6 +46,7 @@ export async function updateProfileAction(
     preferredCategoryIds?: string[]
     travelStyle?: string | null
     groupType?: string | null
+    ageGroup?: string | null
     accessibilityNeeds?: string[]
   },
 ) {
@@ -60,6 +62,7 @@ export async function updateProfileAction(
   if (data.preferredCategoryIds !== undefined) updates.preferred_category_ids = data.preferredCategoryIds
   if (data.travelStyle !== undefined) updates.travel_style = data.travelStyle
   if (data.groupType !== undefined) updates.group_type = data.groupType
+  if (data.ageGroup !== undefined) updates.age_group = data.ageGroup
   if (data.accessibilityNeeds !== undefined) updates.accessibility_needs = data.accessibilityNeeds
 
   if (Object.keys(updates).length === 0) return

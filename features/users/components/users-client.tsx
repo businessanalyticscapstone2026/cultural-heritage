@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { UserPlus, Shield, Key } from "lucide-react"
 import { notifySuccess, notifyError, errorReason } from "@/lib/toast"
 import { stripEmptyStrings } from "../utils"
@@ -26,6 +27,7 @@ type UsersClientProps = {
 }
 
 export function UsersClient({ initialStaff, roles, municipalities }: UsersClientProps) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>("staff")
   const [staff, setStaff] = useState<StaffProfileWithRelations[]>(initialStaff)
   const [showStaffForm, setShowStaffForm] = useState(false)
@@ -61,6 +63,7 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
         )
         setStaff((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
         notifySuccess("Staff account updated.")
+        router.refresh()
       } else {
         const created = await apiClient<StaffProfileWithRelations>("/users", {
           method: "POST",
@@ -68,6 +71,7 @@ export function UsersClient({ initialStaff, roles, municipalities }: UsersClient
         })
         setStaff((prev) => [created, ...prev])
         notifySuccess("Staff account created.")
+        router.refresh()
       }
       setShowStaffForm(false)
       setEditingProfile(null)

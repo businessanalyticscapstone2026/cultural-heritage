@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Compass, Tag, X, Plus, Check, Users, Accessibility, Navigation } from "lucide-react"
-import { TRAVEL_STYLES, GROUP_TYPES, ACCESSIBILITY_NEEDS } from "@/lib/constants"
+import { Compass, Tag, X, Plus, Check, Users, Accessibility, Navigation, Calendar } from "lucide-react"
+import { TRAVEL_STYLES, GROUP_TYPES, AGE_GROUPS, ACCESSIBILITY_NEEDS } from "@/lib/constants"
 import { formatCategoryName } from "@/lib/format-category"
 import type { ProfileCategory } from "../types"
 
@@ -12,12 +12,14 @@ interface PreferencesTabProps {
   categories: ProfileCategory[]
   travelStyle: string | null
   groupType: string | null
+  ageGroup: string | null
   accessibilityNeeds: string[]
   onSave: (data: {
     preferredCategoryIds: string[]
     interests: string[]
     travelStyle: string | null
     groupType: string | null
+    ageGroup: string | null
     accessibilityNeeds: string[]
   }) => void
   saving: boolean
@@ -29,6 +31,7 @@ export default function PreferencesTab({
   categories,
   travelStyle: initialTravelStyle,
   groupType: initialGroupType,
+  ageGroup: initialAgeGroup,
   accessibilityNeeds: initialAccessibilityNeeds,
   onSave,
   saving,
@@ -38,6 +41,7 @@ export default function PreferencesTab({
   const [interestInput, setInterestInput] = useState("")
   const [selectedTravelStyle, setSelectedTravelStyle] = useState<string | null>(initialTravelStyle)
   const [selectedGroupType, setSelectedGroupType] = useState<string | null>(initialGroupType)
+  const [selectedAgeGroup, setSelectedAgeGroup] = useState<string | null>(initialAgeGroup)
   const [selectedAccessibilityNeeds, setSelectedAccessibilityNeeds] = useState<string[]>(initialAccessibilityNeeds)
 
   const hasChanges =
@@ -45,6 +49,7 @@ export default function PreferencesTab({
     JSON.stringify(currentInterests.sort()) !== JSON.stringify(interests.sort()) ||
     selectedTravelStyle !== initialTravelStyle ||
     selectedGroupType !== initialGroupType ||
+    selectedAgeGroup !== initialAgeGroup ||
     JSON.stringify(selectedAccessibilityNeeds.sort()) !== JSON.stringify(initialAccessibilityNeeds.sort())
 
   const handleToggleCategory = useCallback((categoryId: string) => {
@@ -210,6 +215,42 @@ export default function PreferencesTab({
         </div>
       </section>
 
+      {/* Age Group */}
+      <section>
+        <div className="mb-4">
+          <h3 className="flex items-center gap-2 text-display text-lg text-ink">
+            <Calendar size={18} strokeWidth={1.5} className="text-accent" />
+            Age Group
+          </h3>
+          <p className="mt-1 text-sm text-ink-soft">
+            Select your age bracket (optional) to help provide demographic insights.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {AGE_GROUPS.map((group) => {
+            const isSelected = selectedAgeGroup === group.value
+            return (
+              <button
+                key={group.value}
+                type="button"
+                onClick={() => setSelectedAgeGroup(isSelected ? null : group.value)}
+                className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-center transition-all ${
+                  isSelected
+                    ? "border-accent bg-accent/5 ring-1 ring-accent/20"
+                    : "border-ink/10 hover:border-ink/25 hover:bg-parchment/30"
+                }`}
+              >
+                <span className={`text-sm ${isSelected ? "font-medium text-ink" : "text-ink-soft"}`}>
+                  {group.label}
+                </span>
+                {isSelected && <Check size={12} strokeWidth={2} className="text-accent" />}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
       {/* Accessibility Needs */}
       <section>
         <div className="mb-4">
@@ -314,6 +355,7 @@ export default function PreferencesTab({
                 interests: currentInterests,
                 travelStyle: selectedTravelStyle,
                 groupType: selectedGroupType,
+                ageGroup: selectedAgeGroup,
                 accessibilityNeeds: selectedAccessibilityNeeds,
               })
             }

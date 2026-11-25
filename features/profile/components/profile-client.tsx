@@ -83,6 +83,7 @@ export default function ProfileClient({
       interests: string[]
       travelStyle: string | null
       groupType: string | null
+      ageGroup: string | null
       accessibilityNeeds: string[]
     }) => {
       await updateProfileAction(userId, {
@@ -90,6 +91,7 @@ export default function ProfileClient({
         interests: data.interests,
         travelStyle: data.travelStyle,
         groupType: data.groupType,
+        ageGroup: data.ageGroup,
         accessibilityNeeds: data.accessibilityNeeds,
       })
     },
@@ -249,6 +251,7 @@ export default function ProfileClient({
               categories={categories}
               travelStyle={profile.travelStyle}
               groupType={profile.groupType}
+              ageGroup={profile.ageGroup}
               accessibilityNeeds={profile.accessibilityNeeds}
               onSave={handleSavePreferences}
               saving={false}

@@ -68,6 +68,7 @@ updated_at timestamp with time zone NOT NULL DEFAULT now(),
 onboarding_completed_at timestamp with time zone,
 travel_style text,
 group_type text,
+age_group text,
 accessibility_needs ARRAY,
 CONSTRAINT tourist_profiles_pkey PRIMARY KEY (id),
 CONSTRAINT tourist_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)

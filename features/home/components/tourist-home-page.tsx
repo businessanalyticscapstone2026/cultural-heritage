@@ -589,7 +589,7 @@ export function TouristHomePage({ data }: TouristHomePageProps) {
               viewport={{ once: true, margin: "-80px" }}
               transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
             >
-              <AtlasMapPreview pins={mapPins} />
+              <AtlasMapPreview pins={mapPins} totalCount={atlasStats.heritageSiteCount} />
             </motion.div>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { unwrapOne } from "@/lib/unwrap-one"
 import { ATTRACTION_COLORS, computeChange } from "../utils"
 import { normalizeDeviceType } from "@/lib/device-type"
 import { CHART_PALETTE } from "@/lib/chart-colors"
+import { DEFAULT_AGE_GROUP } from "@/lib/constants"
 import type {
   MTOMetric,
   VisitorTrendPoint,
@@ -383,7 +384,7 @@ export async function getDemographics(
   const typeCounts = new Map<string, number>()
 
   for (const row of data) {
-    const age = (row.age_group as string) ?? "Unknown"
+    const age = (row.age_group as string) ?? DEFAULT_AGE_GROUP
     const type = ((row as unknown as { visitor_origin: string }).visitor_origin) ?? "Unknown"
     ageCounts.set(age, (ageCounts.get(age) ?? 0) + 1)
     typeCounts.set(type, (typeCounts.get(type) ?? 0) + 1)

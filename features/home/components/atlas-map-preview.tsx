@@ -15,9 +15,10 @@ const AtlasMapCanvas = dynamic(
 
 interface AtlasMapPreviewProps {
   pins: HomeMapPin[]
+  totalCount?: number
 }
 
-export function AtlasMapPreview({ pins }: AtlasMapPreviewProps) {
+export function AtlasMapPreview({ pins, totalCount }: AtlasMapPreviewProps) {
   const [isVisible, setIsVisible] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -61,7 +62,9 @@ export function AtlasMapPreview({ pins }: AtlasMapPreviewProps) {
       {/* Site count chip */}
       <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 rounded-full border border-ink/10 bg-background/90 px-3 py-1.5 text-xs font-medium text-ink shadow-sm backdrop-blur-sm">
         <span className="size-2 rounded-full bg-accent" />
-        {pins.length} {pins.length === 1 ? "SITE" : "SITES"}
+        {totalCount && totalCount !== pins.length
+          ? `${pins.length} OF ${totalCount} SITES MAPPED`
+          : `${pins.length} ${pins.length === 1 ? "SITE" : "SITES"}`}
       </div>
 
       {isVisible ? (

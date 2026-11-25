@@ -190,6 +190,8 @@ type MapProps = {
    * to enable controlled mode where the map viewport is driven by your state.
    */
   onViewportChange?: (viewport: MapViewport) => void;
+  /** Callback fired when map canvas is clicked */
+  onClick?: (e: MapLibreGL.MapMouseEvent) => void;
   /** Show a loading indicator on the map */
   loading?: boolean;
 } & Omit<MapLibreGL.MapOptions, "container" | "style">;
@@ -245,6 +247,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     projection,
     viewport,
     onViewportChange,
+    onClick,
     loading = false,
     ...props
   },
@@ -384,6 +387,23 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     mapInstance.jumpTo(next);
     internalUpdateRef.current = false;
   }, [mapInstance, isControlled, viewport]);
+
+  const onClickRef = useRef(onClick);
+  onClickRef.current = onClick;
+
+  // Handle map click events
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    const handleClick = (e: MapLibreGL.MapMouseEvent) => {
+      onClickRef.current?.(e);
+    };
+
+    mapInstance.on("click", handleClick);
+    return () => {
+      mapInstance.off("click", handleClick);
+    };
+  }, [mapInstance]);
 
   // Handle style change
   useEffect(() => {
@@ -798,22 +818,25 @@ function MarkerLabel({
   className,
   position = "top",
 }: MarkerLabelProps) {
+  const { marker } = useMarkerContext();
+
   const positionClasses = {
     top: "bottom-full mb-1",
     bottom: "top-full mt-1",
   };
 
-  return (
+  return createPortal(
     <div
       className={cn(
-        "absolute left-1/2 -translate-x-1/2 whitespace-nowrap",
-        "text-foreground text-[10px] font-medium",
+        "pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap select-none",
+        "text-foreground text-[10px] font-medium drop-shadow-sm",
         positionClasses[position],
         className,
       )}
     >
       {children}
-    </div>
+    </div>,
+    marker.getElement(),
   );
 }
 

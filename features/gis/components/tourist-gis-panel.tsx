@@ -33,7 +33,7 @@ import { getBoundsFromViewport } from "@/utils/geo"
 import { useGisUiStore } from "../stores/gis-ui"
 import { useNearbySites } from "../hooks/use-nearby-sites"
 import { fetchDrivingAlternatives } from "../services/directions"
-import { SPIDERFY_MAX_SITES, coordinateKey, groupByCoordinate, hasCoordinates, spiderfyOffsets } from "../services/coordinate-groups"
+import { coordinateKey, groupByCoordinate, hasCoordinates } from "../services/coordinate-groups"
 import MapEntryState from "./map-entry-state"
 import HeritageStatistics from "./heritage-statistics"
 import NearbyDestinationsList from "./nearby-destinations-list"
@@ -100,10 +100,6 @@ const MarkerLabel = dynamic(
 )
 const MapControls = dynamic(
   () => import("@/components/ui/map").then((m) => m.MapControls),
-  { ssr: false },
-)
-const MapPopup = dynamic(
-  () => import("@/components/ui/map").then((m) => m.MapPopup),
   { ssr: false },
 )
 const MapRoute = dynamic(
@@ -251,9 +247,6 @@ export default function TouristGISPanel({
   const pinnedSites = useMemo(() => nearbySites.filter(hasCoordinates), [nearbySites])
   const pinnedCount = filteredSites.filter(hasCoordinates).length
   const unpinnedCount = filteredSites.length - pinnedCount
-  const markerGroups = useMemo(() => groupByCoordinate(filteredSites), [filteredSites])
-  // Stack currently fanned out on the map (exact-coordinate group key).
-  const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null)
   // How many published sites share each exact coordinate (all sites, not just filtered).
   const coordinateShareCounts = useMemo(() => {
     const counts = new globalThis.Map<string, number>()
@@ -321,7 +314,6 @@ export default function TouristGISPanel({
         addRouteStop(site.id)
         return
       }
-      setExpandedGroupKey(pinned ? coordinateKey(site.latitude, site.longitude) : null)
       setSelectedSite(site)
       openDetail(site.id)
       setShowFilters(false)
@@ -385,7 +377,7 @@ export default function TouristGISPanel({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [isDetailOpen, handleCloseDetail])
 
-  const firstPinned = markerGroups[0]
+  const firstPinned = pinnedSites[0]
   const mapCenter: [number, number] =
     userLatitude != null && userLongitude != null
       ? [userLongitude, userLatitude]
@@ -910,112 +902,17 @@ export default function TouristGISPanel({
             </MapMarker>
           )}
 
-          {/* Site markers: one marker per exact coordinate. A stack of N sites shows
-              an "N" badge. On click, small stacks fan out into pins next to the point;
-              large stacks open a list popup on the point so nothing moves off it. */}
-          {markerGroups.map((group) => {
-            if (group.sites.length === 1) {
-              const site = group.sites[0]
-              return (
-                <MapMarker
-                  key={site.id}
-                  longitude={site.longitude}
-                  latitude={site.latitude}
-                  onClick={() => handleSiteClick(site)}
-                >
-                  <MarkerContent>{renderSiteMarkerButton(site)}</MarkerContent>
-                  <MarkerLabel>
-                    {site.siteName}
-                    {isRecommendedSite(site.id) && " ★"}
-                  </MarkerLabel>
-                </MapMarker>
-              )
-            }
-
-            const expanded = expandedGroupKey === group.key
-            const listInPopup = group.sites.length > SPIDERFY_MAX_SITES
-            const offsets = expanded && !listInPopup ? spiderfyOffsets(group.sites.length) : []
-            return (
-              <Fragment key={group.key}>
-                <MapMarker
-                  longitude={group.longitude}
-                  latitude={group.latitude}
-                  onClick={() => setExpandedGroupKey(expanded ? null : group.key)}
-                >
-                  <MarkerContent>
-                    <button
-                      type="button"
-                      aria-expanded={expanded}
-                      aria-label={`${group.sites.length} heritage sites at this location. ${expanded ? "Collapse" : "Show each site"}`}
-                      title={`${group.sites.length} sites at this location`}
-                      className={cn(
-                        "flex size-9 items-center justify-center rounded-full border-2 border-white bg-ink text-xs font-bold text-cream shadow-lg transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
-                        expanded && "ring-2 ring-accent",
-                      )}
-                    >
-                      {expanded ? <X className="size-4" /> : group.sites.length}
-                    </button>
-                  </MarkerContent>
-                  {!expanded && <MarkerLabel>{`${group.sites.length} sites here`}</MarkerLabel>}
-                </MapMarker>
-                {expanded && listInPopup && (
-                  <MapPopup
-                    longitude={group.longitude}
-                    latitude={group.latitude}
-                    onClose={() => setExpandedGroupKey(null)}
-                    closeButton
-                    offset={22}
-                    maxWidth="300px"
-                    className="p-0"
-                  >
-                    <div className="w-64">
-                      <p className="border-b border-ink/10 px-3 py-2 text-xs font-semibold text-ink">
-                        {group.sites.length} sites at this location
-                        <span className="block text-[10px] font-normal text-ink-soft">
-                          {[...new Set(group.sites.map((s) => s.municipalityName).filter(Boolean))].join(", ")}
-                          {" · exact positions not recorded yet"}
-                        </span>
-                      </p>
-                      <ul className="max-h-64 overflow-y-auto py-1" aria-label="Sites at this location">
-                        {group.sites.map((site) => (
-                          <li key={site.id}>
-                            <button
-                              type="button"
-                              onClick={() => handleSiteClick(site)}
-                              className={cn(
-                                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-parchment focus-visible:bg-parchment focus-visible:outline-none",
-                                selectedSiteId === site.id && "bg-accent/10 font-medium",
-                              )}
-                            >
-                              <span
-                                className="inline-block size-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: site.categoryColor ?? "#6366f1" }}
-                              />
-                              <span className="min-w-0 flex-1 truncate text-ink">{site.siteName}</span>
-                              {isRecommendedSite(site.id) && <Sparkles className="size-3 shrink-0 text-accent" />}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </MapPopup>
-                )}
-                {expanded &&
-                  !listInPopup &&
-                  group.sites.map((site, index) => (
-                    <MapMarker
-                      key={`${site.id}-spider`}
-                      longitude={site.longitude}
-                      latitude={site.latitude}
-                      offset={offsets[index]}
-                      onClick={() => handleSiteClick(site)}
-                    >
-                      <MarkerContent>{renderSiteMarkerButton(site)}</MarkerContent>
-                    </MapMarker>
-                  ))}
-              </Fragment>
-            )
-          })}
+          {/* Site markers: individual pins for every pinned heritage site */}
+          {filteredSites.filter(hasCoordinates).map((site) => (
+            <MapMarker
+              key={site.id}
+              longitude={site.longitude}
+              latitude={site.latitude}
+              onClick={() => handleSiteClick(site)}
+            >
+              <MarkerContent>{renderSiteMarkerButton(site)}</MarkerContent>
+            </MapMarker>
+          ))}
 
           {/* Route options overlay: other options thin and dashed (compare mode),
               the selected option thick and drawn last so it sits on top.
@@ -1067,7 +964,6 @@ export default function TouristGISPanel({
                   </span>
                 </div>
               </MarkerContent>
-              <MarkerLabel>{`${stop.stopOrder}. ${stop.siteName}`}</MarkerLabel>
             </MapMarker>
           ))}
 
@@ -1130,7 +1026,6 @@ export default function TouristGISPanel({
                     />
                   </div>
                 </MarkerContent>
-                <MarkerLabel>{directionsTarget.siteName}</MarkerLabel>
               </MapMarker>
             </>
           )}

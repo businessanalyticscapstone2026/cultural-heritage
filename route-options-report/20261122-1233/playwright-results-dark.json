@@ -1,0 +1,82 @@
+[
+  {
+    "name": "[dark] Start from shows 'My location' when geolocation is allowed",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "[dark] Option cards appear",
+    "ok": true,
+    "detail": "3 cards in 2257 ms"
+  },
+  {
+    "name": "[dark] No duplicate cards",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "[dark] Shortest has the fewest km, Fastest the fewest minutes",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "[dark] Shortest card is first and selected",
+    "ok": true,
+    "detail": "Shortest + Balanced + One town at a time: 59 kilometres, 67 minutes"
+  },
+  {
+    "name": "[dark] Shortest card has green bar",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "[dark] Recommended badge on Shortest",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "[dark] Delta chips shown on other cards",
+    "ok": true,
+    "detail": "+0.1 km · 0 min | +58 km · +57 min"
+  },
+  {
+    "name": "[dark] aria-live announcement",
+    "ok": true,
+    "detail": "3 route options found."
+  },
+  {
+    "name": "[dark] Mouse click selects option 2",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "[dark] Markers follow the selected option's order",
+    "ok": true,
+    "detail": "before: 6 5 4 3 2 1 | after: 6 5 4 3 1 2"
+  },
+  {
+    "name": "[dark] ArrowDown moves selection",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "[dark] Focus follows selection",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "[dark] ArrowUp back to Shortest",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "[dark] Compare toggle switched on",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "[dark] Changing 'Start from' clears old options",
+    "ok": true,
+    "detail": ""
+  }
+]

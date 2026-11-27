@@ -311,7 +311,10 @@ export default function ExploreClient({
           </Reveal>
         ) : (
           <>
-            <Stagger className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <Stagger
+              key={`${page}|${searchQuery}|${activeCategoryId ?? ""}|${activeMunicipalityId}|${activeHistoricalPeriod}|${activeAccessibility}`}
+              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+            >
               {initialData.sites.map((site: HeritageSite) => {
                 const isRecommended = recommendedSet.has(site.id)
                 return (

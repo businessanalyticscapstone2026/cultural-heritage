@@ -203,7 +203,16 @@ export default function TouristGISPanel({
   }, [setRecommendedSiteIds])
 
   const nearbySites = useNearbySites(sites, userLatitude, userLongitude)
-  const routePlanner = useRoutePlanner(userLatitude, userLongitude)
+  const siteCoordinates = useMemo(() => {
+    const coords: Record<string, { latitude: number; longitude: number }> = {}
+    for (const s of nearbySites) {
+      if (s.latitude != null && s.longitude != null) {
+        coords[s.id] = { latitude: s.latitude, longitude: s.longitude }
+      }
+    }
+    return coords
+  }, [nearbySites])
+  const routePlanner = useRoutePlanner(userLatitude, userLongitude, siteCoordinates)
   const selectedRouteOption = showRouteOnMap ? routePlanner.selectedOption : null
   const otherRouteOptions =
     showRouteOnMap && compareAllRoutes && routePlanner.result
@@ -308,17 +317,11 @@ export default function TouristGISPanel({
 
   const handleSiteClick = useCallback(
     (site: SiteWithDistance) => {
-      const pinned = hasCoordinates(site)
-      // Sites without a pin cannot be routed; open their details instead.
-      if (routePlanningMode && pinned) {
-        addRouteStop(site.id)
-        return
-      }
       setSelectedSite(site)
       openDetail(site.id)
       setShowFilters(false)
     },
-    [routePlanningMode, addRouteStop, openDetail],
+    [openDetail],
   )
 
   // Honor /map?site= deep links (e.g. tourism highlights "View on map" CTA)

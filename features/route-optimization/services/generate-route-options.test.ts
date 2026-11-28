@@ -125,4 +125,18 @@ describe("generateRouteOptions", () => {
     })
     expect(forced.travelMode).toBe("driving")
   })
+
+  it("honors custom siteCoordinates from map and uses them for stop locations", async () => {
+    const customCoords = {
+      [ID.ilagan]: { latitude: 13.879589, longitude: 120.923346 },
+    }
+    const result = await generateRouteOptions(fakeSupabase(), {
+      ...baseInput,
+      siteIds: [ID.basilica, ID.ilagan],
+      siteCoordinates: customCoords,
+    })
+    const ilaganStop = result.options[0].stops.find((s) => s.siteId === ID.ilagan)
+    expect(ilaganStop?.latitude).toBe(13.879589)
+    expect(ilaganStop?.longitude).toBe(120.923346)
+  })
 })

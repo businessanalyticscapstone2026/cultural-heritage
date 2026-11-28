@@ -21,6 +21,15 @@ const generateSchema = z.object({
   roundTrip: z.boolean(),
   travelMode: z.enum(["auto", "walking", "driving"]),
   includeMyOrder: z.boolean(),
+  siteCoordinates: z
+    .record(
+      z.string(),
+      z.object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+      }),
+    )
+    .optional(),
 })
 
 const saveSchema = z.object({

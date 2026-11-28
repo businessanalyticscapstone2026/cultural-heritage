@@ -5,6 +5,7 @@ import { Route, MapPin, Plus, X, Trash2, ChevronUp, ChevronDown, Sparkles, Info 
 import { motion, AnimatePresence } from "motion/react"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+import { compareByName } from "@/features/heritage/services/explore-sort"
 import { useGisUiStore } from "@/features/gis/stores/gis-ui"
 import { useSaveRoute, type RoutePlanner } from "../hooks"
 import type { RouteStartMode, RouteTravelMode } from "../types"
@@ -78,17 +79,16 @@ export default function RoutePlannerPanel({ sites, user, planner }: RoutePlanner
     [sites, routeStopIds],
   )
 
-  const filteredAddable = useMemo(
-    () =>
-      addQuery
-        ? addableSites.filter(
-            (s) =>
-              s.siteName.toLowerCase().includes(addQuery.toLowerCase()) ||
-              (s.municipalityName ?? "").toLowerCase().includes(addQuery.toLowerCase()),
-          )
-        : addableSites,
-    [addableSites, addQuery],
-  )
+  const filteredAddable = useMemo(() => {
+    const filtered = addQuery
+      ? addableSites.filter(
+          (s) =>
+            s.siteName.toLowerCase().includes(addQuery.toLowerCase()) ||
+            (s.municipalityName ?? "").toLowerCase().includes(addQuery.toLowerCase()),
+        )
+      : addableSites
+    return [...filtered].sort((a, b) => compareByName(a.siteName, b.siteName))
+  }, [addableSites, addQuery])
 
   const handleToggleMode = useCallback(() => {
     setRoutePlanningMode(!routePlanningMode)

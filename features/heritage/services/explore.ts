@@ -9,6 +9,13 @@ import type {
   HeritageSiteMedia,
   HeritageCategory,
 } from "@/types/heritage"
+import {
+  DEFAULT_EXPLORE_SORT,
+  sortExploreRows,
+  type ExploreOrigin,
+  type ExploreSort,
+  type ExploreSortRow,
+} from "./explore-sort"
 
 export interface ExploreResult {
   sites: HeritageSite[]
@@ -16,6 +23,7 @@ export interface ExploreResult {
   totalPages: number
   page: number
   pageSize: number
+  distancesKm: Record<string, number>
 }
 
 export interface ExploreCategory {
@@ -96,32 +104,30 @@ function mapDbRow(row: Record<string, unknown>): HeritageSite {
   }
 }
 
-export async function getPublishedSites(options: {
+interface ExploreFilters {
   search?: string
   categoryId?: string
   municipalityId?: string
   historicalPeriod?: string
   accessibility?: string
-  page?: number
-  pageSize?: number
-} = {}): Promise<ExploreResult> {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
+}
 
-  const page = Math.max(1, options.page ?? 1)
-  const pageSize = Math.max(1, Math.min(100, options.pageSize ?? 10))
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-
-  let query = supabase
-    .from("heritage_sites")
-    .select(`
+const EXPLORE_SITE_SELECT = `
       *,
       category:heritage_categories(*),
       municipality:municipalities(name),
       tags:heritage_site_tags(*),
       media:heritage_site_media(*)
-    `, { count: "exact" })
+    `
+
+function buildExploreSitesQuery(
+  supabase: ReturnType<typeof createClient>,
+  select: string,
+  options: ExploreFilters,
+) {
+  let query = supabase
+    .from("heritage_sites")
+    .select(select)
     .eq("publication_status", "published")
     .eq("visibility", "public")
 
@@ -150,18 +156,88 @@ export async function getPublishedSites(options: {
     query = query.ilike("accessibility_info", `%${escaped}%`)
   }
 
-  const { data, error, count } = await query
-    .order("created_at", { ascending: false })
+  return query
+}
+
+export async function getPublishedSites(options: ExploreFilters & {
+  page?: number
+  pageSize?: number
+  sort?: ExploreSort
+  recommendedSiteIds?: string[]
+  origin?: ExploreOrigin | null
+} = {}): Promise<ExploreResult> {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+
+  const page = Math.max(1, options.page ?? 1)
+  const pageSize = Math.max(1, Math.min(100, options.pageSize ?? 10))
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
+  // Query 1 (light): all matching rows, needed because sorting must happen
+  // across every match before the page slice is taken.
+  const { data: lightRows, error: lightError } = await buildExploreSitesQuery(
+    supabase,
+    "id, site_name, latitude, longitude, created_at",
+    options,
+  ).limit(1000)
+
+  if (lightError) throw lightError
+
+  const sortRows: ExploreSortRow[] = (lightRows ?? []).map((row) => {
+    const r = row as unknown as Record<string, unknown>
+    return {
+      id: r.id as string,
+      siteName: (r.site_name as string) ?? "",
+      latitude: (r.latitude as number | null) ?? null,
+      longitude: (r.longitude as number | null) ?? null,
+      createdAt: r.created_at as string,
+    }
+  })
+
+  const { orderedIds, distancesKm } = sortExploreRows(sortRows, {
+    sort: options.sort ?? DEFAULT_EXPLORE_SORT,
+    recommendedIds: new Set(options.recommendedSiteIds ?? []),
+    origin: options.origin ?? null,
+  })
+
+  const totalCount = orderedIds.length
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  const pageIds = orderedIds.slice(from, to + 1)
+
+  if (pageIds.length === 0) {
+    return { sites: [], totalCount, totalPages, page, pageSize, distancesKm: {} }
+  }
+
+  // Query 2 (full): only the rows on the current page.
+  const { data, error } = await buildExploreSitesQuery(
+    supabase,
+    EXPLORE_SITE_SELECT,
+    options,
+  )
+    .in("id", pageIds)
     .order("sort_order", { foreignTable: "heritage_site_media", ascending: true })
-    .range(from, to)
 
   if (error) throw error
 
-  const sites = (data ?? []).map((row) => mapDbRow(row))
-  const totalCount = count ?? 0
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  const rowsById = new Map<string, Record<string, unknown>>()
+  for (const row of data ?? []) {
+    const r = row as unknown as Record<string, unknown>
+    rowsById.set(r.id as string, r)
+  }
 
-  return { sites, totalCount, totalPages, page, pageSize }
+  const sites = pageIds
+    .map((id) => rowsById.get(id))
+    .filter((row): row is Record<string, unknown> => row !== undefined)
+    .map(mapDbRow)
+
+  const pageIdSet = new Set(pageIds)
+  const pageDistancesKm: Record<string, number> = {}
+  for (const [id, km] of Object.entries(distancesKm)) {
+    if (pageIdSet.has(id)) pageDistancesKm[id] = km
+  }
+
+  return { sites, totalCount, totalPages, page, pageSize, distancesKm: pageDistancesKm }
 }
 
 const getCachedExploreCategories = unstable_cache(

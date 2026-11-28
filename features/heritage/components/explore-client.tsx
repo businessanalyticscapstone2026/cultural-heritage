@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { Search, X, SlidersHorizontal, Star, MapPin, Clock, ChevronRight, ChevronLeft, Sparkles } from "lucide-react"
+import { Search, X, SlidersHorizontal, Star, MapPin, Clock, ChevronRight, ChevronLeft, Sparkles, ArrowUpDown } from "lucide-react"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Reveal, Stagger, StaggerItem } from "@/components/animations/reveal"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -13,6 +13,7 @@ import { trackRecommendationClickAction } from "@/features/recommendation/action
 import { formatCategoryName } from "@/lib/format-category"
 import type { HeritageSite } from "@/types/heritage"
 import type { ExploreResult, ExploreCategory } from "../services/explore"
+import { DEFAULT_EXPLORE_SORT, type ExploreSort } from "../services/explore-sort"
 
 interface ExploreClientProps {
   initialData: ExploreResult
@@ -24,6 +25,7 @@ interface ExploreClientProps {
   activeMunicipalityId: string
   activeHistoricalPeriod: string
   activeAccessibility: string
+  activeSort: ExploreSort
   recommendedSiteIds: string[]
   recommendedRecIdMap?: Record<string, string>
   initialBookmarkedIds: string[]
@@ -39,6 +41,7 @@ export default function ExploreClient({
   activeMunicipalityId,
   activeHistoricalPeriod,
   activeAccessibility,
+  activeSort,
   recommendedSiteIds,
   recommendedRecIdMap = {},
   initialBookmarkedIds,
@@ -52,6 +55,9 @@ export default function ExploreClient({
 
   const [accessibilityInput, setAccessibilityInput] = useState(activeAccessibility)
   const debouncedAccessibility = useDebounce(accessibilityInput, 300)
+
+  const [isLocating, setIsLocating] = useState(false)
+  const [locationError, setLocationError] = useState<string | null>(null)
 
   const bookmarkedIds = new Set(initialBookmarkedIds)
   const recommendedSet = new Set(recommendedSiteIds)
@@ -108,8 +114,66 @@ export default function ExploreClient({
   const clearAllFilters = () => {
     setSearchInput("")
     setAccessibilityInput("")
+    const params = new URLSearchParams()
+    for (const key of ["sort", "lat", "lng"]) {
+      const value = searchParams.get(key)
+      if (value) params.set(key, value)
+    }
+    const qs = params.toString()
     startTransition(() => {
-      router.replace("/explore", { scroll: false })
+      router.replace(`/explore${qs ? `?${qs}` : ""}`, { scroll: false })
+    })
+  }
+
+  const handleSortChange = (next: ExploreSort) => {
+    if (next === "distance") {
+      if (!navigator.geolocation) {
+        setLocationError("Your browser does not support location.")
+        return
+      }
+
+      setIsLocating(true)
+      setLocationError(null)
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setIsLocating(false)
+          startTransition(() => {
+            router.replace(
+              buildUrl({
+                sort: "distance",
+                lat: position.coords.latitude.toFixed(3),
+                lng: position.coords.longitude.toFixed(3),
+                page: "1",
+              }),
+              { scroll: false },
+            )
+          })
+        },
+        (error) => {
+          setIsLocating(false)
+          setLocationError(
+            error.code === error.PERMISSION_DENIED
+              ? "Location permission denied. Allow location access to sort by distance."
+              : "Could not get your location. Please try again.",
+          )
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+      )
+      return
+    }
+
+    setLocationError(null)
+    startTransition(() => {
+      router.replace(
+        buildUrl({
+          sort: next === DEFAULT_EXPLORE_SORT ? null : next,
+          lat: null,
+          lng: null,
+          page: "1",
+        }),
+        { scroll: false },
+      )
     })
   }
 
@@ -243,6 +307,26 @@ export default function ExploreClient({
             </div>
 
             <div className="flex items-center gap-1.5 rounded-full border border-ink/10 bg-card px-3 py-1.5">
+              <ArrowUpDown size={12} strokeWidth={1.5} className="text-ink-soft" />
+              <select
+                value={activeSort}
+                onChange={(e) => handleSortChange(e.target.value as ExploreSort)}
+                disabled={isLocating}
+                aria-label="Sort sites"
+                className="appearance-none bg-transparent text-xs text-ink outline-none cursor-pointer pr-4"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='8' height='5' viewBox='0 0 8 5' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L4 4L7 1' stroke='%23666' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 4px center",
+                }}
+              >
+                <option value="recommended">Recommended</option>
+                <option value="alphabetical">Alphabetical (A–Z)</option>
+                <option value="distance">Nearest first</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5 rounded-full border border-ink/10 bg-card px-3 py-1.5">
               <span className="font-mono text-[10px] uppercase tracking-widest text-ink-soft">♿</span>
               <input
                 type="text"
@@ -271,6 +355,10 @@ export default function ExploreClient({
               </button>
             )}
           </div>
+
+          {locationError && (
+            <p role="alert" className="text-xs text-red-700">{locationError}</p>
+          )}
         </div>
 
         <Reveal y={16} className="flex items-center justify-between py-6 font-mono text-xs uppercase tracking-[0.25em] text-ink-soft">
@@ -312,7 +400,7 @@ export default function ExploreClient({
         ) : (
           <>
             <Stagger
-              key={`${page}|${searchQuery}|${activeCategoryId ?? ""}|${activeMunicipalityId}|${activeHistoricalPeriod}|${activeAccessibility}`}
+              key={`${page}|${searchQuery}|${activeCategoryId ?? ""}|${activeMunicipalityId}|${activeHistoricalPeriod}|${activeAccessibility}|${activeSort}`}
               className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
             >
               {initialData.sites.map((site: HeritageSite) => {
@@ -370,6 +458,9 @@ export default function ExploreClient({
                               <Clock size={12} strokeWidth={1.5} />
                               {site.yearEstablished}
                             </span>
+                          )}
+                          {activeSort === "distance" && initialData.distancesKm[site.id] != null && (
+                            <span>{initialData.distancesKm[site.id].toFixed(1)} km away</span>
                           )}
                         </div>
 

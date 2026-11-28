@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
 import { getPublishedSites, getExploreCategories, getExploreFilterOptions } from "@/features/heritage/services/explore"
+import { parseExploreOrigin, parseExploreSort, resolveExploreSort } from "@/features/heritage/services/explore-sort"
 import { getGlobalSettingsPublic } from "@/features/settings/services"
 import ExploreClient from "@/features/heritage/components/explore-client"
 
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 }
 
 interface ExplorePageProps {
-  searchParams: Promise<{ q?: string; category?: string; municipality?: string; period?: string; accessibility?: string; page?: string }>
+  searchParams: Promise<{ q?: string; category?: string; municipality?: string; period?: string; accessibility?: string; page?: string; sort?: string; lat?: string; lng?: string }>
 }
 
 export default async function ExplorePage({ searchParams }: ExplorePageProps) {
@@ -23,6 +24,8 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
   const historicalPeriod = sp.period ?? ""
   const accessibility = sp.accessibility ?? ""
   const page = Math.max(1, Number(sp.page) || 1)
+  const origin = parseExploreOrigin(sp.lat, sp.lng)
+  const activeSort = resolveExploreSort(parseExploreSort(sp.sort), origin)
 
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
@@ -51,18 +54,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
     recQuery.eq("tourist_id", "00000000-0000-0000-0000-000000000000")
   }
 
-  const initialDataPromise = getPublishedSites({
-    search: searchQuery || undefined,
-    categoryId: categoryId || undefined,
-    municipalityId: municipalityId || undefined,
-    historicalPeriod: historicalPeriod || undefined,
-    accessibility: accessibility || undefined,
-    page,
-    pageSize,
-  })
-
-  const [initialData, recsResult, bookmarksResult] = await Promise.all([
-    initialDataPromise,
+  const [recsResult, bookmarksResult] = await Promise.all([
     recQuery,
     user
       ? supabase
@@ -89,6 +81,19 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
     bookmarkedSiteIds = bookmarksResult.data.map((row) => row.site_id)
   }
 
+  const initialData = await getPublishedSites({
+    search: searchQuery || undefined,
+    categoryId: categoryId || undefined,
+    municipalityId: municipalityId || undefined,
+    historicalPeriod: historicalPeriod || undefined,
+    accessibility: accessibility || undefined,
+    page,
+    pageSize,
+    sort: activeSort,
+    recommendedSiteIds,
+    origin,
+  })
+
   return (
     <div className="mx-auto max-w-7xl px-4 pt-10 pb-8 md:px-6 lg:px-10">
       <div className="mb-8">
@@ -110,6 +115,7 @@ export default async function ExplorePage({ searchParams }: ExplorePageProps) {
         activeMunicipalityId={municipalityId}
         activeHistoricalPeriod={historicalPeriod}
         activeAccessibility={accessibility}
+        activeSort={activeSort}
         recommendedSiteIds={recommendedSiteIds}
         recommendedRecIdMap={recommendedRecIdMap}
         initialBookmarkedIds={bookmarkedSiteIds}

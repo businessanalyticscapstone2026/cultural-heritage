@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
 import { getPublishedSites, getExploreCategories, getExploreFilterOptions } from "@/features/heritage/services/explore"
+import { parseExploreOrigin, parseExploreSort, resolveExploreSort } from "@/features/heritage/services/explore-sort"
 import { getGlobalSettingsPublic } from "@/features/settings/services"
 import ExploreClient from "@/features/heritage/components/explore-client"
 import ExploreSkeleton from "@/app/(public)/explore/loading"
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 }
 
 interface Props {
-  searchParams: Promise<{ q?: string; category?: string; municipality?: string; period?: string; accessibility?: string; page?: string }>
+  searchParams: Promise<{ q?: string; category?: string; municipality?: string; period?: string; accessibility?: string; page?: string; sort?: string; lat?: string; lng?: string }>
 }
 
 export default async function HomeExplorePage({ searchParams }: Props) {
@@ -25,6 +26,8 @@ export default async function HomeExplorePage({ searchParams }: Props) {
   const historicalPeriod = sp.period ?? ""
   const accessibility = sp.accessibility ?? ""
   const page = Math.max(1, Number(sp.page) || 1)
+  const origin = parseExploreOrigin(sp.lat, sp.lng)
+  const activeSort = resolveExploreSort(parseExploreSort(sp.sort), origin)
 
   const cookieStore = await cookies()
   const supabase = createClient(cookieStore)
@@ -39,18 +42,7 @@ export default async function HomeExplorePage({ searchParams }: Props) {
   const user = userResult.data.user
   const pageSize = globalSettings.itemsPerPage
 
-  const initialDataPromise = getPublishedSites({
-    search: searchQuery || undefined,
-    categoryId: categoryId || undefined,
-    municipalityId: municipalityId || undefined,
-    historicalPeriod: historicalPeriod || undefined,
-    accessibility: accessibility || undefined,
-    page,
-    pageSize,
-  })
-
-  const [initialData, recsResult, bookmarksResult] = await Promise.all([
-    initialDataPromise,
+  const [recsResult, bookmarksResult] = await Promise.all([
     user
       ? supabase
           .from("recommendations")
@@ -82,6 +74,19 @@ export default async function HomeExplorePage({ searchParams }: Props) {
     }
   }
 
+  const initialData = await getPublishedSites({
+    search: searchQuery || undefined,
+    categoryId: categoryId || undefined,
+    municipalityId: municipalityId || undefined,
+    historicalPeriod: historicalPeriod || undefined,
+    accessibility: accessibility || undefined,
+    page,
+    pageSize,
+    sort: activeSort,
+    recommendedSiteIds,
+    origin,
+  })
+
   return (
     <Suspense fallback={<ExploreSkeleton />}>
       <ExploreClient
@@ -94,6 +99,7 @@ export default async function HomeExplorePage({ searchParams }: Props) {
         activeMunicipalityId={municipalityId}
         activeHistoricalPeriod={historicalPeriod}
         activeAccessibility={accessibility}
+        activeSort={activeSort}
         recommendedSiteIds={recommendedSiteIds}
         initialBookmarkedIds={bookmarkedSiteIds}
       />

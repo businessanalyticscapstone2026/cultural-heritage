@@ -102,7 +102,10 @@ export async function generateRouteOptions(
   const excludedSites: ExcludedSite[] = []
   for (const id of siteIds) {
     const site = sitesById.get(id)
-    const problem = site ? coordinateProblem(site.latitude, site.longitude) : "Site not found"
+    const custom = input.siteCoordinates?.[id]
+    const lat = custom ? custom.latitude : site?.latitude ?? null
+    const lng = custom ? custom.longitude : site?.longitude ?? null
+    const problem = site ? coordinateProblem(lat, lng) : "Site not found"
     if (site && !problem) routable.push(site)
     else excludedSites.push({ id, name: site?.site_name ?? "Unknown site", reason: problem ?? "Site not found" })
   }
@@ -118,7 +121,14 @@ export async function generateRouteOptions(
     ...(useOrigin && input.origin
       ? [{ id: ORIGIN_ID, latitude: input.origin.latitude, longitude: input.origin.longitude }]
       : []),
-    ...routable.map((s) => ({ id: s.id, latitude: Number(s.latitude), longitude: Number(s.longitude) })),
+    ...routable.map((s) => {
+      const custom = input.siteCoordinates?.[s.id]
+      return {
+        id: s.id,
+        latitude: custom ? custom.latitude : Number(s.latitude),
+        longitude: custom ? custom.longitude : Number(s.longitude),
+      }
+    }),
   ]
 
   const travelMode = resolveTravelMode(input.travelMode, points)
@@ -143,7 +153,7 @@ export async function generateRouteOptions(
     roundTrip: input.roundTrip,
     maxTravelTimeMinutes: config.maxTravelTimeMinutes,
     preferShortestDistance: config.preferShortestDistance,
-    myOrder: input.includeMyOrder ? points.map((_, i) => i) : null,
+    myOrder: (input.includeMyOrder || routable.length >= 2) ? points.map((_, i) => i) : null,
   })
 
   const options = await Promise.all(
@@ -211,8 +221,8 @@ async function buildOption(
     stops.push({
       siteId: site.id,
       siteName: site.site_name,
-      latitude: Number(site.latitude),
-      longitude: Number(site.longitude),
+      latitude: ctx.points[pointIndex].latitude,
+      longitude: ctx.points[pointIndex].longitude,
       stopOrder: stops.length + 1,
       distanceFromPrevKm: legKm,
       travelTimeFromPrevMin: legMin,

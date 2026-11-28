@@ -108,4 +108,6 @@ export interface GenerateRouteOptionsInput {
   travelMode: RouteTravelMode
   /** Include the "My order" card (the user changed the order by hand). */
   includeMyOrder: boolean
+  /** Exact map display coordinates for sites (e.g. from barangay centre spreading). */
+  siteCoordinates?: Record<string, { latitude: number; longitude: number }>
 }

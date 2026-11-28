@@ -60,7 +60,11 @@ export function useRouteOptions(requestKey: string) {
  * current stops: the options, the selected one, and `findRoutes()`.
  * Pass the tourist's location, or nulls when it is not known.
  */
-export function useRoutePlanner(latitude: number | null, longitude: number | null) {
+export function useRoutePlanner(
+  latitude: number | null,
+  longitude: number | null,
+  siteCoordinates?: Record<string, { latitude: number; longitude: number }>,
+) {
   const {
     routeStopIds,
     routeStartMode,
@@ -76,7 +80,7 @@ export function useRoutePlanner(latitude: number | null, longitude: number | nul
   const startMode: RouteStartMode =
     routeStartMode === "origin" && !hasLocation ? "best" : (routeStartMode ?? (hasLocation ? "origin" : "best"))
 
-  const requestKey = JSON.stringify([routeStopIds, startMode, routeRoundTrip, routeTravelMode, routeOrderEdited])
+  const requestKey = JSON.stringify([routeStopIds, startMode, routeRoundTrip, routeTravelMode, routeOrderEdited, siteCoordinates])
   const { result, error, loading, generate } = useRouteOptions(requestKey)
 
   const findRoutes = useCallback(async () => {
@@ -86,7 +90,8 @@ export function useRoutePlanner(latitude: number | null, longitude: number | nul
       origin: startMode === "origin" && latitude !== null && longitude !== null ? { latitude, longitude } : null,
       roundTrip: routeRoundTrip,
       travelMode: routeTravelMode,
-      includeMyOrder: routeOrderEdited,
+      includeMyOrder: true,
+      siteCoordinates,
     })
     setShowRouteOnMap(true)
   }, [
@@ -97,7 +102,7 @@ export function useRoutePlanner(latitude: number | null, longitude: number | nul
     longitude,
     routeRoundTrip,
     routeTravelMode,
-    routeOrderEdited,
+    siteCoordinates,
     setShowRouteOnMap,
   ])
 

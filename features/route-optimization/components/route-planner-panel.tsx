@@ -171,54 +171,68 @@ export default function RoutePlannerPanel({ sites, user, planner }: RoutePlanner
               <div className="space-y-1">
                 {stopSites.length === 0 && (
                   <p className="py-3 text-center text-[11px] text-ink-soft/60">
-                    Click sites on the map or use the search below to add stops.
+                    Select sites on the map and click &quot;Add to Trip&quot;, or use the search below to add stops.
                   </p>
                 )}
-                {stopSites.map((site, i) => (
-                  <div
-                    key={site.id}
-                    className="flex items-center gap-2 rounded-lg border border-ink/10 bg-card px-2.5 py-1.5"
-                  >
-                    <span
-                      className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                      style={{ backgroundColor: STOP_COLORS[i % STOP_COLORS.length] }}
+                {stopSites.map((site, i) => {
+                  const activeStop = selectedOption?.stops.find((s) => s.siteId === site.id)
+                  const isReordered = activeStop && activeStop.stopOrder !== i + 1
+                  return (
+                    <div
+                      key={site.id}
+                      className="flex items-center gap-2 rounded-lg border border-ink/10 bg-card px-2.5 py-1.5"
                     >
-                      {i + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-ink">{site.siteName}</p>
-                      <p className="truncate text-[10px] text-ink-soft">{site.municipalityName ?? ""}</p>
+                      <span
+                        className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                        style={{ backgroundColor: STOP_COLORS[i % STOP_COLORS.length] }}
+                      >
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-xs font-medium text-ink">{site.siteName}</p>
+                          {activeStop && isReordered && (
+                            <span
+                              className="shrink-0 rounded bg-accent/15 px-1 py-0.2 text-[9px] font-bold text-accent"
+                              title={`Visits as stop #${activeStop.stopOrder} on the map route`}
+                            >
+                              Map #{activeStop.stopOrder}
+                            </span>
+                          )}
+                        </div>
+                        <p className="truncate text-[10px] text-ink-soft">{site.municipalityName ?? ""}</p>
+                      </div>
+                      <div className="flex shrink-0 gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => reorderRouteStops(i, i - 1)}
+                          disabled={i === 0}
+                          className="grid size-5 place-items-center rounded text-ink-soft hover:text-ink disabled:opacity-20"
+                          aria-label="Move stop up"
+                        >
+                          <ChevronUp className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => reorderRouteStops(i, i + 1)}
+                          disabled={i === stopSites.length - 1}
+                          className="grid size-5 place-items-center rounded text-ink-soft hover:text-ink disabled:opacity-20"
+                          aria-label="Move stop down"
+                        >
+                          <ChevronDown className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeRouteStop(site.id)}
+                          className="grid size-5 place-items-center rounded text-ink-soft hover:text-red-500"
+                          aria-label={`Remove ${site.siteName}`}
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() => reorderRouteStops(i, i - 1)}
-                        disabled={i === 0}
-                        className="grid size-5 place-items-center rounded text-ink-soft hover:text-ink disabled:opacity-20"
-                        aria-label="Move stop up"
-                      >
-                        <ChevronUp className="size-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => reorderRouteStops(i, i + 1)}
-                        disabled={i === stopSites.length - 1}
-                        className="grid size-5 place-items-center rounded text-ink-soft hover:text-ink disabled:opacity-20"
-                        aria-label="Move stop down"
-                      >
-                        <ChevronDown className="size-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeRouteStop(site.id)}
-                        className="grid size-5 place-items-center rounded text-ink-soft hover:text-red-500"
-                        aria-label={`Remove ${site.siteName}`}
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Add stop search */}
